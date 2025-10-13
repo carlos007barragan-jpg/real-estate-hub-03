@@ -24,17 +24,14 @@ interface Note {
   timestamp: string;
 }
 
-const LeadProfile = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  
-  // Mock data - in real app, this would be fetched based on ID
-  const lead = {
-    id: id || "1",
+// Mock leads data - same as in Leads.tsx
+const mockLeadsData = [
+  {
+    id: "1",
     name: "Sarah Johnson",
     email: "sarah.j@email.com",
     phone: "(555) 123-4567",
-    status: "new",
+    status: "new" as const,
     source: "Website",
     value: "$450,000",
     date: "2024-01-15",
@@ -47,7 +44,72 @@ const LeadProfile = () => {
       sqft: "2,500",
       budget: "$400,000 - $500,000",
     },
-  };
+  },
+  {
+    id: "2",
+    name: "Michael Chen",
+    email: "m.chen@email.com",
+    phone: "(555) 234-5678",
+    status: "contacted" as const,
+    source: "Referral",
+    value: "$650,000",
+    date: "2024-01-14",
+    assignedTo: "Maria Garcia",
+    propertyInterest: {
+      address: "456 Oak Avenue, Uptown",
+      propertyType: "Condo",
+      bedrooms: 3,
+      bathrooms: 2,
+      sqft: "1,800",
+      budget: "$600,000 - $700,000",
+    },
+  },
+  {
+    id: "3",
+    name: "Emily Rodriguez",
+    email: "emily.r@email.com",
+    phone: "(555) 345-6789",
+    status: "qualified" as const,
+    source: "Open House",
+    value: "$520,000",
+    date: "2024-01-13",
+    assignedTo: "John Smith",
+    propertyInterest: {
+      address: "789 Pine Road, Suburbs",
+      propertyType: "Townhouse",
+      bedrooms: 3,
+      bathrooms: 2.5,
+      sqft: "2,100",
+      budget: "$500,000 - $550,000",
+    },
+  },
+  {
+    id: "4",
+    name: "David Kim",
+    email: "david.kim@email.com",
+    phone: "(555) 456-7890",
+    status: "contacted" as const,
+    source: "Social Media",
+    value: "$380,000",
+    date: "2024-01-12",
+    assignedTo: "Alex Johnson",
+    propertyInterest: {
+      address: "321 Elm Street, Westside",
+      propertyType: "Single Family Home",
+      bedrooms: 3,
+      bathrooms: 2,
+      sqft: "1,600",
+      budget: "$350,000 - $400,000",
+    },
+  },
+];
+
+const LeadProfile = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  
+  // Find the lead based on ID
+  const lead = mockLeadsData.find(l => l.id === id) || mockLeadsData[0];
 
   const [messages, setMessages] = useState<Message[]>([
     {
