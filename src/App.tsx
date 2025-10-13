@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import Pipelines from "./pages/Pipelines";
@@ -19,17 +20,15 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/leads" element={<Leads />} />
-            <Route path="/pipelines" element={<Pipelines />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
+          <Route path="/leads" element={<Layout><Leads /></Layout>} />
+          <Route path="/pipelines" element={<Layout><Pipelines /></Layout>} />
+          <Route path="/contacts" element={<Layout><Contacts /></Layout>} />
+          <Route path="/settings" element={<Layout><Settings /></Layout>} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
