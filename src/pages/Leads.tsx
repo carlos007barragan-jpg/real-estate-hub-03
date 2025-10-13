@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Phone, Mail, MoreVertical } from "lucide-react";
+import { Search, Plus, Phone, Mail, MoreVertical, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Lead {
   id: string;
@@ -27,7 +34,16 @@ interface Lead {
   source: string;
   value: string;
   date: string;
+  assignedTo?: string;
 }
+
+
+const agents = [
+  { id: "1", name: "John Smith" },
+  { id: "2", name: "Maria Garcia" },
+  { id: "3", name: "Alex Johnson" },
+  { id: "4", name: "Lisa Chen" },
+];
 
 const mockLeads: Lead[] = [
   {
@@ -39,6 +55,7 @@ const mockLeads: Lead[] = [
     source: "Website",
     value: "$450,000",
     date: "2024-01-15",
+    assignedTo: "John Smith",
   },
   {
     id: "2",
@@ -49,6 +66,7 @@ const mockLeads: Lead[] = [
     source: "Referral",
     value: "$650,000",
     date: "2024-01-14",
+    assignedTo: "Maria Garcia",
   },
   {
     id: "3",
@@ -69,6 +87,7 @@ const mockLeads: Lead[] = [
     source: "Social Media",
     value: "$380,000",
     date: "2024-01-12",
+    assignedTo: "Alex Johnson",
   },
 ];
 
@@ -79,13 +98,23 @@ const statusColors = {
   unqualified: "bg-muted text-muted-foreground",
 };
 
+
 const Leads = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [leads, setLeads] = useState<Lead[]>(mockLeads);
 
-  const filteredLeads = mockLeads.filter((lead) =>
+  const filteredLeads = leads.filter((lead) =>
     lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lead.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleAssignLead = (leadId: string, agentName: string) => {
+    setLeads(
+      leads.map((lead) =>
+        lead.id === leadId ? { ...lead, assignedTo: agentName } : lead
+      )
+    );
+  };
 
   return (
     <div className="p-8">
@@ -120,6 +149,7 @@ const Leads = () => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Contact</TableHead>
+              <TableHead>Assigned To</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Value</TableHead>
@@ -142,6 +172,32 @@ const Leads = () => {
                       <span className="text-muted-foreground">{lead.phone}</span>
                     </div>
                   </div>
+                </TableCell>
+                <TableCell>
+                  {lead.assignedTo ? (
+                    <Badge variant="secondary" className="bg-primary/10 text-primary">
+                      {lead.assignedTo}
+                    </Badge>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="gap-2">
+                          <UserPlus className="h-3 w-3" />
+                          Assign
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="bg-popover">
+                        {agents.map((agent) => (
+                          <DropdownMenuItem
+                            key={agent.id}
+                            onClick={() => handleAssignLead(lead.id, agent.name)}
+                          >
+                            {agent.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Badge className={statusColors[lead.status]} variant="secondary">

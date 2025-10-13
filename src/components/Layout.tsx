@@ -1,4 +1,4 @@
-import { Building2, Users, Layers, Phone, Mail } from "lucide-react";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -13,9 +13,11 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Leads", url: "/leads", icon: Users },
   { title: "Pipelines", url: "/pipelines", icon: Layers },
   { title: "Contacts", url: "/contacts", icon: Phone },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
