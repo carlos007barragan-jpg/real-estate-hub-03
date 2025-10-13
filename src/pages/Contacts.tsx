@@ -239,139 +239,177 @@ const Contacts = () => {
   });
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Contacts</h1>
-            <p className="text-muted-foreground mt-1">Manage your book of business</p>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="p-6 md:p-8 max-w-7xl mx-auto">
+        {/* Header Section */}
+        <div className="mb-8 animate-fade-in">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+            <div>
+              <h1 className="text-4xl font-bold text-foreground mb-2 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                Book of Business
+              </h1>
+              <p className="text-muted-foreground">Manage and organize all your contacts in one place</p>
+            </div>
+            <Button className="gap-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-primary hover:bg-primary/90">
+              <Plus className="h-5 w-5" />
+              <span className="font-semibold">Add New Contact</span>
+            </Button>
           </div>
-          <Button className="gap-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <Plus className="h-5 w-5" />
-            <span className="font-semibold">Add New Contact</span>
-          </Button>
-        </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search contacts..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          {/* Search and Filter Bar */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, or company..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-11 h-11 bg-card shadow-sm border-border/50 focus:border-primary transition-colors"
+              />
+            </div>
+            
+            {selectedCategory === "vendors" && (
+              <Select value={vendorFilter} onValueChange={(value) => setVendorFilter(value as VendorSubcategory | "all")}>
+                <SelectTrigger className="w-full sm:w-[220px] h-11 bg-card shadow-sm">
+                  <SelectValue placeholder="Filter by trade" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover">
+                  <SelectItem value="all">All Trades</SelectItem>
+                  {Object.entries(vendorSubcategoryLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
-          
-          {selectedCategory === "vendors" && (
-            <Select value={vendorFilter} onValueChange={(value) => setVendorFilter(value as VendorSubcategory | "all")}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filter by trade" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover">
-                <SelectItem value="all">All Trades</SelectItem>
-                {Object.entries(vendorSubcategoryLabels).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
 
-        <Tabs value={selectedCategory} onValueChange={(value) => {
-          setSelectedCategory(value as ContactCategory | "all");
-          setVendorFilter("all");
-        }} className="w-full">
-          <TabsList className="w-full justify-start overflow-x-auto flex-wrap h-auto">
-            <TabsTrigger value="all" className="gap-2">
-              All Contacts
-              <Badge variant="secondary">{mockContacts.length}</Badge>
-            </TabsTrigger>
-            {Object.entries(categoryLabels).map(([key, label]) => (
-              <TabsTrigger key={key} value={key} className="gap-2">
-                {label}
-                <Badge variant="secondary">{getCategoryCount(key as ContactCategory)}</Badge>
+          {/* Category Tabs */}
+          <Tabs value={selectedCategory} onValueChange={(value) => {
+            setSelectedCategory(value as ContactCategory | "all");
+            setVendorFilter("all");
+          }} className="w-full">
+            <TabsList className="w-full justify-start overflow-x-auto flex-wrap h-auto gap-2 bg-muted/50 p-2">
+              <TabsTrigger value="all" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
+                All Contacts
+                <Badge variant="secondary" className="ml-1">{mockContacts.length}</Badge>
               </TabsTrigger>
+              {Object.entries(categoryLabels).map(([key, label]) => (
+                <TabsTrigger key={key} value={key} className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
+                  {label}
+                  <Badge variant="secondary" className="ml-1">{getCategoryCount(key as ContactCategory)}</Badge>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Results Section */}
+        {filteredContacts.length === 0 ? (
+          <div className="text-center py-20 animate-fade-in">
+            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+              <Search className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <p className="text-xl font-medium text-foreground mb-2">No contacts found</p>
+            <p className="text-muted-foreground">Try adjusting your search or filters</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
+            {filteredContacts.map((contact, index) => (
+              <Card 
+                key={contact.id} 
+                className="group relative overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                {/* Gradient Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                <div className="relative p-6">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary to-primary/60 text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg group-hover:scale-110 transition-transform duration-300">
+                        {contact.avatar}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-foreground truncate text-lg group-hover:text-primary transition-colors">
+                          {contact.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">{contact.lastContact}</p>
+                        {contact.company && (
+                          <p className="text-xs text-muted-foreground truncate font-medium mt-0.5">
+                            {contact.company}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="shrink-0 hover:bg-muted">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-popover w-48">
+                        <DropdownMenuItem>View Details</DropdownMenuItem>
+                        <DropdownMenuItem>Edit Contact</DropdownMenuItem>
+                        <DropdownMenuItem>Send Email</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  {/* Category Badge */}
+                  <div className="mb-4">
+                    <Badge variant="outline" className="text-xs font-medium border-primary/20 bg-primary/5">
+                      {categoryLabels[contact.category]}
+                      {contact.vendorSubcategory && ` • ${vendorSubcategoryLabels[contact.vendorSubcategory]}`}
+                    </Badge>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="space-y-3 mb-4">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/item">
+                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover/item:bg-primary/10 transition-colors">
+                        <Mail className="h-4 w-4" />
+                      </div>
+                      <span className="truncate">{contact.email}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/item">
+                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover/item:bg-primary/10 transition-colors">
+                        <Phone className="h-4 w-4" />
+                      </div>
+                      <span>{contact.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/item">
+                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover/item:bg-primary/10 transition-colors">
+                        <MapPin className="h-4 w-4" />
+                      </div>
+                      <span className="truncate">{contact.address}</span>
+                    </div>
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="pt-4 border-t border-border/50 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      <span className="text-sm font-medium text-foreground">
+                        {contact.properties} {contact.properties === 1 ? 'property' : 'properties'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="hover:bg-primary hover:text-primary-foreground transition-colors">
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" className="hover:bg-primary hover:text-primary-foreground transition-colors">
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
             ))}
-          </TabsList>
-        </Tabs>
+          </div>
+        )}
       </div>
-
-      {filteredContacts.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No contacts found</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredContacts.map((contact) => (
-            <Card key={contact.id} className="p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-lg">
-                    {contact.avatar}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground truncate">{contact.name}</h3>
-                    <p className="text-xs text-muted-foreground">{contact.lastContact}</p>
-                    {contact.company && (
-                      <p className="text-xs text-muted-foreground truncate">{contact.company}</p>
-                    )}
-                  </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-popover">
-                    <DropdownMenuItem>View Details</DropdownMenuItem>
-                    <DropdownMenuItem>Edit</DropdownMenuItem>
-                    <DropdownMenuItem>Send Email</DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              <div className="space-y-2 mb-3">
-                <Badge variant="outline" className="text-xs">
-                  {categoryLabels[contact.category]}
-                  {contact.vendorSubcategory && ` - ${vendorSubcategoryLabels[contact.vendorSubcategory]}`}
-                </Badge>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{contact.email}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Phone className="h-4 w-4 flex-shrink-0" />
-                  <span>{contact.phone}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{contact.address}</span>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  {contact.properties} {contact.properties === 1 ? 'property' : 'properties'}
-                </span>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Phone className="h-3 w-3" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Mail className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
