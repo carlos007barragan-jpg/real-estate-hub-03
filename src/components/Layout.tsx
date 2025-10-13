@@ -1,4 +1,4 @@
-import { Building2, LayoutDashboard, Users, Layers, Phone, Settings } from "lucide-react";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, Inbox as InboxIcon } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -17,6 +17,7 @@ const navItems = [
   { title: "Leads", url: "/leads", icon: Users },
   { title: "Pipelines", url: "/pipelines", icon: Layers },
   { title: "Contacts", url: "/contacts", icon: Phone },
+  { title: "Inbox", url: "/inbox", icon: InboxIcon },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
