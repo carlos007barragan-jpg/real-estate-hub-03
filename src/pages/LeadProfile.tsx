@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -24,6 +27,20 @@ interface Note {
   timestamp: string;
 }
 
+// Pipeline stages
+const pipelineStages = [
+  "New Lead",
+  "Contacted",
+  "Qualified",
+  "Showing Scheduled",
+  "Offer Made",
+  "Under Contract",
+  "Closed Won",
+  "Closed Lost"
+] as const;
+
+type PipelineStage = typeof pipelineStages[number];
+
 // Mock leads data - same as in Leads.tsx
 const mockLeadsData = [
   {
@@ -36,6 +53,7 @@ const mockLeadsData = [
     value: "$450,000",
     date: "2024-01-15",
     assignedTo: "John Smith",
+    pipelineStage: "Contacted" as PipelineStage,
     propertyInterest: {
       address: "123 Main Street, Downtown",
       propertyType: "Single Family Home",
@@ -55,6 +73,7 @@ const mockLeadsData = [
     value: "$650,000",
     date: "2024-01-14",
     assignedTo: "Maria Garcia",
+    pipelineStage: "Qualified" as PipelineStage,
     propertyInterest: {
       address: "456 Oak Avenue, Uptown",
       propertyType: "Condo",
@@ -74,6 +93,7 @@ const mockLeadsData = [
     value: "$520,000",
     date: "2024-01-13",
     assignedTo: "John Smith",
+    pipelineStage: "Showing Scheduled" as PipelineStage,
     propertyInterest: {
       address: "789 Pine Road, Suburbs",
       propertyType: "Townhouse",
@@ -93,6 +113,7 @@ const mockLeadsData = [
     value: "$380,000",
     date: "2024-01-12",
     assignedTo: "Alex Johnson",
+    pipelineStage: "New Lead" as PipelineStage,
     propertyInterest: {
       address: "321 Elm Street, Westside",
       propertyType: "Single Family Home",
@@ -107,9 +128,12 @@ const mockLeadsData = [
 const LeadProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   // Find the lead based on ID
-  const lead = mockLeadsData.find(l => l.id === id) || mockLeadsData[0];
+  const leadData = mockLeadsData.find(l => l.id === id) || mockLeadsData[0];
+  
+  const [currentStage, setCurrentStage] = useState<PipelineStage>(leadData.pipelineStage);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -164,6 +188,26 @@ const LeadProfile = () => {
     }
   };
 
+  const handleStageChange = (newStage: PipelineStage) => {
+    setCurrentStage(newStage);
+    toast({
+      title: "Pipeline Stage Updated",
+      description: `Lead moved to ${newStage}`,
+    });
+  };
+
+  const handleCall = () => {
+    toast({
+      title: "Call Feature",
+      description: "Autodialer integration required. Consider Twilio, RingCentral, or Aircall.",
+    });
+  };
+
+  const getStageProgress = () => {
+    const index = pipelineStages.indexOf(currentStage);
+    return ((index + 1) / pipelineStages.length) * 100;
+  };
+
   const statusColors = {
     new: "bg-info text-info-foreground",
     contacted: "bg-warning text-warning-foreground",
@@ -185,13 +229,43 @@ const LeadProfile = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">{lead.name}</h1>
+            <h1 className="text-3xl font-bold text-foreground">{leadData.name}</h1>
             <p className="text-muted-foreground">Lead Profile</p>
           </div>
-          <Badge className={statusColors[lead.status as keyof typeof statusColors]}>
-            {lead.status}
+          <Badge className={statusColors[leadData.status as keyof typeof statusColors]}>
+            {leadData.status}
           </Badge>
         </div>
+
+        {/* Pipeline Stage Card */}
+        <Card className="border-border/50 shadow-lg mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <MoveRight className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-lg">Pipeline Stage</h3>
+              </div>
+              <Select value={currentStage} onValueChange={handleStageChange}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelineStages.map((stage) => (
+                    <SelectItem key={stage} value={stage}>
+                      {stage}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Progress value={getStageProgress()} className="h-2" />
+              <p className="text-xs text-muted-foreground">
+                {pipelineStages.indexOf(currentStage) + 1} of {pipelineStages.length} stages complete
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Contact & Property Info */}
@@ -211,7 +285,7 @@ const LeadProfile = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="font-medium truncate">{lead.email}</p>
+                    <p className="font-medium truncate">{leadData.email}</p>
                   </div>
                 </div>
                 
@@ -221,7 +295,7 @@ const LeadProfile = () => {
                   </div>
                   <div className="flex-1">
                     <p className="text-xs text-muted-foreground">Phone</p>
-                    <p className="font-medium">{lead.phone}</p>
+                    <p className="font-medium">{leadData.phone}</p>
                   </div>
                 </div>
 
@@ -231,7 +305,7 @@ const LeadProfile = () => {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Lead Date</p>
-                    <p className="font-medium">{lead.date}</p>
+                    <p className="font-medium">{leadData.date}</p>
                   </div>
                 </div>
 
@@ -239,7 +313,7 @@ const LeadProfile = () => {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Source</p>
-                    <p className="font-medium">{lead.source}</p>
+                    <p className="font-medium">{leadData.source}</p>
                   </div>
                 </div>
 
@@ -247,14 +321,14 @@ const LeadProfile = () => {
                   <User className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Assigned To</p>
-                    <p className="font-medium">{lead.assignedTo || "Unassigned"}</p>
+                    <p className="font-medium">{leadData.assignedTo || "Unassigned"}</p>
                   </div>
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <Button className="flex-1 gap-2" variant="outline">
+                  <Button onClick={handleCall} className="flex-1 gap-2 bg-primary hover:bg-primary/90">
                     <Phone className="h-4 w-4" />
-                    Call
+                    Call Now
                   </Button>
                   <Button className="flex-1 gap-2" variant="outline">
                     <Mail className="h-4 w-4" />
@@ -277,7 +351,7 @@ const LeadProfile = () => {
                   <p className="text-xs text-muted-foreground mb-1">Address</p>
                   <div className="flex items-start gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <p className="font-medium text-sm">{lead.propertyInterest.address}</p>
+                    <p className="font-medium text-sm">{leadData.propertyInterest.address}</p>
                   </div>
                 </div>
 
@@ -286,19 +360,19 @@ const LeadProfile = () => {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <p className="text-xs text-muted-foreground">Type</p>
-                    <p className="font-medium">{lead.propertyInterest.propertyType}</p>
+                    <p className="font-medium">{leadData.propertyInterest.propertyType}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Beds/Baths</p>
-                    <p className="font-medium">{lead.propertyInterest.bedrooms} / {lead.propertyInterest.bathrooms}</p>
+                    <p className="font-medium">{leadData.propertyInterest.bedrooms} / {leadData.propertyInterest.bathrooms}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Sq Ft</p>
-                    <p className="font-medium">{lead.propertyInterest.sqft}</p>
+                    <p className="font-medium">{leadData.propertyInterest.sqft}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Budget</p>
-                    <p className="font-medium text-primary">{lead.propertyInterest.budget}</p>
+                    <p className="font-medium text-primary">{leadData.propertyInterest.budget}</p>
                   </div>
                 </div>
               </CardContent>
