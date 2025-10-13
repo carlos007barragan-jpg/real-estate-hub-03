@@ -1,8 +1,9 @@
-import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, Inbox as InboxIcon, PhoneCall } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, Inbox as InboxIcon, PhoneCall, LogOut } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -23,6 +24,12 @@ const navItems = [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    navigate("/");
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -63,6 +70,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
+
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleLogout} className="text-sidebar-foreground hover:bg-sidebar-accent/50">
+                  <LogOut className="h-4 w-4" />
+                  <span>Logout</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
         </Sidebar>
 
         <main className="flex-1 bg-background">
