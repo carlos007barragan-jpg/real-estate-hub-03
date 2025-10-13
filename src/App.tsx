@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import Pipelines from "./pages/Pipelines";
 import Contacts from "./pages/Contacts";
+import Communications from "./pages/Communications";
 import Inbox from "./pages/Inbox";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/leads" element={<Layout><Leads /></Layout>} />
           <Route path="/pipelines" element={<Layout><Pipelines /></Layout>} />
           <Route path="/contacts" element={<Layout><Contacts /></Layout>} />
+          <Route path="/communications" element={<Layout><Communications /></Layout>} />
           <Route path="/inbox" element={<Layout><Inbox /></Layout>} />
           <Route path="/settings" element={<Layout><Settings /></Layout>} />
           <Route path="*" element={<NotFound />} />
