@@ -246,9 +246,9 @@ const Contacts = () => {
             <h1 className="text-3xl font-bold text-foreground">Contacts</h1>
             <p className="text-muted-foreground mt-1">Manage your book of business</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Contact
+          <Button className="gap-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <Plus className="h-5 w-5" />
+            <span className="font-semibold">Add New Contact</span>
           </Button>
         </div>
 
