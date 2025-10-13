@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Plus, Phone, Mail, MoreVertical, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +101,7 @@ const statusColors = {
 
 
 const Leads = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
 
@@ -159,7 +161,11 @@ const Leads = () => {
           </TableHeader>
           <TableBody>
             {filteredLeads.map((lead) => (
-              <TableRow key={lead.id} className="hover:bg-muted/50 transition-colors">
+              <TableRow 
+                key={lead.id} 
+                className="hover:bg-muted/50 transition-colors cursor-pointer"
+                onClick={() => navigate(`/leads/${lead.id}`)}
+              >
                 <TableCell className="font-medium">{lead.name}</TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">

@@ -7,6 +7,7 @@ import { Layout } from "./components/Layout";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
+import LeadProfile from "./pages/LeadProfile";
 import Pipelines from "./pages/Pipelines";
 import Contacts from "./pages/Contacts";
 import Communications from "./pages/Communications";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
           <Route path="/leads" element={<Layout><Leads /></Layout>} />
+          <Route path="/leads/:id" element={<Layout><LeadProfile /></Layout>} />
           <Route path="/pipelines" element={<Layout><Pipelines /></Layout>} />
           <Route path="/contacts" element={<Layout><Contacts /></Layout>} />
           <Route path="/communications" element={<Layout><Communications /></Layout>} />
