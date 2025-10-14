@@ -350,13 +350,16 @@ const LeadProfile = () => {
                 </div>
 
                 <div className="flex gap-2 pt-2">
-                  <Button onClick={handleCall} className="flex-1 gap-2 bg-primary hover:bg-primary/90">
+                  <Button 
+                    onClick={() => window.location.href = `tel:${leadData.phone}`} 
+                    className="flex-1 gap-2 bg-success hover:bg-success/90"
+                  >
+                    <Phone className="h-4 w-4" />
+                    Call
+                  </Button>
+                  <Button onClick={handleCall} className="flex-1 gap-2" variant="outline">
                     <Phone className="h-4 w-4" />
                     Send SMS
-                  </Button>
-                  <Button className="flex-1 gap-2" variant="outline">
-                    <Mail className="h-4 w-4" />
-                    Email
                   </Button>
                 </div>
               </CardContent>
