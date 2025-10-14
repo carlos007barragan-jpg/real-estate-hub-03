@@ -1,4 +1,5 @@
 // Twilio SMS Edge Function
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +13,28 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { to, message } = await req.json();
+    const { to, message, leadId } = await req.json();
+    
+    // Get the authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('No authorization header');
+    }
+
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: {
+        headers: { Authorization: authHeader },
+      },
+    });
+
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      throw new Error('User not authenticated');
+    }
     
     // Normalize phone number to E.164 format
     const normalizedPhone = to.replace(/\D/g, ''); // Remove all non-digits
@@ -56,6 +78,26 @@ Deno.serve(async (req) => {
     }
     
     console.log('SMS sent successfully:', data.sid);
+    
+    // Log the SMS to the database
+    if (leadId) {
+      const { error: logError } = await supabase
+        .from('sms_logs')
+        .insert({
+          user_id: user.id,
+          lead_id: leadId,
+          to_number: e164Phone,
+          message: message,
+          status: 'sent',
+          message_sid: data.sid,
+        });
+
+      if (logError) {
+        console.error('Error logging SMS:', logError);
+      } else {
+        console.log('SMS logged successfully');
+      }
+    }
     
     return new Response(
       JSON.stringify({ success: true, messageSid: data.sid }),

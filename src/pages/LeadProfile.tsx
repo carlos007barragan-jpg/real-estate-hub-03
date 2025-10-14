@@ -103,22 +103,59 @@ const LeadProfile = () => {
     };
 
     fetchLead();
+
+    // Fetch SMS logs
+    const fetchMessages = async () => {
+      if (!id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('sms_logs')
+          .select('*')
+          .eq('lead_id', id)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (data) {
+          const formattedMessages: Message[] = data.map((log) => ({
+            id: log.id,
+            text: log.message,
+            sender: "agent",
+            timestamp: new Date(log.created_at).toLocaleString(),
+          }));
+          setMessages(formattedMessages);
+        }
+      } catch (error: any) {
+        console.error('Error fetching messages:', error);
+      }
+    };
+
+    fetchMessages();
+
+    // Subscribe to real-time SMS updates
+    const channel = supabase
+      .channel('sms_logs_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sms_logs',
+          filter: `lead_id=eq.${id}`,
+        },
+        () => {
+          fetchMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id, toast]);
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      text: "Hi, I'm interested in viewing the property on Main Street.",
-      sender: "lead",
-      timestamp: "2024-01-15 10:30 AM",
-    },
-    {
-      id: "2",
-      text: "Hello Sarah! I'd be happy to help. Are you available this weekend for a showing?",
-      sender: "agent",
-      timestamp: "2024-01-15 11:15 AM",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   const [notes, setNotes] = useState<Note[]>([
     {
@@ -132,16 +169,32 @@ const LeadProfile = () => {
   const [newMessage, setNewMessage] = useState("");
   const [newNote, setNewNote] = useState("");
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message: Message = {
-        id: (messages.length + 1).toString(),
-        text: newMessage,
-        sender: "agent",
-        timestamp: new Date().toLocaleString(),
-      };
-      setMessages([...messages, message]);
-      setNewMessage("");
+  const handleSendMessage = async () => {
+    if (newMessage.trim() && leadData) {
+      try {
+        const { error } = await supabase.functions.invoke('send-sms', {
+          body: {
+            to: leadData.phone,
+            message: newMessage,
+            leadId: leadData.id
+          }
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Message sent!",
+          description: `Message sent to ${leadData.name}`,
+        });
+        setNewMessage("");
+      } catch (error: any) {
+        console.error('Error sending message:', error);
+        toast({
+          title: "Failed to send message",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -193,7 +246,8 @@ const LeadProfile = () => {
       const { data, error } = await supabase.functions.invoke('send-sms', {
         body: {
           to: leadData.phone,
-          message: `Hi ${leadData.name}, this is ${leadData.assignedTo} from RealEstate CRM. I'd like to discuss your property interest. When would be a good time to talk?`
+          message: `Hi ${leadData.name}, this is ${leadData.assignedTo} from RealEstate CRM. I'd like to discuss your property interest. When would be a good time to talk?`,
+          leadId: leadData.id
         }
       });
 

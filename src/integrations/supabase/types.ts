@@ -122,6 +122,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_logs: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string
+          message: string
+          message_sid: string | null
+          status: string
+          to_number: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id: string
+          message: string
+          message_sid?: string | null
+          status?: string
+          to_number: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string
+          message?: string
+          message_sid?: string | null
+          status?: string
+          to_number?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
