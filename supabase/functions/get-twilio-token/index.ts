@@ -15,16 +15,16 @@ Deno.serve(async (req) => {
     const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
     const apiKey = Deno.env.get('TWILIO_API_KEY');
     const apiSecret = Deno.env.get('TWILIO_API_SECRET');
-    const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER');
+    const twimlAppSid = Deno.env.get('TWILIO_TWIML_APP_SID');
     
-    if (!accountSid || !authToken || !apiKey || !apiSecret || !twilioPhone) {
+    if (!accountSid || !authToken || !apiKey || !apiSecret || !twimlAppSid) {
       throw new Error('Twilio credentials not configured');
     }
 
     const { identity } = await req.json();
     
     // Generate access token using Twilio REST API
-    const token = await generateToken(accountSid, apiKey, apiSecret, identity, twilioPhone);
+    const token = await generateToken(accountSid, apiKey, apiSecret, identity, twimlAppSid);
     
     return new Response(
       JSON.stringify({ token }),
