@@ -23,17 +23,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen w-full bg-background">
       {/* Horizontal Navigation Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-card shadow-sm">
+      <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-md">
         <div className="flex h-16 items-center px-4 md:px-6">
           {/* Logo/Brand */}
           <div className="flex items-center gap-2 mr-6">
-            <Building2 className="h-6 w-6 text-primary" />
+            <Building2 className="h-6 w-6 text-primary-foreground" />
             <div className="hidden sm:block">
-              <h1 className="text-lg font-bold text-foreground">RealEstate CRM</h1>
+              <h1 className="text-lg font-bold text-primary-foreground">RealEstate CRM</h1>
             </div>
           </div>
 
-          <Separator orientation="vertical" className="h-8 mr-4 hidden md:block" />
+          <Separator orientation="vertical" className="h-8 mr-4 hidden md:block bg-primary-foreground/20" />
 
           {/* Navigation Links */}
           <nav className="flex items-center gap-1 flex-1 overflow-x-auto">
@@ -44,8 +44,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 className={({ isActive }) =>
                   `inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-primary-foreground text-primary"
+                      : "text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
                   }`
                 }
               >
@@ -60,7 +60,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             variant="ghost"
             size="sm"
             onClick={handleLogout}
-            className="ml-4 gap-2"
+            className="ml-4 gap-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
           >
             <LogOut className="h-4 w-4" />
             <span className="hidden sm:inline">Logout</span>
