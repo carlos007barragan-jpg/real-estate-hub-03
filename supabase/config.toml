@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.recording-callback]
 verify_jwt = false
+
+[functions.get-recording]
+verify_jwt = true

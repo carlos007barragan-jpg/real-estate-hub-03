@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "./ui/card";
-import { Phone, Play } from "lucide-react";
+import { Phone, Play, Pause, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface CallLog {
   id: string;
@@ -22,8 +23,12 @@ interface CallHistoryProps {
 }
 
 export const CallHistory = ({ leadId }: CallHistoryProps) => {
+  const { toast } = useToast();
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [playingCallId, setPlayingCallId] = useState<string | null>(null);
+  const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchCallLogs = async () => {
     try {
@@ -74,8 +79,67 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const playRecording = (url: string) => {
-    window.open(url, '_blank');
+  const playRecording = async (callId: string, url: string) => {
+    try {
+      setLoadingAudio(callId);
+
+      // If already playing this recording, pause it
+      if (playingCallId === callId && audioRef.current) {
+        audioRef.current.pause();
+        setPlayingCallId(null);
+        setLoadingAudio(null);
+        return;
+      }
+
+      // Stop any currently playing audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+
+      // Fetch the recording through our proxy
+      const { data, error } = await supabase.functions.invoke('get-recording', {
+        body: { recordingUrl: url }
+      });
+
+      if (error) throw error;
+
+      // Create a blob URL from the audio data
+      const audioBlob = new Blob([data], { type: 'audio/wav' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Create and play the audio
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setPlayingCallId(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        toast({
+          title: "Playback Error",
+          description: "Failed to play the recording",
+          variant: "destructive",
+        });
+        setPlayingCallId(null);
+        setLoadingAudio(null);
+      };
+
+      await audio.play();
+      setPlayingCallId(callId);
+      setLoadingAudio(null);
+
+    } catch (error) {
+      console.error('Error playing recording:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load recording",
+        variant: "destructive",
+      });
+      setLoadingAudio(null);
+    }
   };
 
   if (loading) {
@@ -124,11 +188,18 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => playRecording(log.recording_url!)}
+                onClick={() => playRecording(log.id, log.recording_url!)}
+                disabled={loadingAudio === log.id}
                 className="gap-2"
               >
-                <Play className="h-3 w-3" />
-                Play Recording
+                {loadingAudio === log.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : playingCallId === log.id ? (
+                  <Pause className="h-3 w-3" />
+                ) : (
+                  <Play className="h-3 w-3" />
+                )}
+                {playingCallId === log.id ? 'Pause' : 'Play Recording'}
               </Button>
             )}
           </div>
