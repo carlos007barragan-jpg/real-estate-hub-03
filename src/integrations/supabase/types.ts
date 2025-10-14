@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      call_logs: {
+        Row: {
+          call_sid: string
+          created_at: string
+          duration: number | null
+          from_number: string
+          id: string
+          lead_id: string
+          recording_duration: number | null
+          recording_url: string | null
+          status: string
+          to_number: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          call_sid: string
+          created_at?: string
+          duration?: number | null
+          from_number: string
+          id?: string
+          lead_id: string
+          recording_duration?: number | null
+          recording_url?: string | null
+          status?: string
+          to_number: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          call_sid?: string
+          created_at?: string
+          duration?: number | null
+          from_number?: string
+          id?: string
+          lead_id?: string
+          recording_duration?: number | null
+          recording_url?: string | null
+          status?: string
+          to_number?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           assigned_to: string | null

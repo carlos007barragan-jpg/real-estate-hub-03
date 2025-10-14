@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
+import { CallHistory } from "@/components/CallHistory";
 
 interface Message {
   id: string;
@@ -443,9 +444,10 @@ const LeadProfile = () => {
             <Card className="border-border/50 shadow-lg h-[calc(100vh-12rem)]">
               <Tabs defaultValue="messages" className="h-full flex flex-col">
                 <CardHeader className="pb-3">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="messages">Messages</TabsTrigger>
                     <TabsTrigger value="notes">Notes</TabsTrigger>
+                    <TabsTrigger value="calls">Call History</TabsTrigger>
                   </TabsList>
                 </CardHeader>
 
@@ -522,6 +524,12 @@ const LeadProfile = () => {
                       Add Note
                     </Button>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="calls" className="flex-1 flex flex-col m-0 px-6 pb-6">
+                  <ScrollArea className="flex-1 pr-4">
+                    <CallHistory leadId={id!} />
+                  </ScrollArea>
                 </TabsContent>
               </Tabs>
             </Card>

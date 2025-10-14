@@ -2,3 +2,6 @@ project_id = "lkyvsicmhaihzbuyszwo"
 
 [functions.voice-webhook]
 verify_jwt = false
+
+[functions.recording-callback]
+verify_jwt = false

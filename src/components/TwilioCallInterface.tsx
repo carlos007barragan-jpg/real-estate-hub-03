@@ -106,6 +106,20 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
       setCall(outgoingCall);
       setCallDuration(0);
 
+      // Log the call initiation
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && outgoingCall.parameters.CallSid) {
+        const leadId = window.location.pathname.split('/').pop();
+        await supabase.from('call_logs').insert({
+          user_id: user.id,
+          lead_id: leadId,
+          call_sid: outgoingCall.parameters.CallSid,
+          from_number: 'browser',
+          to_number: e164Phone,
+          status: 'ringing',
+        });
+      }
+
       // Start duration counter
       intervalRef.current = window.setInterval(() => {
         setCallDuration(prev => prev + 1);
@@ -129,7 +143,10 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
     }
   };
 
-  const endCall = () => {
+  const endCall = async () => {
+    const finalDuration = callDuration;
+    const currentCallSid = call?.parameters.CallSid;
+    
     if (call) {
       call.disconnect();
     }
@@ -137,13 +154,25 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    
+    // Update call log with final duration
+    if (currentCallSid) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('call_logs').update({
+          status: 'completed',
+          duration: finalDuration,
+        }).eq('call_sid', currentCallSid);
+      }
+    }
+    
     setCall(null);
     setCallDuration(0);
     setIsMuted(false);
     
     toast({
       title: "Call Ended",
-      description: `Duration: ${formatDuration(callDuration)}`,
+      description: `Duration: ${formatDuration(finalDuration)}`,
     });
     
     onCallEnd?.();

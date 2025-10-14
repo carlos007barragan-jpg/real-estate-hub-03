@@ -16,10 +16,14 @@ Deno.serve(async (req) => {
     
     console.log('Voice webhook called with To:', to);
     
-    // Return TwiML to dial the destination number
+    // Get the recording callback URL
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const recordingCallbackUrl = `${supabaseUrl}/functions/v1/recording-callback`;
+    
+    // Return TwiML to dial the destination number with recording enabled
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Dial callerId="${Deno.env.get('TWILIO_PHONE_NUMBER')}">${to}</Dial>
+  <Dial callerId="${Deno.env.get('TWILIO_PHONE_NUMBER')}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST">${to}</Dial>
 </Response>`;
 
     return new Response(twiml, {

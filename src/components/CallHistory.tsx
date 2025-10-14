@@ -1,0 +1,139 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "./ui/card";
+import { Phone, Play } from "lucide-react";
+import { Button } from "./ui/button";
+import { formatDistanceToNow } from "date-fns";
+
+interface CallLog {
+  id: string;
+  call_sid: string;
+  from_number: string;
+  to_number: string;
+  status: string;
+  duration: number | null;
+  recording_url: string | null;
+  recording_duration: number | null;
+  created_at: string;
+}
+
+interface CallHistoryProps {
+  leadId: string;
+}
+
+export const CallHistory = ({ leadId }: CallHistoryProps) => {
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCallLogs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('call_logs')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCallLogs(data || []);
+    } catch (error) {
+      console.error('Error fetching call logs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCallLogs();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('call_logs_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'call_logs',
+          filter: `lead_id=eq.${leadId}`,
+        },
+        () => {
+          fetchCallLogs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [leadId]);
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const playRecording = (url: string) => {
+    window.open(url, '_blank');
+  };
+
+  if (loading) {
+    return <div className="text-muted-foreground">Loading call history...</div>;
+  }
+
+  if (callLogs.length === 0) {
+    return (
+      <Card className="p-6">
+        <p className="text-muted-foreground text-center">No call history yet</p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {callLogs.map((log) => (
+        <Card key={log.id} className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Phone className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <div className="font-medium">
+                  {log.from_number} → {log.to_number}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                </div>
+                <div className="flex items-center gap-4 mt-2 text-sm">
+                  <span className="text-muted-foreground">
+                    Duration: {formatDuration(log.duration)}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs ${
+                    log.status === 'completed' 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {log.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {log.recording_url && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => playRecording(log.recording_url!)}
+                className="gap-2"
+              >
+                <Play className="h-3 w-3" />
+                Play Recording
+              </Button>
+            )}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+};
