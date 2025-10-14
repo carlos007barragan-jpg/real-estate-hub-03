@@ -399,20 +399,17 @@ const LeadProfile = () => {
         </div>
 
         {/* Lead Lifecycle Card */}
-        <Card className="border border-border/40 shadow-sm hover:shadow-md transition-all duration-300">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <MoveRight className="h-5 w-5 text-primary" />
+        <Card className="border border-border/40 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded bg-primary/10">
+                  <MoveRight className="h-4 w-4 text-primary" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Lead Lifecycle</h3>
-                  <p className="text-sm text-muted-foreground">Track lead progress before pipeline</p>
-                </div>
+                <h3 className="font-semibold text-sm">Lead Lifecycle</h3>
               </div>
               <Select value={currentLifecycle} onValueChange={handleLifecycleChange}>
-                <SelectTrigger className="w-full sm:w-[220px] bg-muted/50 border-border/50">
+                <SelectTrigger className="w-[180px] h-8 text-sm bg-muted/50 border-border/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -424,10 +421,10 @@ const LeadProfile = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-3">
-              <Progress value={getLifecycleProgress()} className="h-3" />
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground font-medium">
+            <div className="space-y-2">
+              <Progress value={getLifecycleProgress()} className="h-2" />
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
                   Stage {leadLifecycleStages.indexOf(currentLifecycle) + 1} of {leadLifecycleStages.length}
                 </span>
                 <span className="text-primary font-semibold">{Math.round(getLifecycleProgress())}%</span>
