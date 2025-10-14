@@ -227,6 +227,36 @@ const LeadProfile = () => {
     }
   };
 
+  const handleMakeCall = async () => {
+    try {
+      toast({
+        title: "Initiating call...",
+        description: "Please wait",
+      });
+
+      const { data, error } = await supabase.functions.invoke('make-call', {
+        body: {
+          to: leadData.phone,
+          leadName: leadData.name
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Call initiated!",
+        description: `Calling ${leadData.name} at ${leadData.phone}`,
+      });
+    } catch (error: any) {
+      console.error('Call error:', error);
+      toast({
+        title: "Failed to initiate call",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStageProgress = () => {
     const index = pipelineStages.indexOf(currentStage);
     return ((index + 1) / pipelineStages.length) * 100;
@@ -351,7 +381,7 @@ const LeadProfile = () => {
 
                 <div className="flex gap-2 pt-2">
                   <Button 
-                    onClick={() => window.location.href = `tel:${leadData.phone}`} 
+                    onClick={handleMakeCall} 
                     className="flex-1 gap-2 bg-success hover:bg-success/90"
                   >
                     <Phone className="h-4 w-4" />
