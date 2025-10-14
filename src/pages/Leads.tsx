@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Phone, Mail, MoreVertical, UserPlus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Search, Phone, Mail, MoreVertical, UserPlus } from "lucide-react";
+import { CreateLeadDialog } from "@/components/CreateLeadDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 interface Lead {
   id: string;
@@ -46,51 +49,6 @@ const agents = [
   { id: "4", name: "Lisa Chen" },
 ];
 
-const mockLeads: Lead[] = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.j@email.com",
-    phone: "(555) 123-4567",
-    status: "new",
-    source: "Website",
-    value: "$450,000",
-    date: "2024-01-15",
-    assignedTo: "John Smith",
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    email: "m.chen@email.com",
-    phone: "(555) 234-5678",
-    status: "contacted",
-    source: "Referral",
-    value: "$650,000",
-    date: "2024-01-14",
-    assignedTo: "Maria Garcia",
-  },
-  {
-    id: "3",
-    name: "Emily Rodriguez",
-    email: "emily.r@email.com",
-    phone: "(555) 345-6789",
-    status: "qualified",
-    source: "Open House",
-    value: "$520,000",
-    date: "2024-01-13",
-  },
-  {
-    id: "4",
-    name: "David Kim",
-    email: "david.kim@email.com",
-    phone: "(555) 456-7890",
-    status: "contacted",
-    source: "Social Media",
-    value: "$380,000",
-    date: "2024-01-12",
-    assignedTo: "Alex Johnson",
-  },
-];
 
 const statusColors = {
   new: "bg-info text-info-foreground",
@@ -102,21 +60,89 @@ const statusColors = {
 
 const Leads = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLeads = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const formattedLeads: Lead[] = (data || []).map((lead) => ({
+        id: lead.id,
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        status: lead.status as "new" | "contacted" | "qualified" | "unqualified",
+        source: lead.source,
+        value: lead.value || "",
+        date: new Date(lead.created_at).toLocaleDateString(),
+        assignedTo: lead.assigned_to || undefined,
+      }));
+
+      setLeads(formattedLeads);
+    } catch (error: any) {
+      console.error("Error fetching leads:", error);
+      toast({
+        title: "Error loading leads",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeads();
+  }, []);
 
   const filteredLeads = leads.filter((lead) =>
     lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lead.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAssignLead = (leadId: string, agentName: string) => {
-    setLeads(
-      leads.map((lead) =>
-        lead.id === leadId ? { ...lead, assignedTo: agentName } : lead
-      )
-    );
+  const handleAssignLead = async (leadId: string, agentName: string) => {
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({ assigned_to: agentName })
+        .eq("id", leadId);
+
+      if (error) throw error;
+
+      setLeads(
+        leads.map((lead) =>
+          lead.id === leadId ? { ...lead, assignedTo: agentName } : lead
+        )
+      );
+
+      toast({
+        title: "Lead assigned",
+        description: `Lead assigned to ${agentName}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <p className="text-muted-foreground">Loading leads...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -126,10 +152,7 @@ const Leads = () => {
             <h1 className="text-3xl font-bold text-foreground">Leads</h1>
             <p className="text-muted-foreground mt-1">Manage and track your potential clients</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Lead
-          </Button>
+          <CreateLeadDialog onLeadCreated={fetchLeads} />
         </div>
 
         <div className="flex items-center gap-4">
