@@ -97,15 +97,26 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
         audioRef.current = null;
       }
 
-      // Fetch the recording through our proxy
-      const { data, error } = await supabase.functions.invoke('get-recording', {
-        body: { recordingUrl: url }
-      });
+      // Fetch the recording through our proxy - get raw response
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/get-recording`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({ recordingUrl: url }),
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to fetch recording');
+      }
 
-      // Create a blob URL from the audio data
-      const audioBlob = new Blob([data], { type: 'audio/wav' });
+      // Get the audio as a blob
+      const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
 
       // Create and play the audio
@@ -117,7 +128,8 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
         URL.revokeObjectURL(audioUrl);
       };
 
-      audio.onerror = () => {
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
         toast({
           title: "Playback Error",
           description: "Failed to play the recording",

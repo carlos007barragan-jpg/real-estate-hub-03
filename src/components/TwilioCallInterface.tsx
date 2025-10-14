@@ -147,6 +147,8 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
     const finalDuration = callDuration;
     const currentCallSid = call?.parameters.CallSid;
     
+    console.log('Ending call - Duration:', finalDuration, 'seconds, CallSid:', currentCallSid);
+    
     if (call) {
       call.disconnect();
     }
@@ -159,10 +161,16 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
     if (currentCallSid) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('call_logs').update({
+        const { error } = await supabase.from('call_logs').update({
           status: 'completed',
           duration: finalDuration,
         }).eq('call_sid', currentCallSid);
+        
+        if (error) {
+          console.error('Error updating call duration:', error);
+        } else {
+          console.log('Call log updated with duration:', finalDuration);
+        }
       }
     }
     

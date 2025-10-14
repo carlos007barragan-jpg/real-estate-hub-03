@@ -25,14 +25,27 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     // Update the call log with recording information
+    // Only update recording fields, preserve existing duration
+    const { data: existingLog } = await supabase
+      .from('call_logs')
+      .select('duration')
+      .eq('call_sid', callSid)
+      .single();
+
+    const updateData: any = {
+      recording_url: recordingUrl,
+      recording_duration: parseInt(recordingDuration),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only update status if the call doesn't already have a duration set
+    if (!existingLog?.duration) {
+      updateData.status = 'completed';
+    }
+
     const { error } = await supabase
       .from('call_logs')
-      .update({
-        recording_url: recordingUrl,
-        recording_duration: parseInt(recordingDuration),
-        status: 'completed',
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('call_sid', callSid);
     
     if (error) {
