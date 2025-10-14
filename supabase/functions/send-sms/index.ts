@@ -14,7 +14,13 @@ Deno.serve(async (req) => {
   try {
     const { to, message } = await req.json();
     
-    console.log('Sending SMS to:', to);
+    // Normalize phone number to E.164 format
+    const normalizedPhone = to.replace(/\D/g, ''); // Remove all non-digits
+    const e164Phone = normalizedPhone.startsWith('1') 
+      ? `+${normalizedPhone}` 
+      : `+1${normalizedPhone}`;
+    
+    console.log('Sending SMS to:', e164Phone);
     
     // Get Twilio credentials from environment
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
@@ -29,7 +35,7 @@ Deno.serve(async (req) => {
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     
     const formData = new URLSearchParams();
-    formData.append('To', to);
+    formData.append('To', e164Phone);
     formData.append('From', twilioPhone);
     formData.append('Body', message);
     
