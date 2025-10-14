@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 
 interface Message {
   id: string;
@@ -382,15 +383,13 @@ const LeadProfile = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-2 pt-2">
-                  <Button 
-                    onClick={handleMakeCall} 
-                    className="flex-1 gap-2 bg-success hover:bg-success/90"
-                  >
-                    <Phone className="h-4 w-4" />
-                    Call
-                  </Button>
-                  <Button onClick={handleCall} className="flex-1 gap-2" variant="outline">
+                <div className="space-y-2 pt-2">
+                  <TwilioCallInterface 
+                    leadPhone={leadData.phone}
+                    leadName={leadData.name}
+                  />
+                  
+                  <Button onClick={handleCall} className="w-full gap-2" variant="outline">
                     <Phone className="h-4 w-4" />
                     Send SMS
                   </Button>
