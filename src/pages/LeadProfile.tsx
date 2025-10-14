@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight } from "lucide-react";
@@ -42,99 +42,66 @@ const pipelineStages = [
 
 type PipelineStage = typeof pipelineStages[number];
 
-// Mock leads data - same as in Leads.tsx
-const mockLeadsData = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.j@email.com",
-    phone: "(555) 123-4567",
-    status: "new" as const,
-    source: "Website",
-    value: "$450,000",
-    date: "2024-01-15",
-    assignedTo: "John Smith",
-    pipelineStage: "Contacted" as PipelineStage,
-    propertyInterest: {
-      address: "123 Main Street, Downtown",
-      propertyType: "Single Family Home",
-      bedrooms: 4,
-      bathrooms: 2.5,
-      sqft: "2,500",
-      budget: "$400,000 - $500,000",
-    },
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    email: "m.chen@email.com",
-    phone: "(555) 234-5678",
-    status: "contacted" as const,
-    source: "Referral",
-    value: "$650,000",
-    date: "2024-01-14",
-    assignedTo: "Maria Garcia",
-    pipelineStage: "Qualified" as PipelineStage,
-    propertyInterest: {
-      address: "456 Oak Avenue, Uptown",
-      propertyType: "Condo",
-      bedrooms: 3,
-      bathrooms: 2,
-      sqft: "1,800",
-      budget: "$600,000 - $700,000",
-    },
-  },
-  {
-    id: "3",
-    name: "Emily Rodriguez",
-    email: "emily.r@email.com",
-    phone: "(555) 345-6789",
-    status: "qualified" as const,
-    source: "Open House",
-    value: "$520,000",
-    date: "2024-01-13",
-    assignedTo: "John Smith",
-    pipelineStage: "Showing Scheduled" as PipelineStage,
-    propertyInterest: {
-      address: "789 Pine Road, Suburbs",
-      propertyType: "Townhouse",
-      bedrooms: 3,
-      bathrooms: 2.5,
-      sqft: "2,100",
-      budget: "$500,000 - $550,000",
-    },
-  },
-  {
-    id: "4",
-    name: "David Kim",
-    email: "david.kim@email.com",
-    phone: "(555) 456-7890",
-    status: "contacted" as const,
-    source: "Social Media",
-    value: "$380,000",
-    date: "2024-01-12",
-    assignedTo: "Alex Johnson",
-    pipelineStage: "New Lead" as PipelineStage,
-    propertyInterest: {
-      address: "321 Elm Street, Westside",
-      propertyType: "Single Family Home",
-      bedrooms: 3,
-      bathrooms: 2,
-      sqft: "1,600",
-      budget: "$350,000 - $400,000",
-    },
-  },
-];
 
 const LeadProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Find the lead based on ID
-  const leadData = mockLeadsData.find(l => l.id === id) || mockLeadsData[0];
-  
-  const [currentStage, setCurrentStage] = useState<PipelineStage>(leadData.pipelineStage);
+  const [leadData, setLeadData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentStage, setCurrentStage] = useState<PipelineStage>("New Lead");
+
+  useEffect(() => {
+    const fetchLead = async () => {
+      if (!id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          setLeadData({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            status: data.status,
+            source: data.source,
+            value: data.value || "$0",
+            date: new Date(data.created_at).toLocaleDateString(),
+            assignedTo: data.assigned_to || "Unassigned",
+            pipelineStage: data.pipeline_stage as PipelineStage,
+            propertyInterest: {
+              address: data.property_address || "Not specified",
+              propertyType: data.property_type || "Not specified",
+              bedrooms: data.bedrooms || 0,
+              bathrooms: data.bathrooms || 0,
+              sqft: data.sqft || "0",
+              budget: data.budget || "Not specified",
+            },
+          });
+          setCurrentStage(data.pipeline_stage as PipelineStage);
+        }
+      } catch (error: any) {
+        console.error("Error fetching lead:", error);
+        toast({
+          title: "Error loading lead",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLead();
+  }, [id, toast]);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -189,12 +156,29 @@ const LeadProfile = () => {
     }
   };
 
-  const handleStageChange = (newStage: PipelineStage) => {
-    setCurrentStage(newStage);
-    toast({
-      title: "Pipeline Stage Updated",
-      description: `Lead moved to ${newStage}`,
-    });
+  const handleStageChange = async (newStage: PipelineStage) => {
+    if (!leadData) return;
+    
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({ pipeline_stage: newStage })
+        .eq("id", leadData.id);
+
+      if (error) throw error;
+
+      setCurrentStage(newStage);
+      toast({
+        title: "Pipeline Stage Updated",
+        description: `Lead moved to ${newStage}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCall = async () => {
@@ -268,6 +252,25 @@ const LeadProfile = () => {
     qualified: "bg-success text-success-foreground",
     unqualified: "bg-muted text-muted-foreground",
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <p className="text-muted-foreground">Loading lead profile...</p>
+      </div>
+    );
+  }
+
+  if (!leadData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">Lead not found</p>
+          <Button onClick={() => navigate("/leads")}>Back to Leads</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
