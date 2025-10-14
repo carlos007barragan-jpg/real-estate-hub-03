@@ -30,7 +30,18 @@ interface Note {
   timestamp: string;
 }
 
-// Pipeline stages
+// Lead Lifecycle stages - before moving to pipeline
+const leadLifecycleStages = [
+  "Contact",
+  "Book Consult",
+  "Execute Consult",
+  "Showings",
+  "Moved to Pipeline"
+] as const;
+
+type LeadLifecycle = typeof leadLifecycleStages[number];
+
+// Pipeline stages - after lifecycle is complete
 const pipelineStages = [
   "New Lead",
   "Contacted",
@@ -52,6 +63,7 @@ const LeadProfile = () => {
   
   const [leadData, setLeadData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [currentLifecycle, setCurrentLifecycle] = useState<LeadLifecycle>("Contact");
   const [currentStage, setCurrentStage] = useState<PipelineStage>("New Lead");
 
   useEffect(() => {
@@ -73,11 +85,14 @@ const LeadProfile = () => {
             name: data.name,
             email: data.email,
             phone: data.phone,
+            spousePhone: data.spouse_phone || null,
             status: data.status,
             source: data.source,
             value: data.value || "$0",
             date: new Date(data.created_at).toLocaleDateString(),
             assignedTo: data.assigned_to || "Unassigned",
+            timeframe: data.timeframe || "Not specified",
+            leadLifecycle: data.lead_lifecycle as LeadLifecycle,
             pipelineStage: data.pipeline_stage as PipelineStage,
             propertyInterest: {
               address: data.property_address || "Not specified",
@@ -88,6 +103,7 @@ const LeadProfile = () => {
               budget: data.budget || "Not specified",
             },
           });
+          setCurrentLifecycle(data.lead_lifecycle as LeadLifecycle);
           setCurrentStage(data.pipeline_stage as PipelineStage);
         }
       } catch (error: any) {
@@ -211,6 +227,31 @@ const LeadProfile = () => {
     }
   };
 
+  const handleLifecycleChange = async (newLifecycle: LeadLifecycle) => {
+    if (!leadData) return;
+    
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({ lead_lifecycle: newLifecycle })
+        .eq("id", leadData.id);
+
+      if (error) throw error;
+
+      setCurrentLifecycle(newLifecycle);
+      toast({
+        title: "Lead Lifecycle Updated",
+        description: `Lead moved to ${newLifecycle}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleStageChange = async (newStage: PipelineStage) => {
     if (!leadData) return;
     
@@ -297,6 +338,11 @@ const LeadProfile = () => {
     }
   };
 
+  const getLifecycleProgress = () => {
+    const index = leadLifecycleStages.indexOf(currentLifecycle);
+    return ((index + 1) / leadLifecycleStages.length) * 100;
+  };
+
   const getStageProgress = () => {
     const index = pipelineStages.indexOf(currentStage);
     return ((index + 1) / pipelineStages.length) * 100;
@@ -352,7 +398,7 @@ const LeadProfile = () => {
           </Badge>
         </div>
 
-        {/* Pipeline Stage Card */}
+        {/* Lead Lifecycle Card */}
         <Card className="border border-border/40 shadow-sm hover:shadow-md transition-all duration-300">
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -361,16 +407,16 @@ const LeadProfile = () => {
                   <MoveRight className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Pipeline Progress</h3>
-                  <p className="text-sm text-muted-foreground">Track deal progression</p>
+                  <h3 className="font-semibold text-lg">Lead Lifecycle</h3>
+                  <p className="text-sm text-muted-foreground">Track lead progress before pipeline</p>
                 </div>
               </div>
-              <Select value={currentStage} onValueChange={handleStageChange}>
+              <Select value={currentLifecycle} onValueChange={handleLifecycleChange}>
                 <SelectTrigger className="w-full sm:w-[220px] bg-muted/50 border-border/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {pipelineStages.map((stage) => (
+                  {leadLifecycleStages.map((stage) => (
                     <SelectItem key={stage} value={stage}>
                       {stage}
                     </SelectItem>
@@ -379,16 +425,56 @@ const LeadProfile = () => {
               </Select>
             </div>
             <div className="space-y-3">
-              <Progress value={getStageProgress()} className="h-3" />
+              <Progress value={getLifecycleProgress()} className="h-3" />
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground font-medium">
-                  Stage {pipelineStages.indexOf(currentStage) + 1} of {pipelineStages.length}
+                  Stage {leadLifecycleStages.indexOf(currentLifecycle) + 1} of {leadLifecycleStages.length}
                 </span>
-                <span className="text-primary font-semibold">{Math.round(getStageProgress())}%</span>
+                <span className="text-primary font-semibold">{Math.round(getLifecycleProgress())}%</span>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Pipeline Stage Card - Only show when lifecycle is "Moved to Pipeline" */}
+        {currentLifecycle === "Moved to Pipeline" && (
+          <Card className="border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 animate-fade-in">
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Building2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Pipeline Progress</h3>
+                    <p className="text-sm text-muted-foreground">Track deal progression</p>
+                  </div>
+                </div>
+                <Select value={currentStage} onValueChange={handleStageChange}>
+                  <SelectTrigger className="w-full sm:w-[220px] bg-muted/50 border-border/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pipelineStages.map((stage) => (
+                      <SelectItem key={stage} value={stage}>
+                        {stage}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-3">
+                <Progress value={getStageProgress()} className="h-3" />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground font-medium">
+                    Stage {pipelineStages.indexOf(currentStage) + 1} of {pipelineStages.length}
+                  </span>
+                  <span className="text-primary font-semibold">{Math.round(getStageProgress())}%</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Contact & Property Info */}
@@ -424,6 +510,18 @@ const LeadProfile = () => {
                   </div>
                 </div>
 
+                {leadData.spousePhone && (
+                  <div className="group flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <Phone className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Spouse Phone</p>
+                      <p className="font-medium text-sm">{leadData.spousePhone}</p>
+                    </div>
+                  </div>
+                )}
+
                 <Separator className="my-2" />
 
                 <div className="space-y-3">
@@ -448,6 +546,14 @@ const LeadProfile = () => {
                     <div className="flex-1">
                       <p className="text-xs font-medium text-muted-foreground">Assigned To</p>
                       <p className="font-medium text-sm">{leadData.assignedTo || "Unassigned"}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-2 rounded-lg">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-muted-foreground">Timeframe</p>
+                      <p className="font-medium text-sm">{leadData.timeframe}</p>
                     </div>
                   </div>
                 </div>
@@ -514,23 +620,31 @@ const LeadProfile = () => {
           {/* Right Column - Tabbed Content */}
           <div className="lg:col-span-2">
             <Card className="border border-border/40 shadow-sm hover:shadow-md transition-all duration-300">
-              <Tabs defaultValue="messages" className="w-full">
+              <Tabs defaultValue="calls" className="w-full">
                 <CardHeader className="pb-4 bg-muted/20">
                   <TabsList className="grid w-full grid-cols-3 h-12 bg-background">
-                    <TabsTrigger value="messages" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                      <Send className="h-4 w-4" />
-                      <span className="hidden sm:inline">Messages</span>
+                    <TabsTrigger value="calls" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                      <Phone className="h-4 w-4" />
+                      <span className="hidden sm:inline">Call History</span>
                     </TabsTrigger>
                     <TabsTrigger value="notes" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                       <PlusCircle className="h-4 w-4" />
                       <span className="hidden sm:inline">Notes</span>
                     </TabsTrigger>
-                    <TabsTrigger value="calls" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                      <Phone className="h-4 w-4" />
-                      <span className="hidden sm:inline">Call History</span>
+                    <TabsTrigger value="messages" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                      <Send className="h-4 w-4" />
+                      <span className="hidden sm:inline">Messages</span>
                     </TabsTrigger>
                   </TabsList>
                 </CardHeader>
+
+                <TabsContent value="calls" className="px-6 pb-6 m-0">
+                  <div className="h-[calc(100vh-20rem)]">
+                    <ScrollArea className="h-full pr-4">
+                      <CallHistory leadId={id!} />
+                    </ScrollArea>
+                  </div>
+                </TabsContent>
 
                 <TabsContent value="messages" className="px-6 pb-6 m-0">
                   <div className="flex flex-col h-[calc(100vh-20rem)]">
@@ -634,13 +748,6 @@ const LeadProfile = () => {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="calls" className="px-6 pb-6 m-0">
-                  <div className="h-[calc(100vh-20rem)]">
-                    <ScrollArea className="h-full pr-4">
-                      <CallHistory leadId={id!} />
-                    </ScrollArea>
-                  </div>
-                </TabsContent>
               </Tabs>
             </Card>
           </div>

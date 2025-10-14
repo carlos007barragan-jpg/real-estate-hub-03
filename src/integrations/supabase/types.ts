@@ -68,14 +68,17 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          lead_lifecycle: string
           name: string
           phone: string
           pipeline_stage: string
           property_address: string | null
           property_type: string | null
           source: string
+          spouse_phone: string | null
           sqft: string | null
           status: string
+          timeframe: string | null
           updated_at: string
           user_id: string
           value: string | null
@@ -88,14 +91,17 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          lead_lifecycle?: string
           name: string
           phone: string
           pipeline_stage?: string
           property_address?: string | null
           property_type?: string | null
           source: string
+          spouse_phone?: string | null
           sqft?: string | null
           status?: string
+          timeframe?: string | null
           updated_at?: string
           user_id: string
           value?: string | null
@@ -108,14 +114,17 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          lead_lifecycle?: string
           name?: string
           phone?: string
           pipeline_stage?: string
           property_address?: string | null
           property_type?: string | null
           source?: string
+          spouse_phone?: string | null
           sqft?: string | null
           status?: string
+          timeframe?: string | null
           updated_at?: string
           user_id?: string
           value?: string | null

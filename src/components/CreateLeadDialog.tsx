@@ -33,6 +33,8 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     name: "",
     email: "",
     phone: "",
+    spouse_phone: "",
+    timeframe: "",
     source: "",
     value: "",
     status: "new",
@@ -55,11 +57,14 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        spouse_phone: formData.spouse_phone || null,
+        timeframe: formData.timeframe || null,
         source: formData.source,
         value: formData.value,
         status: formData.status,
         assigned_to: formData.assigned_to || null,
         pipeline_stage: "New Lead",
+        lead_lifecycle: "Contact",
       });
 
       if (error) throw error;
@@ -73,6 +78,8 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         name: "",
         email: "",
         phone: "",
+        spouse_phone: "",
+        timeframe: "",
         source: "",
         value: "",
         status: "new",
@@ -140,6 +147,27 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               required
               placeholder="(555) 123-4567"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="spouse_phone">Spouse Phone</Label>
+            <Input
+              id="spouse_phone"
+              type="tel"
+              value={formData.spouse_phone}
+              onChange={(e) => setFormData({ ...formData, spouse_phone: e.target.value })}
+              placeholder="(555) 987-6543"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="timeframe">Timeframe</Label>
+            <Input
+              id="timeframe"
+              value={formData.timeframe}
+              onChange={(e) => setFormData({ ...formData, timeframe: e.target.value })}
+              placeholder="e.g., 3-6 months, ASAP, Next year"
             />
           </div>
 
