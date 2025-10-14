@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -196,11 +197,34 @@ const LeadProfile = () => {
     });
   };
 
-  const handleCall = () => {
-    toast({
-      title: "Call Feature",
-      description: "Autodialer integration required. Consider Twilio, RingCentral, or Aircall.",
-    });
+  const handleCall = async () => {
+    try {
+      toast({
+        title: "Sending SMS...",
+        description: "Please wait",
+      });
+
+      const { data, error } = await supabase.functions.invoke('send-sms', {
+        body: {
+          to: leadData.phone,
+          message: `Hi ${leadData.name}, this is ${leadData.assignedTo} from RealEstate CRM. I'd like to discuss your property interest. When would be a good time to talk?`
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "SMS Sent Successfully!",
+        description: `Message sent to ${leadData.phone}`,
+      });
+    } catch (error: any) {
+      console.error('SMS error:', error);
+      toast({
+        title: "Failed to send SMS",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const getStageProgress = () => {
@@ -328,7 +352,7 @@ const LeadProfile = () => {
                 <div className="flex gap-2 pt-2">
                   <Button onClick={handleCall} className="flex-1 gap-2 bg-primary hover:bg-primary/90">
                     <Phone className="h-4 w-4" />
-                    Call Now
+                    Send SMS
                   </Button>
                   <Button className="flex-1 gap-2" variant="outline">
                     <Mail className="h-4 w-4" />
