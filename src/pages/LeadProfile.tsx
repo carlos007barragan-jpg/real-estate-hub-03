@@ -329,37 +329,44 @@ const LeadProfile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="p-6 md:p-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-background">
+      <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="mb-6 flex items-center gap-4">
+        <div className="flex items-center gap-4 animate-fade-in">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate("/leads")}
-            className="hover:bg-muted"
+            className="hover:bg-muted/50 transition-all"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">{leadData.name}</h1>
-            <p className="text-muted-foreground">Lead Profile</p>
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+              {leadData.name}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">Lead Profile</p>
           </div>
-          <Badge className={statusColors[leadData.status as keyof typeof statusColors]}>
+          <Badge className={`${statusColors[leadData.status as keyof typeof statusColors]} px-4 py-1.5 text-sm font-medium`}>
             {leadData.status}
           </Badge>
         </div>
 
         {/* Pipeline Stage Card */}
-        <Card className="border-border/50 shadow-lg mb-6">
+        <Card className="border border-border/40 shadow-sm hover:shadow-md transition-all duration-300">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <MoveRight className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-lg">Pipeline Stage</h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <MoveRight className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Pipeline Progress</h3>
+                  <p className="text-sm text-muted-foreground">Track deal progression</p>
+                </div>
               </div>
               <Select value={currentStage} onValueChange={handleStageChange}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-full sm:w-[220px] bg-muted/50 border-border/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -371,11 +378,14 @@ const LeadProfile = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Progress value={getStageProgress()} className="h-2" />
-              <p className="text-xs text-muted-foreground">
-                {pipelineStages.indexOf(currentStage) + 1} of {pipelineStages.length} stages complete
-              </p>
+            <div className="space-y-3">
+              <Progress value={getStageProgress()} className="h-3" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground font-medium">
+                  Stage {pipelineStages.indexOf(currentStage) + 1} of {pipelineStages.length}
+                </span>
+                <span className="text-primary font-semibold">{Math.round(getStageProgress())}%</span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -384,59 +394,65 @@ const LeadProfile = () => {
           {/* Left Column - Contact & Property Info */}
           <div className="lg:col-span-1 space-y-6">
             {/* Contact Information */}
-            <Card className="border-border/50 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-primary" />
+            <Card className="border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+              <CardHeader className="bg-muted/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
                   Contact Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <Mail className="h-5 w-5 text-muted-foreground" />
+              <CardContent className="space-y-4 pt-6">
+                <div className="group flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <Mail className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="font-medium truncate">{leadData.email}</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</p>
+                    <p className="font-medium text-sm truncate">{leadData.email}</p>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <Phone className="h-5 w-5 text-muted-foreground" />
+                <div className="group flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <Phone className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-xs text-muted-foreground">Phone</p>
-                    <p className="font-medium">{leadData.phone}</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</p>
+                    <p className="font-medium text-sm">{leadData.phone}</p>
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="my-2" />
 
-                <div className="flex items-center gap-3 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Lead Date</p>
-                    <p className="font-medium">{leadData.date}</p>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-2 rounded-lg">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-muted-foreground">Lead Date</p>
+                      <p className="font-medium text-sm">{leadData.date}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-2 rounded-lg">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-muted-foreground">Source</p>
+                      <p className="font-medium text-sm">{leadData.source}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-2 rounded-lg">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-muted-foreground">Assigned To</p>
+                      <p className="font-medium text-sm">{leadData.assignedTo || "Unassigned"}</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 text-sm">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Source</p>
-                    <p className="font-medium">{leadData.source}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-sm">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Assigned To</p>
-                    <p className="font-medium">{leadData.assignedTo || "Unassigned"}</p>
-                  </div>
-                </div>
+                <Separator className="my-2" />
 
                 <div className="space-y-2 pt-2">
                   <TwilioCallInterface 
@@ -444,7 +460,7 @@ const LeadProfile = () => {
                     leadName={leadData.name}
                   />
                   
-                  <Button onClick={handleCall} className="w-full gap-2" variant="outline">
+                  <Button onClick={handleCall} className="w-full gap-2 hover:scale-[1.02] transition-transform" variant="outline">
                     <Phone className="h-4 w-4" />
                     Send SMS
                   </Button>
@@ -453,40 +469,42 @@ const LeadProfile = () => {
             </Card>
 
             {/* Property Interest */}
-            <Card className="border-border/50 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-primary" />
+            <Card className="border border-border/40 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+              <CardHeader className="bg-muted/30 pb-4">
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Building2 className="h-5 w-5 text-primary" />
+                  </div>
                   Property Interest
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Address</p>
+              <CardContent className="space-y-4 pt-6">
+                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Address</p>
                   <div className="flex items-start gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <p className="font-medium text-sm">{leadData.propertyInterest.address}</p>
+                    <MapPin className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <p className="font-medium text-sm leading-relaxed">{leadData.propertyInterest.address}</p>
                   </div>
                 </div>
 
                 <Separator />
 
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Type</p>
-                    <p className="font-medium">{leadData.propertyInterest.propertyType}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 rounded-lg bg-muted/20">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Type</p>
+                    <p className="font-semibold text-sm">{leadData.propertyInterest.propertyType}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Beds/Baths</p>
-                    <p className="font-medium">{leadData.propertyInterest.bedrooms} / {leadData.propertyInterest.bathrooms}</p>
+                  <div className="p-3 rounded-lg bg-muted/20">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Beds/Baths</p>
+                    <p className="font-semibold text-sm">{leadData.propertyInterest.bedrooms} / {leadData.propertyInterest.bathrooms}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Sq Ft</p>
-                    <p className="font-medium">{leadData.propertyInterest.sqft}</p>
+                  <div className="p-3 rounded-lg bg-muted/20">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Square Feet</p>
+                    <p className="font-semibold text-sm">{leadData.propertyInterest.sqft}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Budget</p>
-                    <p className="font-medium text-primary">{leadData.propertyInterest.budget}</p>
+                  <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                    <p className="text-xs font-medium text-primary uppercase tracking-wide mb-1">Budget</p>
+                    <p className="font-bold text-sm text-primary">{leadData.propertyInterest.budget}</p>
                   </div>
                 </div>
               </CardContent>
@@ -495,19 +513,19 @@ const LeadProfile = () => {
 
           {/* Right Column - Tabbed Content */}
           <div className="lg:col-span-2">
-            <Card className="border-border/50 shadow-lg">
+            <Card className="border border-border/40 shadow-sm hover:shadow-md transition-all duration-300">
               <Tabs defaultValue="messages" className="w-full">
-                <CardHeader className="pb-3">
-                  <TabsList className="grid w-full grid-cols-3 h-12">
-                    <TabsTrigger value="messages" className="gap-2">
+                <CardHeader className="pb-4 bg-muted/20">
+                  <TabsList className="grid w-full grid-cols-3 h-12 bg-background">
+                    <TabsTrigger value="messages" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                       <Send className="h-4 w-4" />
                       <span className="hidden sm:inline">Messages</span>
                     </TabsTrigger>
-                    <TabsTrigger value="notes" className="gap-2">
+                    <TabsTrigger value="notes" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                       <PlusCircle className="h-4 w-4" />
                       <span className="hidden sm:inline">Notes</span>
                     </TabsTrigger>
-                    <TabsTrigger value="calls" className="gap-2">
+                    <TabsTrigger value="calls" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                       <Phone className="h-4 w-4" />
                       <span className="hidden sm:inline">Call History</span>
                     </TabsTrigger>
@@ -517,46 +535,60 @@ const LeadProfile = () => {
                 <TabsContent value="messages" className="px-6 pb-6 m-0">
                   <div className="flex flex-col h-[calc(100vh-20rem)]">
                     <ScrollArea className="flex-1 pr-4 mb-4">
-                      <div className="space-y-4">
-                        {messages.map((message) => (
-                          <div
-                            key={message.id}
-                            className={`flex ${message.sender === "agent" ? "justify-end" : "justify-start"}`}
-                          >
+                      <div className="space-y-3 py-2">
+                        {messages.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-64 text-center">
+                            <div className="p-4 rounded-full bg-muted/50 mb-3">
+                              <Send className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                            <p className="text-muted-foreground">No messages yet</p>
+                            <p className="text-sm text-muted-foreground/70 mt-1">Start the conversation below</p>
+                          </div>
+                        ) : (
+                          messages.map((message) => (
                             <div
-                              className={`max-w-[80%] rounded-lg p-3 ${
-                                message.sender === "agent"
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted"
-                              }`}
+                              key={message.id}
+                              className={`flex ${message.sender === "agent" ? "justify-end" : "justify-start"} animate-fade-in`}
                             >
-                              <p className="text-sm">{message.text}</p>
-                              <p
-                                className={`text-xs mt-1 ${
+                              <div
+                                className={`max-w-[80%] rounded-2xl p-3.5 shadow-sm ${
                                   message.sender === "agent"
-                                    ? "text-primary-foreground/70"
-                                    : "text-muted-foreground"
+                                    ? "bg-primary text-primary-foreground rounded-br-sm"
+                                    : "bg-muted/80 rounded-bl-sm border border-border/40"
                                 }`}
                               >
-                                {message.timestamp}
-                              </p>
+                                <p className="text-sm leading-relaxed">{message.text}</p>
+                                <p
+                                  className={`text-xs mt-1.5 ${
+                                    message.sender === "agent"
+                                      ? "text-primary-foreground/70"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {message.timestamp}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        )}
                       </div>
                     </ScrollArea>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 pt-2 border-t border-border/40">
                       <Input
                         placeholder="Type a message..."
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                        className="flex-1"
+                        className="flex-1 bg-muted/50 border-border/50 focus-visible:ring-primary"
                       />
-                      <Button onClick={handleSendMessage} className="gap-2">
+                      <Button 
+                        onClick={handleSendMessage} 
+                        className="gap-2 hover:scale-[1.02] transition-transform"
+                        disabled={!newMessage.trim()}
+                      >
                         <Send className="h-4 w-4" />
-                        Send
+                        <span className="hidden sm:inline">Send</span>
                       </Button>
                     </div>
                   </div>
@@ -565,27 +597,36 @@ const LeadProfile = () => {
                 <TabsContent value="notes" className="px-6 pb-6 m-0">
                   <div className="flex flex-col h-[calc(100vh-20rem)]">
                     <ScrollArea className="flex-1 pr-4 mb-4">
-                      <div className="space-y-3">
+                      <div className="space-y-3 py-2">
                         {notes.map((note) => (
-                          <Card key={note.id} className="p-3 bg-muted/50">
-                            <p className="text-sm mb-2">{note.content}</p>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <span className="font-medium">{note.author}</span>
-                              <span>{note.timestamp}</span>
+                          <Card 
+                            key={note.id} 
+                            className="p-4 bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors animate-fade-in"
+                          >
+                            <p className="text-sm leading-relaxed mb-3">{note.content}</p>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-medium text-foreground px-2 py-1 rounded-md bg-background/80">
+                                {note.author}
+                              </span>
+                              <span className="text-muted-foreground">{note.timestamp}</span>
                             </div>
                           </Card>
                         ))}
                       </div>
                     </ScrollArea>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 pt-2 border-t border-border/40">
                       <Textarea
                         placeholder="Add a new note..."
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
-                        className="min-h-[100px]"
+                        className="min-h-[100px] bg-muted/50 border-border/50 focus-visible:ring-primary resize-none"
                       />
-                      <Button onClick={handleAddNote} className="w-full gap-2">
+                      <Button 
+                        onClick={handleAddNote} 
+                        className="w-full gap-2 hover:scale-[1.01] transition-transform"
+                        disabled={!newNote.trim()}
+                      >
                         <PlusCircle className="h-4 w-4" />
                         Add Note
                       </Button>
