@@ -380,9 +380,9 @@ const LeadProfile = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Contact & Property Info */}
-          <div className="xl:col-span-3 space-y-6">
+          <div className="lg:col-span-1 space-y-6">
             {/* Contact Information */}
             <Card className="border-border/50 shadow-lg">
               <CardHeader>
@@ -493,116 +493,114 @@ const LeadProfile = () => {
             </Card>
           </div>
 
-          {/* Center Column - Messages */}
-          <div className="xl:col-span-5">
-            <Card className="border-border/50 shadow-lg h-[calc(100vh-12rem)] flex flex-col">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Send className="h-5 w-5 text-primary" />
-                  Messages
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col min-h-0">
-                <ScrollArea className="flex-1 pr-4 mb-4">
-                  <div className="space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender === "agent" ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`max-w-[80%] rounded-lg p-3 ${
-                            message.sender === "agent"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted"
-                          }`}
-                        >
-                          <p className="text-sm">{message.text}</p>
-                          <p
-                            className={`text-xs mt-1 ${
-                              message.sender === "agent"
-                                ? "text-primary-foreground/70"
-                                : "text-muted-foreground"
-                            }`}
+          {/* Right Column - Tabbed Content */}
+          <div className="lg:col-span-2">
+            <Card className="border-border/50 shadow-lg">
+              <Tabs defaultValue="messages" className="w-full">
+                <CardHeader className="pb-3">
+                  <TabsList className="grid w-full grid-cols-3 h-12">
+                    <TabsTrigger value="messages" className="gap-2">
+                      <Send className="h-4 w-4" />
+                      <span className="hidden sm:inline">Messages</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="notes" className="gap-2">
+                      <PlusCircle className="h-4 w-4" />
+                      <span className="hidden sm:inline">Notes</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="calls" className="gap-2">
+                      <Phone className="h-4 w-4" />
+                      <span className="hidden sm:inline">Call History</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </CardHeader>
+
+                <TabsContent value="messages" className="px-6 pb-6 m-0">
+                  <div className="flex flex-col h-[calc(100vh-20rem)]">
+                    <ScrollArea className="flex-1 pr-4 mb-4">
+                      <div className="space-y-4">
+                        {messages.map((message) => (
+                          <div
+                            key={message.id}
+                            className={`flex ${message.sender === "agent" ? "justify-end" : "justify-start"}`}
                           >
-                            {message.timestamp}
-                          </p>
-                        </div>
+                            <div
+                              className={`max-w-[80%] rounded-lg p-3 ${
+                                message.sender === "agent"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted"
+                              }`}
+                            >
+                              <p className="text-sm">{message.text}</p>
+                              <p
+                                className={`text-xs mt-1 ${
+                                  message.sender === "agent"
+                                    ? "text-primary-foreground/70"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                {message.timestamp}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </ScrollArea>
+
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Type a message..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                        className="flex-1"
+                      />
+                      <Button onClick={handleSendMessage} className="gap-2">
+                        <Send className="h-4 w-4" />
+                        Send
+                      </Button>
+                    </div>
                   </div>
-                </ScrollArea>
+                </TabsContent>
 
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    className="flex-1"
-                  />
-                  <Button onClick={handleSendMessage} className="gap-2">
-                    <Send className="h-4 w-4" />
-                    Send
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                <TabsContent value="notes" className="px-6 pb-6 m-0">
+                  <div className="flex flex-col h-[calc(100vh-20rem)]">
+                    <ScrollArea className="flex-1 pr-4 mb-4">
+                      <div className="space-y-3">
+                        {notes.map((note) => (
+                          <Card key={note.id} className="p-3 bg-muted/50">
+                            <p className="text-sm mb-2">{note.content}</p>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span className="font-medium">{note.author}</span>
+                              <span>{note.timestamp}</span>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </ScrollArea>
 
-          {/* Right Column - Notes & Call History */}
-          <div className="xl:col-span-4 space-y-6">
-            {/* Notes Section */}
-            <Card className="border-border/50 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <PlusCircle className="h-5 w-5 text-primary" />
-                  Notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ScrollArea className="h-[300px] pr-4">
-                  <div className="space-y-3">
-                    {notes.map((note) => (
-                      <Card key={note.id} className="p-3 bg-muted/50">
-                        <p className="text-sm mb-2">{note.content}</p>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span className="font-medium">{note.author}</span>
-                          <span>{note.timestamp}</span>
-                        </div>
-                      </Card>
-                    ))}
+                    <div className="space-y-2">
+                      <Textarea
+                        placeholder="Add a new note..."
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        className="min-h-[100px]"
+                      />
+                      <Button onClick={handleAddNote} className="w-full gap-2">
+                        <PlusCircle className="h-4 w-4" />
+                        Add Note
+                      </Button>
+                    </div>
                   </div>
-                </ScrollArea>
+                </TabsContent>
 
-                <div className="space-y-2 pt-2">
-                  <Textarea
-                    placeholder="Add a new note..."
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    className="min-h-[80px]"
-                  />
-                  <Button onClick={handleAddNote} className="w-full gap-2">
-                    <PlusCircle className="h-4 w-4" />
-                    Add Note
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Call History Section */}
-            <Card className="border-border/50 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Phone className="h-5 w-5 text-primary" />
-                  Call History
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[300px] pr-4">
-                  <CallHistory leadId={id!} />
-                </ScrollArea>
-              </CardContent>
+                <TabsContent value="calls" className="px-6 pb-6 m-0">
+                  <div className="h-[calc(100vh-20rem)]">
+                    <ScrollArea className="h-full pr-4">
+                      <CallHistory leadId={id!} />
+                    </ScrollArea>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </Card>
           </div>
         </div>
