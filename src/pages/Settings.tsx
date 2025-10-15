@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Plus, Mail, Shield, MoreVertical, UserCog } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Mail, Shield, MoreVertical, UserCog, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -65,6 +66,19 @@ const Settings = () => {
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "agent" | "viewer">("agent");
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("darkMode");
+    return saved === "true" || false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("darkMode", darkMode.toString());
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
 
   const handleInviteUser = () => {
     if (!inviteEmail) {
@@ -245,6 +259,24 @@ const Settings = () => {
                     <SelectItem value="cst">Central Time (CT)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex items-center justify-between py-4 border-t border-border">
+                <div className="flex items-center gap-3">
+                  <Moon className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <Label htmlFor="dark-mode" className="text-base font-medium cursor-pointer">
+                      Dark Theme
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enable dark mode across the platform
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="dark-mode"
+                  checked={darkMode}
+                  onCheckedChange={setDarkMode}
+                />
               </div>
               <Button>Save Changes</Button>
             </div>
