@@ -33,7 +33,7 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
-      {/* Left: Compact Summary */}
+      {/* Left: Compact Summary and Documents */}
       <div className="space-y-3">
         {/* Action Buttons */}
         <Card className="border sticky top-0 z-20 bg-background">
@@ -200,6 +200,13 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
           </CardContent>
         </Card>
 
+        {/* Documents Section - moved from right */}
+        <DocumentsSection leadId={id} />
+      </div>
+
+      {/* Right: Call/Messages/Notes Tabs and Tasks */}
+      <div className="space-y-4">
+        {/* Calls, Messages, Notes Tabs - moved from left */}
         <Card className="border">
           <Tabs defaultValue="calls" className="w-full">
             <CardHeader className="p-3 pb-2">
@@ -292,15 +299,9 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
             </TabsContent>
           </Tabs>
         </Card>
-      </div>
 
-      {/* Right: Tasks and Documents stacked vertically */}
-      <div className="space-y-4">
         {/* Tasks Section */}
         <TasksSection leadId={id} />
-
-        {/* Documents Section */}
-        <DocumentsSection leadId={id} />
       </div>
 
       <EditContactInfoDialog
