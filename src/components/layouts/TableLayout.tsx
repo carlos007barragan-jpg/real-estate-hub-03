@@ -58,42 +58,60 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
               <p className="text-muted-foreground mb-0.5">Email</p>
               <p className="font-medium truncate">{leadData.email}</p>
             </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Preferred Contact</p>
-              <p className="font-medium capitalize">{leadData.preferredContactMethod || '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Language</p>
-              <p className="font-medium">{leadData.languagePreference || '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Lead Status</p>
-              <p className="font-medium capitalize">{leadData.leadTemperature || '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Social Status</p>
-              <p className="font-medium">{leadData.socialStatus || '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Marital Status</p>
-              <p className="font-medium capitalize">{leadData.maritalStatus || '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Spouse Phone</p>
-              <p className="font-medium">{leadData.spousePhone || '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Spouse Email</p>
-              <p className="font-medium truncate">{leadData.spouseEmail || '-'}</p>
-            </div>
-            <div className="col-span-2">
-              <p className="text-muted-foreground mb-0.5">Current Address</p>
-              <p className="font-medium">{leadData.currentAddress || '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Area</p>
-              <p className="font-medium">{leadData.area || '-'}</p>
-            </div>
+            {leadData.preferredContactMethod && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Preferred Contact</p>
+                <p className="font-medium capitalize">{leadData.preferredContactMethod}</p>
+              </div>
+            )}
+            {leadData.languagePreference && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Language</p>
+                <p className="font-medium">{leadData.languagePreference}</p>
+              </div>
+            )}
+            {leadData.leadTemperature && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Lead Status</p>
+                <p className="font-medium capitalize">{leadData.leadTemperature}</p>
+              </div>
+            )}
+            {leadData.socialStatus && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Social Status</p>
+                <p className="font-medium">{leadData.socialStatus}</p>
+              </div>
+            )}
+            {leadData.maritalStatus && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Marital Status</p>
+                <p className="font-medium capitalize">{leadData.maritalStatus}</p>
+              </div>
+            )}
+            {leadData.spousePhone && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Spouse Phone</p>
+                <p className="font-medium">{leadData.spousePhone}</p>
+              </div>
+            )}
+            {leadData.spouseEmail && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Spouse Email</p>
+                <p className="font-medium truncate">{leadData.spouseEmail}</p>
+              </div>
+            )}
+            {leadData.currentAddress && (
+              <div className="col-span-2">
+                <p className="text-muted-foreground mb-0.5">Current Address</p>
+                <p className="font-medium">{leadData.currentAddress}</p>
+              </div>
+            )}
+            {leadData.area && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Area</p>
+                <p className="font-medium">{leadData.area}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -123,14 +141,18 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
               <p className="text-muted-foreground mb-0.5">Budget</p>
               <p className="font-medium text-primary">{leadData.propertyInterest.budget}</p>
             </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Down Payment</p>
-              <p className="font-medium">{leadData.downPayment || '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Financing Type</p>
-              <p className="font-medium">{leadData.financingType || '-'}</p>
-            </div>
+            {leadData.downPayment && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Down Payment</p>
+                <p className="font-medium">{leadData.downPayment}</p>
+              </div>
+            )}
+            {leadData.financingType && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Financing Type</p>
+                <p className="font-medium capitalize">{leadData.financingType}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
