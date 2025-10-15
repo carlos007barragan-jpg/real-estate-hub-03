@@ -364,9 +364,25 @@ const LeadProfile = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-              {leadData.name}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                {leadData.name}
+              </h1>
+              {leadData.leadTemperature && (
+                <Badge 
+                  variant="outline" 
+                  className={`capitalize text-xs px-3 py-1 ${
+                    leadData.leadTemperature === 'hot' 
+                      ? 'bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400' 
+                      : leadData.leadTemperature === 'warm' 
+                      ? 'bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400'
+                      : 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400'
+                  }`}
+                >
+                  🔥 {leadData.leadTemperature}
+                </Badge>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground mt-1">Lead Profile</p>
           </div>
           <div className="flex items-center gap-2">

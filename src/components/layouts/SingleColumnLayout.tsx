@@ -84,15 +84,6 @@ export const SingleColumnLayout = ({ leadData, handleCall, handleSendMessage, ha
                 </div>
               </div>
             )}
-            {leadData.leadTemperature && (
-              <div className="flex items-center gap-2">
-                <User className="h-3 w-3 text-muted-foreground" />
-                <div>
-                  <p className="text-muted-foreground">Lead Status</p>
-                  <p className="font-medium capitalize">{leadData.leadTemperature}</p>
-                </div>
-              </div>
-            )}
             {leadData.area && (
               <div className="flex items-center gap-2">
                 <MapPin className="h-3 w-3 text-muted-foreground" />

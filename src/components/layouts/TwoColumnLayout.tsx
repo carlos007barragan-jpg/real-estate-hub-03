@@ -41,7 +41,7 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
                 <span className="text-muted-foreground">(Spouse)</span>
               </div>
             )}
-            {(leadData.maritalStatus || leadData.socialStatus || leadData.preferredContactMethod || leadData.languagePreference || leadData.leadTemperature) && (
+            {(leadData.maritalStatus || leadData.socialStatus || leadData.preferredContactMethod || leadData.languagePreference) && (
               <>
                 <Separator className="my-2" />
                 <div className="grid grid-cols-2 gap-1">
@@ -67,12 +67,6 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
                     <div>
                       <span className="text-muted-foreground">Language:</span> 
                       <span className="ml-1">{leadData.languagePreference}</span>
-                    </div>
-                  )}
-                  {leadData.leadTemperature && (
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">Lead Status:</span> 
-                      <span className="capitalize ml-1">{leadData.leadTemperature}</span>
                     </div>
                   )}
                 </div>

@@ -70,12 +70,6 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
                 <p className="font-medium">{leadData.languagePreference}</p>
               </div>
             )}
-            {leadData.leadTemperature && (
-              <div>
-                <p className="text-muted-foreground mb-0.5">Lead Status</p>
-                <p className="font-medium capitalize">{leadData.leadTemperature}</p>
-              </div>
-            )}
             {leadData.socialStatus && (
               <div>
                 <p className="text-muted-foreground mb-0.5">Social Status</p>
