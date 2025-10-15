@@ -20,6 +20,7 @@ import { ActivitySection } from "@/components/ActivitySection";
 export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(true);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
@@ -187,7 +188,23 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
         </Card>
 
         {/* Documents Section - moved from right */}
-        <DocumentsSection leadId={id} />
+        <Card className="border">
+          <CardHeader className="p-3 pb-2">
+            <Collapsible open={documentsOpen} onOpenChange={setDocumentsOpen}>
+              <CollapsibleTrigger asChild>
+                <div className="flex items-center justify-between cursor-pointer">
+                  <CardTitle className="text-sm font-semibold">Documents</CardTitle>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${documentsOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="p-3 pt-2">
+                  <DocumentsSection leadId={id} />
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </CardHeader>
+        </Card>
       </div>
 
       {/* Right: Tasks, Messaging, and Activity sections */}
