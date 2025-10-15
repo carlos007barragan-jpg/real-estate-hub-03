@@ -62,68 +62,68 @@ const LeadProfile = () => {
   const [currentStage, setCurrentStage] = useState<PipelineStage>("New Lead");
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("two-column");
 
-  useEffect(() => {
-    const fetchLead = async () => {
-      if (!id) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from("leads")
-          .select("*")
-          .eq("id", id)
-          .single();
+  const fetchLead = async () => {
+    if (!id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-        if (error) throw error;
+      if (error) throw error;
 
-        if (data) {
-          setLeadData({
-            id: data.id,
-            name: data.name,
-            email: data.email,
-            phone: data.phone,
-            spousePhone: data.spouse_phone || null,
-            spouseEmail: data.spouse_email || null,
-            status: data.status,
-            source: data.source,
-            value: data.value || "$0",
-            date: new Date(data.created_at).toLocaleDateString(),
-            assignedTo: data.assigned_to || "Unassigned",
-            timeframe: data.timeframe || "Not specified",
-            leadLifecycle: data.lead_lifecycle as LeadLifecycle,
-            pipelineStage: data.pipeline_stage as PipelineStage,
-            downPayment: data.down_payment || null,
-            financingType: data.financing_type || null,
-            area: data.area || null,
-            maritalStatus: data.marital_status || null,
-            currentAddress: data.current_address || null,
-            leadTemperature: data.lead_temperature || null,
-            languagePreference: data.language_preference || null,
-            preferredContactMethod: data.preferred_contact_method || null,
-            socialStatus: data.social_status || null,
-            propertyInterest: {
-              address: data.property_address || "Not specified",
-              propertyType: data.property_type || "Not specified",
-              bedrooms: data.bedrooms || 0,
-              bathrooms: data.bathrooms || 0,
-              sqft: data.sqft || "0",
-              budget: data.budget || "Not specified",
-            },
-          });
-          setCurrentLifecycle(data.lead_lifecycle as LeadLifecycle);
-          setCurrentStage(data.pipeline_stage as PipelineStage);
-        }
-      } catch (error: any) {
-        console.error("Error fetching lead:", error);
-        toast({
-          title: "Error loading lead",
-          description: error.message,
-          variant: "destructive",
+      if (data) {
+        setLeadData({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          spousePhone: data.spouse_phone || null,
+          spouseEmail: data.spouse_email || null,
+          status: data.status,
+          source: data.source,
+          value: data.value || "$0",
+          date: new Date(data.created_at).toLocaleDateString(),
+          assignedTo: data.assigned_to || "Unassigned",
+          timeframe: data.timeframe || "Not specified",
+          leadLifecycle: data.lead_lifecycle as LeadLifecycle,
+          pipelineStage: data.pipeline_stage as PipelineStage,
+          downPayment: data.down_payment || null,
+          financingType: data.financing_type || null,
+          area: data.area || null,
+          maritalStatus: data.marital_status || null,
+          currentAddress: data.current_address || null,
+          leadTemperature: data.lead_temperature || null,
+          languagePreference: data.language_preference || null,
+          preferredContactMethod: data.preferred_contact_method || null,
+          socialStatus: data.social_status || null,
+          propertyInterest: {
+            address: data.property_address || "Not specified",
+            propertyType: data.property_type || "Not specified",
+            bedrooms: data.bedrooms || 0,
+            bathrooms: data.bathrooms || 0,
+            sqft: data.sqft || "0",
+            budget: data.budget || "Not specified",
+          },
         });
-      } finally {
-        setLoading(false);
+        setCurrentLifecycle(data.lead_lifecycle as LeadLifecycle);
+        setCurrentStage(data.pipeline_stage as PipelineStage);
       }
-    };
+    } catch (error: any) {
+      console.error("Error fetching lead:", error);
+      toast({
+        title: "Error loading lead",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchLead();
 
     // Fetch SMS logs
@@ -501,6 +501,7 @@ const LeadProfile = () => {
             newNote={newNote}
             setNewNote={setNewNote}
             id={id}
+            onLeadUpdate={fetchLead}
           />
         )}
 
@@ -517,6 +518,7 @@ const LeadProfile = () => {
             newNote={newNote}
             setNewNote={setNewNote}
             id={id}
+            onLeadUpdate={fetchLead}
           />
         )}
 
@@ -533,6 +535,7 @@ const LeadProfile = () => {
             newNote={newNote}
             setNewNote={setNewNote}
             id={id}
+            onLeadUpdate={fetchLead}
           />
         )}
       </div>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,18 +6,41 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Mail, MapPin, Calendar, User, Building2, Send, PlusCircle } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, User, Building2, Send, PlusCircle, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { CallHistory } from "@/components/CallHistory";
+import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
 
-export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id }: any) => {
+export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* Left: Compact Summary */}
       <div className="space-y-3">
         <Card className="border">
           <CardHeader className="p-3 pb-2">
-            <CardTitle className="text-sm font-semibold">Contact & Personal</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold">Contact & Personal</CardTitle>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <MoreVertical className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+                    Edit Information
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </CardHeader>
           <CardContent className="p-3 pt-0 space-y-2 text-xs">
             <div className="flex items-center gap-2">
@@ -255,6 +279,13 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
           </Tabs>
         </Card>
       </div>
+
+      <EditContactInfoDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        leadData={leadData}
+        onUpdate={onLeadUpdate}
+      />
     </div>
   );
 };

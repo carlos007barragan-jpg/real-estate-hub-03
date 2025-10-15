@@ -1,14 +1,24 @@
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Mail, MapPin, Calendar, User, Building2, Send, PlusCircle } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, User, Building2, Send, PlusCircle, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { CallHistory } from "@/components/CallHistory";
+import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
 
-export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id }: any) => {
+export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
   return (
     <div className="space-y-3">
       {/* Sticky Header Summary */}
@@ -48,7 +58,21 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
       {/* Contact & Personal Information */}
       <Card className="border">
         <CardContent className="p-3">
-          <h3 className="text-sm font-semibold mb-2">Contact & Personal Information</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold">Contact & Personal Information</h3>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6">
+                  <MoreVertical className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+                  Edit Information
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
             <div>
               <p className="text-muted-foreground mb-0.5">Phone</p>
@@ -238,6 +262,13 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
           </CardContent>
         </Card>
       </div>
+
+      <EditContactInfoDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        leadData={leadData}
+        onUpdate={onLeadUpdate}
+      />
     </div>
   );
 };
