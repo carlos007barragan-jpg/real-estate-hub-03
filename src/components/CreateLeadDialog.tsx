@@ -34,11 +34,21 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     email: "",
     phone: "",
     spouse_phone: "",
+    spouse_email: "",
     timeframe: "",
     source: "",
     value: "",
     status: "new",
     assigned_to: "",
+    down_payment: "",
+    financing_type: "",
+    area: "",
+    marital_status: "",
+    current_address: "",
+    lead_temperature: "warm",
+    language_preference: "English",
+    preferred_contact_method: "phone",
+    social_status: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,6 +68,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         email: formData.email,
         phone: formData.phone,
         spouse_phone: formData.spouse_phone || null,
+        spouse_email: formData.spouse_email || null,
         timeframe: formData.timeframe || null,
         source: formData.source,
         value: formData.value,
@@ -65,6 +76,15 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         assigned_to: formData.assigned_to || null,
         pipeline_stage: "New Lead",
         lead_lifecycle: "Contact",
+        down_payment: formData.down_payment || null,
+        financing_type: formData.financing_type || null,
+        area: formData.area || null,
+        marital_status: formData.marital_status || null,
+        current_address: formData.current_address || null,
+        lead_temperature: formData.lead_temperature,
+        language_preference: formData.language_preference,
+        preferred_contact_method: formData.preferred_contact_method,
+        social_status: formData.social_status || null,
       });
 
       if (error) throw error;
@@ -79,11 +99,21 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         email: "",
         phone: "",
         spouse_phone: "",
+        spouse_email: "",
         timeframe: "",
         source: "",
         value: "",
         status: "new",
         assigned_to: "",
+        down_payment: "",
+        financing_type: "",
+        area: "",
+        marital_status: "",
+        current_address: "",
+        lead_temperature: "warm",
+        language_preference: "English",
+        preferred_contact_method: "phone",
+        social_status: "",
       });
       setOpen(false);
       onLeadCreated();
@@ -107,7 +137,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
           Add Lead
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Lead</DialogTitle>
           <DialogDescription>
@@ -150,25 +180,169 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="spouse_phone">Spouse Phone</Label>
-            <Input
-              id="spouse_phone"
-              type="tel"
-              value={formData.spouse_phone}
-              onChange={(e) => setFormData({ ...formData, spouse_phone: e.target.value })}
-              placeholder="(555) 987-6543"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="spouse_phone">Spouse Phone</Label>
+              <Input
+                id="spouse_phone"
+                type="tel"
+                value={formData.spouse_phone}
+                onChange={(e) => setFormData({ ...formData, spouse_phone: e.target.value })}
+                placeholder="(555) 987-6543"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="spouse_email">Spouse Email</Label>
+              <Input
+                id="spouse_email"
+                type="email"
+                value={formData.spouse_email}
+                onChange={(e) => setFormData({ ...formData, spouse_email: e.target.value })}
+                placeholder="spouse@example.com"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="timeframe">Timeframe</Label>
+            <Label htmlFor="current_address">Current Address</Label>
             <Input
-              id="timeframe"
-              value={formData.timeframe}
-              onChange={(e) => setFormData({ ...formData, timeframe: e.target.value })}
-              placeholder="e.g., 3-6 months, ASAP, Next year"
+              id="current_address"
+              value={formData.current_address}
+              onChange={(e) => setFormData({ ...formData, current_address: e.target.value })}
+              placeholder="123 Main St, City, State, ZIP"
             />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="area">Area</Label>
+              <Input
+                id="area"
+                value={formData.area}
+                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                placeholder="Downtown"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="marital_status">Marital Status</Label>
+              <Select
+                value={formData.marital_status}
+                onValueChange={(value) => setFormData({ ...formData, marital_status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="married">Married</SelectItem>
+                  <SelectItem value="divorced">Divorced</SelectItem>
+                  <SelectItem value="widowed">Widowed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="social_status">Social Status</Label>
+              <Input
+                id="social_status"
+                value={formData.social_status}
+                onChange={(e) => setFormData({ ...formData, social_status: e.target.value })}
+                placeholder="e.g., Professional"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="lead_temperature">Lead Status</Label>
+              <Select
+                value={formData.lead_temperature}
+                onValueChange={(value) => setFormData({ ...formData, lead_temperature: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hot">Hot</SelectItem>
+                  <SelectItem value="warm">Warm</SelectItem>
+                  <SelectItem value="cold">Cold</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="timeframe">Timeframe</Label>
+              <Input
+                id="timeframe"
+                value={formData.timeframe}
+                onChange={(e) => setFormData({ ...formData, timeframe: e.target.value })}
+                placeholder="e.g., 3-6 months"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="language_preference">Language</Label>
+              <Select
+                value={formData.language_preference}
+                onValueChange={(value) => setFormData({ ...formData, language_preference: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="English">English</SelectItem>
+                  <SelectItem value="Spanish">Spanish</SelectItem>
+                  <SelectItem value="French">French</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="preferred_contact_method">Preferred Contact</Label>
+              <Select
+                value={formData.preferred_contact_method}
+                onValueChange={(value) => setFormData({ ...formData, preferred_contact_method: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="phone">Phone</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="sms">SMS</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="down_payment">Down Payment</Label>
+              <Input
+                id="down_payment"
+                value={formData.down_payment}
+                onChange={(e) => setFormData({ ...formData, down_payment: e.target.value })}
+                placeholder="$50,000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="financing_type">Financing Type</Label>
+              <Select
+                value={formData.financing_type}
+                onValueChange={(value) => setFormData({ ...formData, financing_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="conventional">Conventional</SelectItem>
+                  <SelectItem value="fha">FHA</SelectItem>
+                  <SelectItem value="va">VA</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -61,20 +61,30 @@ export type Database = {
       }
       leads: {
         Row: {
+          area: string | null
           assigned_to: string | null
           bathrooms: number | null
           bedrooms: number | null
           budget: string | null
           created_at: string
+          current_address: string | null
+          down_payment: string | null
           email: string
+          financing_type: string | null
           id: string
+          language_preference: string | null
           lead_lifecycle: string
+          lead_temperature: string | null
+          marital_status: string | null
           name: string
           phone: string
           pipeline_stage: string
+          preferred_contact_method: string | null
           property_address: string | null
           property_type: string | null
+          social_status: string | null
           source: string
+          spouse_email: string | null
           spouse_phone: string | null
           sqft: string | null
           status: string
@@ -84,20 +94,30 @@ export type Database = {
           value: string | null
         }
         Insert: {
+          area?: string | null
           assigned_to?: string | null
           bathrooms?: number | null
           bedrooms?: number | null
           budget?: string | null
           created_at?: string
+          current_address?: string | null
+          down_payment?: string | null
           email: string
+          financing_type?: string | null
           id?: string
+          language_preference?: string | null
           lead_lifecycle?: string
+          lead_temperature?: string | null
+          marital_status?: string | null
           name: string
           phone: string
           pipeline_stage?: string
+          preferred_contact_method?: string | null
           property_address?: string | null
           property_type?: string | null
+          social_status?: string | null
           source: string
+          spouse_email?: string | null
           spouse_phone?: string | null
           sqft?: string | null
           status?: string
@@ -107,20 +127,30 @@ export type Database = {
           value?: string | null
         }
         Update: {
+          area?: string | null
           assigned_to?: string | null
           bathrooms?: number | null
           bedrooms?: number | null
           budget?: string | null
           created_at?: string
+          current_address?: string | null
+          down_payment?: string | null
           email?: string
+          financing_type?: string | null
           id?: string
+          language_preference?: string | null
           lead_lifecycle?: string
+          lead_temperature?: string | null
+          marital_status?: string | null
           name?: string
           phone?: string
           pipeline_stage?: string
+          preferred_contact_method?: string | null
           property_address?: string | null
           property_type?: string | null
+          social_status?: string | null
           source?: string
+          spouse_email?: string | null
           spouse_phone?: string | null
           sqft?: string | null
           status?: string

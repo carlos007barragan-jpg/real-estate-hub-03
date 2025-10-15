@@ -45,12 +45,64 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
         </CardContent>
       </Card>
 
-      {/* Dense Property Info */}
+      {/* Dense Lead Info */}
       <Card className="border">
         <CardContent className="p-3">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+            <div>
+              <p className="text-muted-foreground mb-0.5">Phone</p>
+              <p className="font-medium">{leadData.phone}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Email</p>
+              <p className="font-medium truncate">{leadData.email}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Spouse Phone</p>
+              <p className="font-medium">{leadData.spousePhone || '-'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Spouse Email</p>
+              <p className="font-medium truncate">{leadData.spouseEmail || '-'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Preferred Contact</p>
+              <p className="font-medium capitalize">{leadData.preferredContactMethod || '-'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Language</p>
+              <p className="font-medium">{leadData.languagePreference || '-'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Lead Status</p>
+              <p className="font-medium capitalize">{leadData.leadTemperature || '-'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Marital Status</p>
+              <p className="font-medium capitalize">{leadData.maritalStatus || '-'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Social Status</p>
+              <p className="font-medium">{leadData.socialStatus || '-'}</p>
+            </div>
             <div className="col-span-2">
-              <p className="text-muted-foreground mb-0.5">Address</p>
+              <p className="text-muted-foreground mb-0.5">Current Address</p>
+              <p className="font-medium">{leadData.currentAddress || '-'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Area</p>
+              <p className="font-medium">{leadData.area || '-'}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Property Info */}
+      <Card className="border">
+        <CardContent className="p-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+            <div className="col-span-2">
+              <p className="text-muted-foreground mb-0.5">Property Address</p>
               <p className="font-medium">{leadData.propertyInterest.address}</p>
             </div>
             <div>
@@ -68,6 +120,14 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
             <div>
               <p className="text-muted-foreground mb-0.5">Budget</p>
               <p className="font-medium text-primary">{leadData.propertyInterest.budget}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Down Payment</p>
+              <p className="font-medium">{leadData.downPayment || '-'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Financing Type</p>
+              <p className="font-medium">{leadData.financingType || '-'}</p>
             </div>
           </div>
         </CardContent>
