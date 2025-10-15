@@ -208,7 +208,7 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
           </div>
         )}
 
-        <ScrollArea className="h-[250px]">
+        <ScrollArea className="h-[180px]">
           <div className="space-y-2">
             {tasks.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 text-center">
