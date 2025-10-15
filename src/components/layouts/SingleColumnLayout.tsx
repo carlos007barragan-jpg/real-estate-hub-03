@@ -21,8 +21,26 @@ export const SingleColumnLayout = ({ leadData, handleCall, handleSendMessage, ha
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
 
+  const scrollToMessages = () => {
+    const messagesSection = document.getElementById('messages-section');
+    messagesSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
+      {/* Action Buttons - Sticky */}
+      <Card className="border sticky top-4 z-20 bg-background/95 backdrop-blur">
+        <CardContent className="p-3">
+          <div className="flex gap-2">
+            <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} />
+            <Button onClick={scrollToMessages} variant="outline" size="default" className="flex-1">
+              <Phone className="h-4 w-4 mr-2" />
+              Send SMS
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Contact & Personal Information Section */}
       <Card className="border">
         <CardContent className="p-4">
@@ -170,14 +188,6 @@ export const SingleColumnLayout = ({ leadData, handleCall, handleSendMessage, ha
               </div>
             </div>
           </div>
-          <Separator className="my-3" />
-          <div className="flex gap-2">
-            <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} />
-            <Button onClick={handleCall} variant="outline" size="sm" className="h-8 text-xs">
-              <Phone className="h-3 w-3 mr-1" />
-              Send SMS
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
@@ -287,7 +297,7 @@ export const SingleColumnLayout = ({ leadData, handleCall, handleSendMessage, ha
       <Separator />
 
       {/* Messages Section */}
-      <Card className="border">
+      <Card className="border" id="messages-section">
         <CardContent className="p-4">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Send className="h-4 w-4" />

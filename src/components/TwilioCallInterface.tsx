@@ -241,7 +241,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
       className="gap-2 bg-success hover:bg-success/90 w-full"
     >
       <Phone className="h-4 w-4" />
-      {isInitializing ? "Initializing..." : "Start Browser Call"}
+      {isInitializing ? "Initializing..." : "Start Call"}
     </Button>
   );
 };

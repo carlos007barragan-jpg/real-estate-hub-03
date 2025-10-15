@@ -21,10 +21,28 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
 
+  const scrollToMessages = () => {
+    const messagesSection = document.getElementById('messages-section-table');
+    messagesSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="space-y-3">
+      {/* Action Buttons - Sticky */}
+      <Card className="border sticky top-0 z-20 bg-background/95 backdrop-blur">
+        <CardContent className="p-3">
+          <div className="flex gap-2">
+            <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} />
+            <Button onClick={scrollToMessages} variant="outline" size="sm" className="h-10 px-4 flex-1">
+              <Phone className="h-4 w-4 mr-2" />
+              Send SMS
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Sticky Header Summary */}
-      <Card className="border sticky top-0 z-10 bg-background">
+      <Card className="border bg-background">
         <CardContent className="p-3">
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
             <div>
@@ -48,10 +66,10 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
               <p className="font-medium">{leadData.timeframe}</p>
             </div>
             <div className="flex gap-1">
-              <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} />
-              <Button onClick={handleCall} variant="outline" size="sm" className="h-7 px-2 text-xs flex-1">
-                SMS
-              </Button>
+              <div className="flex-1 text-xs">
+                <p className="text-muted-foreground mb-0.5">Date</p>
+                <p className="font-medium">{leadData.date}</p>
+              </div>
             </div>
           </div>
         </CardContent>

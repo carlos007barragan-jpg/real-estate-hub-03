@@ -22,10 +22,28 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
 
+  const scrollToMessages = () => {
+    const messagesTab = document.querySelector('[data-value="messages"]');
+    if (messagesTab) {
+      (messagesTab as HTMLElement).click();
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* Left: Compact Summary */}
       <div className="space-y-3">
+        {/* Action Buttons */}
+        <Card className="border sticky top-0 z-20 bg-background">
+          <CardContent className="p-3 space-y-2">
+            <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} />
+            <Button onClick={scrollToMessages} variant="outline" className="w-full h-8 text-xs">
+              <Phone className="h-3 w-3 mr-1" />
+              Send SMS
+            </Button>
+          </CardContent>
+        </Card>
+
         <Card className="border">
           <CardHeader className="p-3 pb-2">
             <div className="flex items-center justify-between">
@@ -180,17 +198,6 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
           </CardContent>
         </Card>
 
-        <div className="space-y-2">
-          <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} />
-          <Button onClick={handleCall} className="w-full h-8 text-xs" variant="outline" size="sm">
-            <Phone className="h-3 w-3 mr-1" />
-            Send SMS
-          </Button>
-        </div>
-      </div>
-
-      {/* Right: Tabs */}
-      <div className="lg:col-span-2">
         <Card className="border">
           <Tabs defaultValue="calls" className="w-full">
             <CardHeader className="p-3 pb-2">
@@ -203,7 +210,7 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
                   <PlusCircle className="h-3 w-3 mr-1" />
                   Notes
                 </TabsTrigger>
-                <TabsTrigger value="messages" className="text-xs">
+                <TabsTrigger value="messages" className="text-xs" data-value="messages">
                   <Send className="h-3 w-3 mr-1" />
                   Messages
                 </TabsTrigger>
