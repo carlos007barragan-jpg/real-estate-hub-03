@@ -67,12 +67,13 @@ const Settings = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "agent" | "viewer">("agent");
   const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem("darkMode");
-    return saved === "true" || false;
+    return localStorage.getItem("darkMode") === "true";
   });
 
   useEffect(() => {
     localStorage.setItem("darkMode", darkMode.toString());
+    // Manually dispatch storage event for same-window updates
+    window.dispatchEvent(new Event("storage"));
     if (darkMode) {
       document.documentElement.classList.add("dark");
     } else {
