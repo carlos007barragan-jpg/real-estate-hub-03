@@ -405,8 +405,8 @@ const LeadProfile = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="hot">🔥 Hot</SelectItem>
-                  <SelectItem value="warm">🔥 Warm</SelectItem>
-                  <SelectItem value="cold">🔥 Cold</SelectItem>
+                  <SelectItem value="warm">☀️ Warm</SelectItem>
+                  <SelectItem value="cold">❄️ Cold</SelectItem>
                 </SelectContent>
               </Select>
             </div>
