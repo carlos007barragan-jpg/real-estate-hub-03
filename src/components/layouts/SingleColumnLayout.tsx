@@ -11,11 +11,11 @@ import { CallHistory } from "@/components/CallHistory";
 export const SingleColumnLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id }: any) => {
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
-      {/* Contact Section */}
+      {/* Contact & Personal Information Section */}
       <Card className="border">
         <CardContent className="p-4">
-          <h3 className="text-sm font-semibold mb-3">Contact Information</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <h3 className="text-sm font-semibold mb-3">Contact & Personal Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className="flex items-center gap-2">
               <Mail className="h-3 w-3 text-muted-foreground" />
               <div>
@@ -30,15 +30,69 @@ export const SingleColumnLayout = ({ leadData, handleCall, handleSendMessage, ha
                 <p className="font-medium">{leadData.phone}</p>
               </div>
             </div>
-            {leadData.spousePhone && (
-              <div className="flex items-center gap-2">
-                <Phone className="h-3 w-3 text-muted-foreground" />
-                <div>
-                  <p className="text-muted-foreground">Spouse Phone</p>
-                  <p className="font-medium">{leadData.spousePhone}</p>
-                </div>
+            <div className="flex items-center gap-2">
+              <Phone className="h-3 w-3 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">Spouse Phone</p>
+                <p className="font-medium">{leadData.spousePhone || '-'}</p>
               </div>
-            )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Mail className="h-3 w-3 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">Spouse Email</p>
+                <p className="font-medium truncate">{leadData.spouseEmail || '-'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <User className="h-3 w-3 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">Marital Status</p>
+                <p className="font-medium capitalize">{leadData.maritalStatus || '-'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <User className="h-3 w-3 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">Social Status</p>
+                <p className="font-medium">{leadData.socialStatus || '-'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Phone className="h-3 w-3 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">Preferred Contact</p>
+                <p className="font-medium capitalize">{leadData.preferredContactMethod || '-'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <User className="h-3 w-3 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">Language</p>
+                <p className="font-medium">{leadData.languagePreference || '-'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <User className="h-3 w-3 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">Lead Status</p>
+                <p className="font-medium capitalize">{leadData.leadTemperature || '-'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <MapPin className="h-3 w-3 text-muted-foreground" />
+              <div>
+                <p className="text-muted-foreground">Area</p>
+                <p className="font-medium">{leadData.area || '-'}</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 md:col-span-2">
+              <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-muted-foreground">Current Address</p>
+                <p className="font-medium">{leadData.currentAddress || '-'}</p>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3 text-muted-foreground" />
               <div>
@@ -82,14 +136,17 @@ export const SingleColumnLayout = ({ leadData, handleCall, handleSendMessage, ha
       {/* Property Section */}
       <Card className="border">
         <CardContent className="p-4">
-          <h3 className="text-sm font-semibold mb-3">Property Interest</h3>
+          <h3 className="text-sm font-semibold mb-3">Property Information</h3>
           <div className="space-y-2 text-xs">
             <div className="flex items-start gap-2">
               <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
-              <span>{leadData.propertyInterest.address}</span>
+              <div>
+                <p className="text-muted-foreground">Property Address</p>
+                <p className="font-medium">{leadData.propertyInterest.address}</p>
+              </div>
             </div>
             <Separator className="my-2" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div>
                 <p className="text-muted-foreground">Type</p>
                 <p className="font-medium">{leadData.propertyInterest.propertyType}</p>
@@ -105,6 +162,14 @@ export const SingleColumnLayout = ({ leadData, handleCall, handleSendMessage, ha
               <div>
                 <p className="text-muted-foreground">Budget</p>
                 <p className="font-medium text-primary">{leadData.propertyInterest.budget}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Down Payment</p>
+                <p className="font-medium">{leadData.downPayment || '-'}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Financing Type</p>
+                <p className="font-medium capitalize">{leadData.financingType || '-'}</p>
               </div>
             </div>
           </div>

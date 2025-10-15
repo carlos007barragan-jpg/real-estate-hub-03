@@ -16,7 +16,7 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
       <div className="space-y-3">
         <Card className="border">
           <CardHeader className="p-3 pb-2">
-            <CardTitle className="text-sm font-semibold">Contact</CardTitle>
+            <CardTitle className="text-sm font-semibold">Contact & Personal</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 space-y-2 text-xs">
             <div className="flex items-center gap-2">
@@ -27,13 +27,52 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
               <Phone className="h-3 w-3 text-muted-foreground" />
               <span>{leadData.phone}</span>
             </div>
-            {leadData.spousePhone && (
-              <div className="flex items-center gap-2">
-                <Phone className="h-3 w-3 text-muted-foreground" />
-                <span>{leadData.spousePhone}</span>
-                <span className="text-muted-foreground">(Spouse)</span>
+            <div className="flex items-center gap-2">
+              <Phone className="h-3 w-3 text-muted-foreground" />
+              <span>{leadData.spousePhone || '-'}</span>
+              <span className="text-muted-foreground">(Spouse)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Mail className="h-3 w-3 text-muted-foreground" />
+              <span className="truncate">{leadData.spouseEmail || '-'}</span>
+              <span className="text-muted-foreground">(Spouse)</span>
+            </div>
+            <Separator className="my-2" />
+            <div className="grid grid-cols-2 gap-1">
+              <div>
+                <span className="text-muted-foreground">Marital:</span> 
+                <span className="capitalize ml-1">{leadData.maritalStatus || '-'}</span>
               </div>
-            )}
+              <div>
+                <span className="text-muted-foreground">Social:</span> 
+                <span className="ml-1">{leadData.socialStatus || '-'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Contact:</span> 
+                <span className="capitalize ml-1">{leadData.preferredContactMethod || '-'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Language:</span> 
+                <span className="ml-1">{leadData.languagePreference || '-'}</span>
+              </div>
+              <div className="col-span-2">
+                <span className="text-muted-foreground">Lead Status:</span> 
+                <span className="capitalize ml-1">{leadData.leadTemperature || '-'}</span>
+              </div>
+            </div>
+            <Separator className="my-2" />
+            <div className="space-y-1">
+              <div className="flex items-start gap-2">
+                <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
+                <span className="text-muted-foreground">Current:</span>
+                <span className="flex-1">{leadData.currentAddress || '-'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-3 w-3 text-muted-foreground" />
+                <span className="text-muted-foreground">Area:</span>
+                <span>{leadData.area || '-'}</span>
+              </div>
+            </div>
             <Separator className="my-2" />
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3 text-muted-foreground" />
@@ -76,6 +115,13 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
               </div>
               <div>
                 <span className="text-muted-foreground">Budget:</span> {leadData.propertyInterest.budget}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Down:</span> {leadData.downPayment || '-'}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Finance:</span> 
+                <span className="capitalize ml-1">{leadData.financingType || '-'}</span>
               </div>
             </div>
           </CardContent>
