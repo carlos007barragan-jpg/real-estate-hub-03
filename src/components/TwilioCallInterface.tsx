@@ -238,6 +238,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
     <Button
       onClick={startCall}
       disabled={isInitializing}
+      size="default"
       className="gap-2 bg-success hover:bg-success/90 w-full"
     >
       <Phone className="h-4 w-4" />
