@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Mail, MapPin, Calendar, User, Building2, Send, PlusCircle, MoreVertical } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Phone, Mail, MapPin, Calendar, User, Building2, Send, PlusCircle, MoreVertical, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
 
 export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -65,56 +67,54 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
                 <span className="text-muted-foreground">(Spouse)</span>
               </div>
             )}
-            {(leadData.maritalStatus || leadData.socialStatus || leadData.preferredContactMethod || leadData.languagePreference) && (
+            {(leadData.maritalStatus || leadData.socialStatus || leadData.preferredContactMethod || leadData.languagePreference || leadData.currentAddress) && (
               <>
                 <Separator className="my-2" />
-                <div className="grid grid-cols-2 gap-1">
-                  {leadData.maritalStatus && (
-                    <div>
-                      <span className="text-muted-foreground">Marital:</span> 
-                      <span className="capitalize ml-1">{leadData.maritalStatus}</span>
+                <Collapsible open={additionalInfoOpen} onOpenChange={setAdditionalInfoOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full justify-between h-7 text-xs px-2">
+                      <span>More</span>
+                      <ChevronDown className={`h-3 w-3 transition-transform ${additionalInfoOpen ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-2">
+                    <div className="space-y-1">
+                      {leadData.maritalStatus && (
+                        <div>
+                          <span className="text-muted-foreground">Marital:</span> 
+                          <span className="capitalize ml-1">{leadData.maritalStatus}</span>
+                        </div>
+                      )}
+                      {leadData.socialStatus && (
+                        <div>
+                          <span className="text-muted-foreground">SS Status:</span> 
+                          <span className="ml-1">{leadData.socialStatus}</span>
+                        </div>
+                      )}
+                      {leadData.preferredContactMethod && (
+                        <div>
+                          <span className="text-muted-foreground">Contact:</span> 
+                          <span className="capitalize ml-1">{leadData.preferredContactMethod}</span>
+                        </div>
+                      )}
+                      {leadData.languagePreference && (
+                        <div>
+                          <span className="text-muted-foreground">Language:</span> 
+                          <span className="ml-1">{leadData.languagePreference}</span>
+                        </div>
+                      )}
+                      {leadData.currentAddress && (
+                        <div className="flex items-start gap-2 pt-1">
+                          <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
+                          <div>
+                            <span className="text-muted-foreground">Current:</span>
+                            <span className="ml-1">{leadData.currentAddress}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {leadData.socialStatus && (
-                    <div>
-                      <span className="text-muted-foreground">Social:</span> 
-                      <span className="ml-1">{leadData.socialStatus}</span>
-                    </div>
-                  )}
-                  {leadData.preferredContactMethod && (
-                    <div>
-                      <span className="text-muted-foreground">Contact:</span> 
-                      <span className="capitalize ml-1">{leadData.preferredContactMethod}</span>
-                    </div>
-                  )}
-                  {leadData.languagePreference && (
-                    <div>
-                      <span className="text-muted-foreground">Language:</span> 
-                      <span className="ml-1">{leadData.languagePreference}</span>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-            {(leadData.currentAddress || leadData.area) && (
-              <>
-                <Separator className="my-2" />
-                <div className="space-y-1">
-                  {leadData.currentAddress && (
-                    <div className="flex items-start gap-2">
-                      <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
-                      <span className="text-muted-foreground">Current:</span>
-                      <span className="flex-1">{leadData.currentAddress}</span>
-                    </div>
-                  )}
-                  {leadData.area && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">Area:</span>
-                      <span>{leadData.area}</span>
-                    </div>
-                  )}
-                </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </>
             )}
             <Separator className="my-2" />
@@ -148,6 +148,11 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
             </div>
             <Separator className="my-2" />
             <div className="grid grid-cols-2 gap-2 text-xs">
+              {leadData.area && (
+                <div>
+                  <span className="text-muted-foreground">Area:</span> {leadData.area}
+                </div>
+              )}
               <div>
                 <span className="text-muted-foreground">Type:</span> {leadData.propertyInterest.propertyType}
               </div>

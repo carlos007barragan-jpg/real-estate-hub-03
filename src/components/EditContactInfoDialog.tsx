@@ -166,7 +166,7 @@ export const EditContactInfoDialog = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="socialStatus">Social Status</Label>
+              <Label htmlFor="socialStatus">Social Security Status</Label>
               <Input
                 id="socialStatus"
                 value={formData.socialStatus}

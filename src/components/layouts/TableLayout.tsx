@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Phone, Mail, MapPin, Calendar, User, Building2, Send, PlusCircle, MoreVertical } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Phone, Mail, MapPin, Calendar, User, Building2, Send, PlusCircle, MoreVertical, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,7 @@ import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
 
 export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
 
   return (
     <div className="space-y-3">
@@ -82,30 +84,6 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
               <p className="text-muted-foreground mb-0.5">Email</p>
               <p className="font-medium truncate">{leadData.email}</p>
             </div>
-            {leadData.preferredContactMethod && (
-              <div>
-                <p className="text-muted-foreground mb-0.5">Preferred Contact</p>
-                <p className="font-medium capitalize">{leadData.preferredContactMethod}</p>
-              </div>
-            )}
-            {leadData.languagePreference && (
-              <div>
-                <p className="text-muted-foreground mb-0.5">Language</p>
-                <p className="font-medium">{leadData.languagePreference}</p>
-              </div>
-            )}
-            {leadData.socialStatus && (
-              <div>
-                <p className="text-muted-foreground mb-0.5">Social Status</p>
-                <p className="font-medium">{leadData.socialStatus}</p>
-              </div>
-            )}
-            {leadData.maritalStatus && (
-              <div>
-                <p className="text-muted-foreground mb-0.5">Marital Status</p>
-                <p className="font-medium capitalize">{leadData.maritalStatus}</p>
-              </div>
-            )}
             {leadData.spousePhone && (
               <div>
                 <p className="text-muted-foreground mb-0.5">Spouse Phone</p>
@@ -118,19 +96,55 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
                 <p className="font-medium truncate">{leadData.spouseEmail}</p>
               </div>
             )}
-            {leadData.currentAddress && (
-              <div className="col-span-2">
-                <p className="text-muted-foreground mb-0.5">Current Address</p>
-                <p className="font-medium">{leadData.currentAddress}</p>
-              </div>
-            )}
-            {leadData.area && (
-              <div>
-                <p className="text-muted-foreground mb-0.5">Area</p>
-                <p className="font-medium">{leadData.area}</p>
-              </div>
-            )}
           </div>
+
+          {(leadData.preferredContactMethod || leadData.languagePreference || leadData.socialStatus || leadData.maritalStatus || leadData.currentAddress) && (
+            <>
+              <Separator className="my-2" />
+              <Collapsible open={additionalInfoOpen} onOpenChange={setAdditionalInfoOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between h-7 text-xs">
+                    <span>Additional Information</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${additionalInfoOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                    {leadData.preferredContactMethod && (
+                      <div>
+                        <p className="text-muted-foreground mb-0.5">Preferred Contact</p>
+                        <p className="font-medium capitalize">{leadData.preferredContactMethod}</p>
+                      </div>
+                    )}
+                    {leadData.languagePreference && (
+                      <div>
+                        <p className="text-muted-foreground mb-0.5">Language</p>
+                        <p className="font-medium">{leadData.languagePreference}</p>
+                      </div>
+                    )}
+                    {leadData.socialStatus && (
+                      <div>
+                        <p className="text-muted-foreground mb-0.5">SS Status</p>
+                        <p className="font-medium">{leadData.socialStatus}</p>
+                      </div>
+                    )}
+                    {leadData.maritalStatus && (
+                      <div>
+                        <p className="text-muted-foreground mb-0.5">Marital Status</p>
+                        <p className="font-medium capitalize">{leadData.maritalStatus}</p>
+                      </div>
+                    )}
+                    {leadData.currentAddress && (
+                      <div className="col-span-2 md:col-span-4">
+                        <p className="text-muted-foreground mb-0.5">Current Address</p>
+                        <p className="font-medium">{leadData.currentAddress}</p>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -143,6 +157,12 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
               <p className="text-muted-foreground mb-0.5">Property Address</p>
               <p className="font-medium">{leadData.propertyInterest.address}</p>
             </div>
+            {leadData.area && (
+              <div>
+                <p className="text-muted-foreground mb-0.5">Area</p>
+                <p className="font-medium">{leadData.area}</p>
+              </div>
+            )}
             <div>
               <p className="text-muted-foreground mb-0.5">Type</p>
               <p className="font-medium">{leadData.propertyInterest.propertyType}</p>
