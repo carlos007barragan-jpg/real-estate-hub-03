@@ -239,10 +239,10 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
       onClick={startCall}
       disabled={isInitializing}
       size="default"
-      className="gap-2 bg-success hover:bg-success/90 w-full"
+      className="w-full gap-2 bg-success hover:bg-success/90"
     >
       <Phone className="h-4 w-4" />
-      {isInitializing ? "Initializing..." : "Start Call"}
+      {isInitializing ? "Connecting..." : "Start Call"}
     </Button>
   );
 };
