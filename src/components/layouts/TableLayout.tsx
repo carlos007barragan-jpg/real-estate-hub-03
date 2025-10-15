@@ -45,9 +45,10 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
         </CardContent>
       </Card>
 
-      {/* Dense Lead Info */}
+      {/* Contact & Personal Information */}
       <Card className="border">
         <CardContent className="p-3">
+          <h3 className="text-sm font-semibold mb-2">Contact & Personal Information</h3>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
             <div>
               <p className="text-muted-foreground mb-0.5">Phone</p>
@@ -56,14 +57,6 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
             <div>
               <p className="text-muted-foreground mb-0.5">Email</p>
               <p className="font-medium truncate">{leadData.email}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Spouse Phone</p>
-              <p className="font-medium">{leadData.spousePhone || '-'}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-0.5">Spouse Email</p>
-              <p className="font-medium truncate">{leadData.spouseEmail || '-'}</p>
             </div>
             <div>
               <p className="text-muted-foreground mb-0.5">Preferred Contact</p>
@@ -78,12 +71,20 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
               <p className="font-medium capitalize">{leadData.leadTemperature || '-'}</p>
             </div>
             <div>
+              <p className="text-muted-foreground mb-0.5">Social Status</p>
+              <p className="font-medium">{leadData.socialStatus || '-'}</p>
+            </div>
+            <div>
               <p className="text-muted-foreground mb-0.5">Marital Status</p>
               <p className="font-medium capitalize">{leadData.maritalStatus || '-'}</p>
             </div>
             <div>
-              <p className="text-muted-foreground mb-0.5">Social Status</p>
-              <p className="font-medium">{leadData.socialStatus || '-'}</p>
+              <p className="text-muted-foreground mb-0.5">Spouse Phone</p>
+              <p className="font-medium">{leadData.spousePhone || '-'}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Spouse Email</p>
+              <p className="font-medium truncate">{leadData.spouseEmail || '-'}</p>
             </div>
             <div className="col-span-2">
               <p className="text-muted-foreground mb-0.5">Current Address</p>
@@ -100,6 +101,7 @@ export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAdd
       {/* Property Info */}
       <Card className="border">
         <CardContent className="p-3">
+          <h3 className="text-sm font-semibold mb-2">Property Information</h3>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
             <div className="col-span-2">
               <p className="text-muted-foreground mb-0.5">Property Address</p>
