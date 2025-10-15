@@ -393,32 +393,22 @@ const LeadProfile = () => {
               <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
                 {leadData.name}
               </h1>
-              <div className="flex items-center gap-2">
-                {leadData.leadTemperature && (
-                  <Badge 
-                    variant="outline" 
-                    className={`capitalize text-xs px-3 py-1 ${
-                      leadData.leadTemperature === 'hot' 
-                        ? 'bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400' 
-                        : leadData.leadTemperature === 'warm' 
-                        ? 'bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400'
-                        : 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400'
-                    }`}
-                  >
-                    🔥 {leadData.leadTemperature}
-                  </Badge>
-                )}
-                <Select value={leadData.leadTemperature || 'warm'} onValueChange={handleLeadTemperatureChange}>
-                  <SelectTrigger className="w-[100px] h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hot">Hot</SelectItem>
-                    <SelectItem value="warm">Warm</SelectItem>
-                    <SelectItem value="cold">Cold</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={leadData.leadTemperature || 'warm'} onValueChange={handleLeadTemperatureChange}>
+                <SelectTrigger className={`w-[110px] h-8 text-xs capitalize px-3 py-1 ${
+                  leadData.leadTemperature === 'hot' 
+                    ? 'bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400' 
+                    : leadData.leadTemperature === 'warm' 
+                    ? 'bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400'
+                    : 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400'
+                }`}>
+                  <SelectValue placeholder="Set status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hot">🔥 Hot</SelectItem>
+                  <SelectItem value="warm">🔥 Warm</SelectItem>
+                  <SelectItem value="cold">🔥 Cold</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <p className="text-sm text-muted-foreground mt-1">Lead Profile</p>
           </div>
