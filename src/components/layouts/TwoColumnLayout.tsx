@@ -17,6 +17,8 @@ import {
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { CallHistory } from "@/components/CallHistory";
 import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
+import { TasksSection } from "@/components/TasksSection";
+import { DocumentsSection } from "@/components/DocumentsSection";
 
 export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -292,89 +294,13 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
         </Card>
       </div>
 
-      {/* Right: Notes and Messages stacked vertically */}
+      {/* Right: Tasks and Documents stacked vertically */}
       <div className="space-y-4">
-        {/* Notes Section */}
-        <Card className="border">
-        <CardContent className="p-4">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Send className="h-4 w-4" />
-            Messages
-          </h3>
-          <ScrollArea className="h-[500px] mb-3">
-            <div className="space-y-2">
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-center">
-                  <Send className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">No messages yet</p>
-                </div>
-              ) : (
-                messages.map((message: any) => (
-                  <div key={message.id} className={`flex ${message.sender === "agent" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-lg p-3 text-sm ${message.sender === "agent" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                      <p>{message.text}</p>
-                      <p className="text-xs opacity-70 mt-1">{message.timestamp}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </ScrollArea>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Type a message..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-              className="text-sm"
-            />
-            <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-        </Card>
+        {/* Tasks Section */}
+        <TasksSection leadId={id} />
 
-        {/* Messages Section */}
-        <Card className="border">
-          <CardContent className="p-4">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Send className="h-4 w-4" />
-              Messages
-            </h3>
-            <ScrollArea className="h-[500px] mb-3">
-              <div className="space-y-2">
-                {messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-64 text-center">
-                    <Send className="h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">No messages yet</p>
-                  </div>
-                ) : (
-                  messages.map((message: any) => (
-                    <div key={message.id} className={`flex ${message.sender === "agent" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[80%] rounded-lg p-3 text-sm ${message.sender === "agent" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                        <p>{message.text}</p>
-                        <p className="text-xs opacity-70 mt-1">{message.timestamp}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                className="text-sm"
-              />
-              <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Documents Section */}
+        <DocumentsSection leadId={id} />
       </div>
 
       <EditContactInfoDialog
