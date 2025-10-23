@@ -8,7 +8,6 @@ const navItems = [
   { title: "Leads", url: "/leads", icon: Users },
   { title: "Pipelines", url: "/pipelines", icon: Layers },
   { title: "Contacts", url: "/contacts", icon: Phone },
-  { title: "Communications", url: "/communications", icon: PhoneCall },
   { title: "Inbox", url: "/inbox", icon: InboxIcon },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
