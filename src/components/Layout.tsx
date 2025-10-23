@@ -1,4 +1,4 @@
-import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, Inbox as InboxIcon, PhoneCall, LogOut } from "lucide-react";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, Inbox as InboxIcon, LogOut } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
