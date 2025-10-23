@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "./ui/card";
-import { Phone, Play, Pause, Loader2 } from "lucide-react";
+import { Phone, Play, Pause, Loader2, PhoneIncoming, PhoneOutgoing, User } from "lucide-react";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "./ui/badge";
 
 interface CallLog {
   id: string;
@@ -16,6 +17,9 @@ interface CallLog {
   recording_url: string | null;
   recording_duration: number | null;
   created_at: string;
+  transcription: string | null;
+  answered_by: string | null;
+  direction: string;
 }
 
 interface CallHistoryProps {
@@ -171,13 +175,28 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
       {callLogs.map((log) => (
         <Card key={log.id} className="p-4">
           <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Phone className="h-4 w-4 text-primary" />
+            <div className="flex items-start gap-3 flex-1">
+              <div className={`p-2 rounded-lg ${
+                log.direction === 'inbound' 
+                  ? 'bg-info/10' 
+                  : 'bg-primary/10'
+              }`}>
+                {log.direction === 'inbound' ? (
+                  <PhoneIncoming className={`h-4 w-4 ${
+                    log.direction === 'inbound' ? 'text-info' : 'text-primary'
+                  }`} />
+                ) : (
+                  <PhoneOutgoing className="h-4 w-4 text-primary" />
+                )}
               </div>
-              <div>
-                <div className="font-medium">
-                  {log.from_number} → {log.to_number}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium">
+                    {log.from_number} → {log.to_number}
+                  </span>
+                  <Badge variant="outline" className="text-xs">
+                    {log.direction === 'inbound' ? 'Inbound' : 'Outbound'}
+                  </Badge>
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
@@ -194,6 +213,22 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
                     {log.status}
                   </span>
                 </div>
+                {log.answered_by && (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                    <User className="h-3 w-3" />
+                    <span>Answered by: {log.answered_by}</span>
+                  </div>
+                )}
+                {log.transcription && (
+                  <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                    <div className="text-xs font-medium text-muted-foreground mb-1">
+                      Transcription:
+                    </div>
+                    <div className="text-sm">
+                      {log.transcription}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             {log.recording_url && (
@@ -202,7 +237,7 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
                 variant="outline"
                 onClick={() => playRecording(log.id, log.recording_url!)}
                 disabled={loadingAudio === log.id}
-                className="gap-2"
+                className="gap-2 ml-4"
               >
                 {loadingAudio === log.id ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -211,7 +246,7 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
                 ) : (
                   <Play className="h-3 w-3" />
                 )}
-                {playingCallId === log.id ? 'Pause' : 'Play Recording'}
+                {playingCallId === log.id ? 'Pause' : 'Play'}
               </Button>
             )}
           </div>

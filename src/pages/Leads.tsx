@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Phone, Mail, MoreVertical, UserPlus } from "lucide-react";
+import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle } from "lucide-react";
 import { CreateLeadDialog } from "@/components/CreateLeadDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,7 @@ interface Lead {
   value: string;
   date: string;
   assignedTo?: string;
+  isInboundCall?: boolean;
 }
 
 
@@ -84,6 +85,7 @@ const Leads = () => {
         value: lead.value || "",
         date: new Date(lead.created_at).toLocaleDateString(),
         assignedTo: lead.assigned_to || undefined,
+        isInboundCall: lead.is_inbound_call || false,
       }));
 
       setLeads(formattedLeads);
@@ -186,10 +188,24 @@ const Leads = () => {
             {filteredLeads.map((lead) => (
               <TableRow 
                 key={lead.id} 
-                className="hover:bg-muted/50 transition-colors cursor-pointer"
+                className={`hover:bg-muted/50 transition-colors cursor-pointer ${
+                  lead.isInboundCall 
+                    ? 'bg-info/10 border-l-4 border-l-info hover:bg-info/20' 
+                    : ''
+                }`}
                 onClick={() => navigate(`/leads/${lead.id}`)}
               >
-                <TableCell className="font-medium">{lead.name}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {lead.isInboundCall && (
+                      <Badge variant="outline" className="gap-1 border-info text-info bg-info/5">
+                        <PhoneIncoming className="h-3 w-3" />
+                        <span className="text-xs">Inbound</span>
+                      </Badge>
+                    )}
+                    <span>{lead.name}</span>
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-sm">

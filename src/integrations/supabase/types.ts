@@ -16,8 +16,10 @@ export type Database = {
     Tables: {
       call_logs: {
         Row: {
+          answered_by: string | null
           call_sid: string
           created_at: string
+          direction: string | null
           duration: number | null
           from_number: string
           id: string
@@ -26,12 +28,15 @@ export type Database = {
           recording_url: string | null
           status: string
           to_number: string
+          transcription: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          answered_by?: string | null
           call_sid: string
           created_at?: string
+          direction?: string | null
           duration?: number | null
           from_number: string
           id?: string
@@ -40,12 +45,15 @@ export type Database = {
           recording_url?: string | null
           status?: string
           to_number: string
+          transcription?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          answered_by?: string | null
           call_sid?: string
           created_at?: string
+          direction?: string | null
           duration?: number | null
           from_number?: string
           id?: string
@@ -54,6 +62,7 @@ export type Database = {
           recording_url?: string | null
           status?: string
           to_number?: string
+          transcription?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -113,6 +122,7 @@ export type Database = {
           email: string
           financing_type: string | null
           id: string
+          is_inbound_call: boolean | null
           language_preference: string | null
           lead_lifecycle: string
           lead_temperature: string | null
@@ -125,6 +135,7 @@ export type Database = {
           property_type: string | null
           social_status: string | null
           source: string
+          source_call_sid: string | null
           spouse_email: string | null
           spouse_phone: string | null
           sqft: string | null
@@ -146,6 +157,7 @@ export type Database = {
           email: string
           financing_type?: string | null
           id?: string
+          is_inbound_call?: boolean | null
           language_preference?: string | null
           lead_lifecycle?: string
           lead_temperature?: string | null
@@ -158,6 +170,7 @@ export type Database = {
           property_type?: string | null
           social_status?: string | null
           source: string
+          source_call_sid?: string | null
           spouse_email?: string | null
           spouse_phone?: string | null
           sqft?: string | null
@@ -179,6 +192,7 @@ export type Database = {
           email?: string
           financing_type?: string | null
           id?: string
+          is_inbound_call?: boolean | null
           language_preference?: string | null
           lead_lifecycle?: string
           lead_temperature?: string | null
@@ -191,6 +205,7 @@ export type Database = {
           property_type?: string | null
           social_status?: string | null
           source?: string
+          source_call_sid?: string | null
           spouse_email?: string | null
           spouse_phone?: string | null
           sqft?: string | null

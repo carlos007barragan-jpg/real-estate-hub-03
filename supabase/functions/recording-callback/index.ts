@@ -55,6 +55,19 @@ Deno.serve(async (req) => {
     
     console.log('Call log updated successfully');
     
+    // Trigger transcription in the background
+    const transcriptionUrl = `${supabaseUrl}/functions/v1/transcribe-call`;
+    fetch(transcriptionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({ callSid }),
+    }).catch(error => {
+      console.error('Error triggering transcription:', error);
+    });
+    
     return new Response('OK', { 
       headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
       status: 200,
