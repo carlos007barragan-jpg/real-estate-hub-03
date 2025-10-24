@@ -26,7 +26,7 @@ export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddN
   return (
     <Card className="border">
       <CardHeader className="p-4">
-        <CardTitle className="text-lg font-semibold">Activity</CardTitle>
+        <CardTitle className="text-lg font-semibold">Call Log</CardTitle>
       </CardHeader>
       <CardContent className="p-4 pt-0">
         <ScrollArea className="h-[500px]">
