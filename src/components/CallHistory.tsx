@@ -219,7 +219,7 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
                     <span>Answered by: {log.answered_by}</span>
                   </div>
                 )}
-                {log.transcription && (
+                {log.transcription && playingCallId === log.id && (
                   <div className="mt-3 p-3 bg-muted/50 rounded-lg">
                     <div className="text-xs font-medium text-muted-foreground mb-1">
                       Transcription:
