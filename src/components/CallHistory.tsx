@@ -32,6 +32,7 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
   const [loading, setLoading] = useState(true);
   const [playingCallId, setPlayingCallId] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
+  const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchCallLogs = async () => {
@@ -81,6 +82,10 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const toggleTranscription = (callId: string) => {
+    setExpandedCallId(expandedCallId === callId ? null : callId);
   };
 
   const playRecording = async (callId: string, url: string) => {
@@ -175,7 +180,10 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
       {callLogs.map((log) => (
         <Card key={log.id} className="p-4">
           <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3 flex-1">
+            <div 
+              className="flex items-start gap-3 flex-1 cursor-pointer" 
+              onClick={() => log.transcription && toggleTranscription(log.id)}
+            >
               <div className={`p-2 rounded-lg ${
                 log.direction === 'inbound' 
                   ? 'bg-info/10' 
@@ -219,7 +227,7 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
                     <span>Answered by: {log.answered_by}</span>
                   </div>
                 )}
-                {log.transcription && playingCallId === log.id && (
+                {log.transcription && (expandedCallId === log.id || playingCallId === log.id) && (
                   <div className="mt-3 p-3 bg-muted/50 rounded-lg">
                     <div className="text-xs font-medium text-muted-foreground mb-1">
                       Transcription:
@@ -235,7 +243,10 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => playRecording(log.id, log.recording_url!)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  playRecording(log.id, log.recording_url!);
+                }}
                 disabled={loadingAudio === log.id}
                 className="gap-2 ml-4"
               >
