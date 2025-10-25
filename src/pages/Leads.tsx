@@ -139,6 +139,34 @@ const Leads = () => {
     }
   };
 
+  const handleDeleteLead = async (leadId: string, leadName: string) => {
+    if (!confirm(`Are you sure you want to delete ${leadName}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", leadId);
+
+      if (error) throw error;
+
+      setLeads(leads.filter((lead) => lead.id !== leadId));
+
+      toast({
+        title: "Lead deleted",
+        description: `${leadName} has been successfully deleted`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error deleting lead",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center">
@@ -267,7 +295,15 @@ const Leads = () => {
                         </DropdownMenuItem>
                         <DropdownMenuItem>Edit</DropdownMenuItem>
                         <DropdownMenuItem>Convert to Contact</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteLead(lead.id, lead.name);
+                          }}
+                        >
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                     <ForwardLeadDialog
