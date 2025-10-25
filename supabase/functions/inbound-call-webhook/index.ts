@@ -36,9 +36,19 @@ Deno.serve(async (req) => {
     
     // If no lead exists, create a new one
     if (!leadId) {
-      // Get first user as default (in production, route to appropriate user)
-      const { data: firstUser } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
-      userId = firstUser?.users[0]?.id;
+      // Choose an owner for the new lead: first active agent, else first user
+      const { data: activeAgents } = await supabase
+        .from('agents')
+        .select('user_id')
+        .eq('is_active', true)
+        .limit(1);
+
+      if (activeAgents && activeAgents.length > 0) {
+        userId = activeAgents[0].user_id;
+      } else {
+        const { data: firstUser } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
+        userId = firstUser?.users[0]?.id;
+      }
       
       if (!userId) {
         throw new Error('No users found in the system');
