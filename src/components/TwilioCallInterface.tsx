@@ -16,6 +16,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
   const { toast } = useToast();
   const [device, setDevice] = useState<Device | null>(null);
   const [call, setCall] = useState<Call | null>(null);
+  const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -65,6 +66,15 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
         });
       });
 
+      newDevice.on('incoming', (incoming) => {
+        console.log('Incoming call from:', (incoming as any).parameters?.From);
+        setIncomingCall(incoming);
+        toast({
+          title: 'Incoming call',
+          description: `From ${(incoming as any).parameters?.From || 'Unknown'}`,
+        });
+      });
+
       await newDevice.register();
       setDevice(newDevice);
       
@@ -81,6 +91,12 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
       setIsInitializing(false);
     }
   };
+
+  // Auto-register device to receive incoming calls
+  useEffect(() => {
+    initializeDevice();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startCall = async () => {
     try {
@@ -143,6 +159,33 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
     }
   };
 
+  const acceptIncoming = async () => {
+    if (!incomingCall) return;
+    setCall(incomingCall);
+    setIncomingCall(null);
+    setCallDuration(0);
+    // Start duration counter
+    intervalRef.current = window.setInterval(() => {
+      setCallDuration(prev => prev + 1);
+    }, 1000);
+    incomingCall.on('disconnect', () => {
+      endCall();
+    });
+    try {
+      await incomingCall.accept();
+      toast({ title: 'Call connected' });
+    } catch (e: any) {
+      console.error('Failed to accept call', e);
+      toast({ title: 'Failed to accept call', description: e.message, variant: 'destructive' });
+      setCall(null);
+    }
+  };
+
+  const declineIncoming = () => {
+    try { incomingCall?.reject(); } catch (_) {}
+    setIncomingCall(null);
+  };
+
   const endCall = async () => {
     const finalDuration = callDuration;
     const currentCallSid = call?.parameters.CallSid;
@@ -198,6 +241,31 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  if (incomingCall) {
+    return (
+      <Card className="border-warning">
+        <CardContent className="pt-6">
+          <div className="text-center space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Incoming call</p>
+              <p className="text-lg font-semibold">{leadName}</p>
+            </div>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={acceptIncoming} variant="default" className="gap-2">
+                <Phone className="h-4 w-4" />
+                Answer
+              </Button>
+              <Button onClick={declineIncoming} variant="destructive" className="gap-2">
+                <PhoneOff className="h-4 w-4" />
+                Decline
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (call) {
     return (

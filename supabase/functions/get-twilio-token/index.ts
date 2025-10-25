@@ -69,6 +69,7 @@ async function generateToken(
     grants: {
       identity,
       voice: {
+        incoming: { allow: true },
         outgoing: {
           application_sid: outgoingApplicationSid
         }

@@ -98,23 +98,30 @@ Deno.serve(async (req) => {
     const recordingCallbackUrl = `${supabaseUrl}/functions/v1/recording-callback`;
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}`;
     
-    // Build dial string with all agent numbers
-    let dialNumbers = '';
+    // Build dial targets with active agent client identities
+    let dialTargets = '';
+    const identities: string[] = [];
     if (agents && agents.length > 0) {
-      dialNumbers = agents.map(agent => 
-        `<Number statusCallback="${statusCallbackUrl}" statusCallbackMethod="POST" statusCallbackEvent="answered completed">${agent.phone_number}</Number>`
-      ).join('\n    ');
+      for (const agent of agents) {
+        const { data: userRes } = await supabase.auth.admin.getUserById(agent.user_id);
+        const identity = userRes?.user?.email;
+        if (identity) identities.push(identity);
+      }
+    }
+
+    if (identities.length > 0) {
+      dialTargets = identities.map(id => `<Client>${id}</Client>`).join('\n    ');
     } else {
-      // Fallback to a default number if no agents are configured
-      dialNumbers = `<Number statusCallback="${statusCallbackUrl}" statusCallbackMethod="POST" statusCallbackEvent="answered completed">${Deno.env.get('TWILIO_PHONE_NUMBER')}</Number>`;
+      // Fallback to a default PSTN number if no web agents are configured
+      dialTargets = `<Number>${Deno.env.get('TWILIO_PHONE_NUMBER')}</Number>`;
     }
     
-    // Return TwiML to ring all agents or capture voicemail
+    // Return TwiML to ring web agents or capture voicemail
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna">Thank you for calling. Please hold while we connect you to an agent.</Say>
-  <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" timeout="30">
-    ${dialNumbers}
+  <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" timeout="30" statusCallback="${statusCallbackUrl}" statusCallbackMethod="POST" statusCallbackEvent="answered completed">
+    ${dialTargets}
   </Dial>
   <Say voice="Polly.Joanna">We're sorry, no one is available to take your call. Please leave a message after the tone.</Say>
   <Record maxLength="120" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" />
