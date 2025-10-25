@@ -8,6 +8,7 @@ import { Phone, Mail, Play, Pause, Voicemail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
 
 interface NewLead {
   id: string;
@@ -279,6 +280,10 @@ export default function NewLeads() {
                       >
                         Assign to Me
                       </Button>
+                      <ForwardLeadDialog
+                        leadId={lead.id}
+                        onSuccess={fetchNewLeads}
+                      />
                       <Button
                         onClick={() => navigate(`/leads/${lead.id}`)}
                         variant="outline"

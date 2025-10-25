@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { TwoColumnLayout } from "@/components/layouts/TwoColumnLayout";
 import { SingleColumnLayout } from "@/components/layouts/SingleColumnLayout";
 import { TableLayout } from "@/components/layouts/TableLayout";
+import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
 
 interface Message {
   id: string;
@@ -437,6 +438,12 @@ const LeadProfile = () => {
             >
               <Table2 className="h-4 w-4" />
             </Button>
+            <div className="h-8 w-px bg-border mx-2" />
+            <ForwardLeadDialog
+              leadId={leadData.id}
+              currentAgent={leadData.assignedTo}
+              onSuccess={fetchLead}
+            />
           </div>
           <Badge className={`${statusColors[leadData.status as keyof typeof statusColors]} px-4 py-1.5 text-sm font-medium`}>
             {leadData.status}
