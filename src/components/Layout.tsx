@@ -1,4 +1,4 @@
-import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, Inbox as InboxIcon, LogOut } from "lucide-react";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, Inbox as InboxIcon, LogOut, PhoneIncoming } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Leads", url: "/leads", icon: Users },
+  { title: "New Leads", url: "/new-leads", icon: PhoneIncoming },
   { title: "Pipelines", url: "/pipelines", icon: Layers },
   { title: "Contacts", url: "/contacts", icon: Phone },
   { title: "Inbox", url: "/inbox", icon: InboxIcon },

@@ -88,20 +88,36 @@ Deno.serve(async (req) => {
       console.error('Error creating call log:', callLogError);
     }
     
+    // Get all active agents
+    const { data: agents } = await supabase
+      .from('agents')
+      .select('phone_number, user_id')
+      .eq('is_active', true);
+    
     // Get recording callback URL
     const recordingCallbackUrl = `${supabaseUrl}/functions/v1/recording-callback`;
-    const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback`;
+    const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}`;
     
-    // Return TwiML to record the call and forward to agents
+    // Build dial string with all agent numbers
+    let dialNumbers = '';
+    if (agents && agents.length > 0) {
+      dialNumbers = agents.map(agent => 
+        `<Number statusCallback="${statusCallbackUrl}" statusCallbackMethod="POST" statusCallbackEvent="answered completed">${agent.phone_number}</Number>`
+      ).join('\n    ');
+    } else {
+      // Fallback to a default number if no agents are configured
+      dialNumbers = `<Number statusCallback="${statusCallbackUrl}" statusCallbackMethod="POST" statusCallbackEvent="answered completed">${Deno.env.get('TWILIO_PHONE_NUMBER')}</Number>`;
+    }
+    
+    // Return TwiML to ring all agents or capture voicemail
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">Thank you for calling. Your call is being recorded. Please hold while we connect you.</Say>
-  <Record maxLength="1800" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" />
+  <Say voice="Polly.Joanna">Thank you for calling. Please hold while we connect you to an agent.</Say>
   <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" timeout="30">
-    <Number statusCallback="${statusCallbackUrl}" statusCallbackMethod="POST" statusCallbackEvent="answered completed">${Deno.env.get('TWILIO_PHONE_NUMBER')}</Number>
+    ${dialNumbers}
   </Dial>
   <Say voice="Polly.Joanna">We're sorry, no one is available to take your call. Please leave a message after the tone.</Say>
-  <Record maxLength="120" />
+  <Record maxLength="120" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" />
 </Response>`;
 
     return new Response(twiml, {

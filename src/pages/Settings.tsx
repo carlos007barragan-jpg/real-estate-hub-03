@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AgentPhoneSetup } from "@/components/AgentPhoneSetup";
 import {
   Table,
   TableBody,
@@ -241,47 +242,51 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="general">
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold text-foreground mb-6">General Settings</h2>
-            <div className="space-y-6 max-w-2xl">
-              <div className="space-y-2">
-                <Label htmlFor="company">Company Name</Label>
-                <Input id="company" defaultValue="RealEstate CRM" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
-                <Select defaultValue="est">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="est">Eastern Time (ET)</SelectItem>
-                    <SelectItem value="pst">Pacific Time (PT)</SelectItem>
-                    <SelectItem value="cst">Central Time (CT)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between py-4 border-t border-border">
-                <div className="flex items-center gap-3">
-                  <Moon className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <Label htmlFor="dark-mode" className="text-base font-medium cursor-pointer">
-                      Dark Theme
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enable dark mode across the platform
-                    </p>
-                  </div>
+          <div className="space-y-6">
+            <AgentPhoneSetup />
+            
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold text-foreground mb-6">General Settings</h2>
+              <div className="space-y-6 max-w-2xl">
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company Name</Label>
+                  <Input id="company" defaultValue="RealEstate CRM" />
                 </div>
-                <Switch
-                  id="dark-mode"
-                  checked={darkMode}
-                  onCheckedChange={setDarkMode}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="timezone">Timezone</Label>
+                  <Select defaultValue="est">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="est">Eastern Time (ET)</SelectItem>
+                      <SelectItem value="pst">Pacific Time (PT)</SelectItem>
+                      <SelectItem value="cst">Central Time (CT)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between py-4 border-t border-border">
+                  <div className="flex items-center gap-3">
+                    <Moon className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <Label htmlFor="dark-mode" className="text-base font-medium cursor-pointer">
+                        Dark Theme
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Enable dark mode across the platform
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="dark-mode"
+                    checked={darkMode}
+                    onCheckedChange={setDarkMode}
+                  />
+                </div>
+                <Button>Save Changes</Button>
               </div>
-              <Button>Save Changes</Button>
-            </div>
-          </Card>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="notifications">

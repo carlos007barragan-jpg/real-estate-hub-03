@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      agents: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          phone_number: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          phone_number: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          phone_number?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       call_logs: {
         Row: {
           answered_by: string | null
@@ -111,6 +135,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          agent_phone: string | null
           area: string | null
           assigned_to: string | null
           bathrooms: number | null
@@ -146,6 +171,7 @@ export type Database = {
           value: string | null
         }
         Insert: {
+          agent_phone?: string | null
           area?: string | null
           assigned_to?: string | null
           bathrooms?: number | null
@@ -181,6 +207,7 @@ export type Database = {
           value?: string | null
         }
         Update: {
+          agent_phone?: string | null
           area?: string | null
           assigned_to?: string | null
           bathrooms?: number | null

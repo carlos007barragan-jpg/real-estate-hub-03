@@ -10,6 +10,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
+import NewLeads from "./pages/NewLeads";
 import LeadProfile from "./pages/LeadProfile";
 import Pipelines from "./pages/Pipelines";
 import Contacts from "./pages/Contacts";
@@ -54,6 +55,7 @@ const App = () => {
           <Route path="/auth" element={<Auth />} />
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
           <Route path="/leads" element={<ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute>} />
+          <Route path="/new-leads" element={<ProtectedRoute><Layout><NewLeads /></Layout></ProtectedRoute>} />
           <Route path="/leads/:id" element={<ProtectedRoute><Layout><LeadProfile /></Layout></ProtectedRoute>} />
           <Route path="/pipelines" element={<ProtectedRoute><Layout><Pipelines /></Layout></ProtectedRoute>} />
           <Route path="/contacts" element={<ProtectedRoute><Layout><Contacts /></Layout></ProtectedRoute>} />
