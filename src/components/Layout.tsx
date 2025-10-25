@@ -2,6 +2,7 @@ import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, Inbox as In
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { GlobalCallManager } from "@/components/GlobalCallManager";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -22,6 +23,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen w-full bg-background">
+      <GlobalCallManager />
       {/* Horizontal Navigation Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-md">
         <div className="flex h-16 items-center px-4 md:px-6">

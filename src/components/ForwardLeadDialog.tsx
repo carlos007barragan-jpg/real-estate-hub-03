@@ -50,6 +50,10 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
 
   const fetchAgents = async () => {
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data: agentsData, error: agentsError } = await supabase
         .from('agents')
         .select('user_id, phone_number')
@@ -57,19 +61,17 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
 
       if (agentsError) throw agentsError;
 
-      // Fetch user details for each agent
-      const agentsWithDetails = await Promise.all(
-        (agentsData || []).map(async (agent) => {
-          const { data: userData } = await supabase.auth.admin.getUserById(agent.user_id);
-          const email = userData?.user?.email || 'Unknown';
-          const name = email.split('@')[0];
-          return {
-            ...agent,
-            email,
-            name,
-          };
-        })
-      );
+      // For each agent, we'll use their email from a profiles table or derive from user_id
+      // Since we can't call admin.getUserById from client, we'll just use user_id as identifier
+      const agentsWithDetails = (agentsData || []).map((agent) => {
+        // Use a simple name based on phone number for now
+        const name = agent.phone_number.substring(agent.phone_number.length - 4);
+        return {
+          ...agent,
+          email: `agent-${name}@crm.local`,
+          name: `Agent ${name}`,
+        };
+      });
 
       setAgents(agentsWithDetails);
     } catch (error: any) {

@@ -103,9 +103,10 @@ Deno.serve(async (req) => {
     const identities: string[] = [];
     if (agents && agents.length > 0) {
       for (const agent of agents) {
-        const { data: userRes } = await supabase.auth.admin.getUserById(agent.user_id);
-        const identity = userRes?.user?.email;
-        if (identity) identities.push(identity);
+        const { data: userRes, error: userError } = await supabase.auth.admin.getUserById(agent.user_id);
+        if (!userError && userRes?.user?.email) {
+          identities.push(userRes.user.email);
+        }
       }
     }
 
