@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.get-recording]
 verify_jwt = true
+
+[functions.inbound-call-webhook]
+verify_jwt = false
+
+[functions.call-status-callback]
+verify_jwt = false
