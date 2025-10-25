@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -208,118 +207,114 @@ export default function NewLeads() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">Loading new leads...</div>
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Loading new leads...</div>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">New Inbound Leads</h1>
-          <p className="text-muted-foreground mt-2">
-            Unassigned leads from inbound calls - listen to voicemails and assign to agents
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">New Inbound Leads</h1>
+        <p className="text-muted-foreground mt-2">
+          Unassigned leads from inbound calls - listen to voicemails and assign to agents
+        </p>
+      </div>
 
-        {leads.length === 0 ? (
-          <Card className="p-8 text-center">
-            <Voicemail className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No new inbound leads</p>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {leads.map((lead) => (
-              <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 rounded-lg bg-info/10">
-                        <Phone className="w-5 h-5 text-info" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">{lead.name}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(lead.created_at), 'MMM dd, yyyy h:mm a')}
-                        </p>
-                      </div>
+      {leads.length === 0 ? (
+        <Card className="p-8 text-center">
+          <Voicemail className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">No new inbound leads</p>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {leads.map((lead) => (
+            <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-info/10">
+                      <Phone className="w-5 h-5 text-info" />
                     </div>
-
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span>{lead.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        <span>{lead.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Badge variant="outline">{lead.source}</Badge>
-                        <Badge variant="secondary">Duration: {formatDuration(lead.duration)}</Badge>
-                      </div>
-                    </div>
-
-                    {lead.transcription && (
-                      <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                        <div className="text-xs font-medium text-muted-foreground mb-1">
-                          Voicemail Transcription:
-                        </div>
-                        <p className="text-sm">{lead.transcription}</p>
-                      </div>
-                    )}
-
-                    <div className="flex gap-2 mt-4">
-                      <Button
-                        onClick={() => handleAssignToMe(lead.id)}
-                        variant="default"
-                      >
-                        Assign to Me
-                      </Button>
-                      <ForwardLeadDialog
-                        leadId={lead.id}
-                        onSuccess={fetchNewLeads}
-                      />
-                      <Button
-                        onClick={() => navigate(`/leads/${lead.id}`)}
-                        variant="outline"
-                      >
-                        View Details
-                      </Button>
+                    <div>
+                      <h3 className="font-semibold text-lg">{lead.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(lead.created_at), 'MMM dd, yyyy h:mm a')}
+                      </p>
                     </div>
                   </div>
 
-                  {lead.recording_url && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => playRecording(lead.id, lead.recording_url!)}
-                      disabled={loadingAudio === lead.id}
-                      className="gap-2 ml-4"
-                    >
-                      {playingLeadId === lead.id ? (
-                        <>
-                          <Pause className="w-4 h-4" />
-                          Pause
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4" />
-                          {loadingAudio === lead.id ? 'Loading...' : 'Play Voicemail'}
-                        </>
-                      )}
-                    </Button>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <span>{lead.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      <span>{lead.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline">{lead.source}</Badge>
+                      <Badge variant="secondary">Duration: {formatDuration(lead.duration)}</Badge>
+                    </div>
+                  </div>
+
+                  {lead.transcription && (
+                    <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                        Voicemail Transcription:
+                      </div>
+                      <p className="text-sm">{lead.transcription}</p>
+                    </div>
                   )}
+
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      onClick={() => handleAssignToMe(lead.id)}
+                      variant="default"
+                    >
+                      Assign to Me
+                    </Button>
+                    <ForwardLeadDialog
+                      leadId={lead.id}
+                      onSuccess={fetchNewLeads}
+                    />
+                    <Button
+                      onClick={() => navigate(`/leads/${lead.id}`)}
+                      variant="outline"
+                    >
+                      View Details
+                    </Button>
+                  </div>
                 </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-    </Layout>
+
+                {lead.recording_url && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => playRecording(lead.id, lead.recording_url!)}
+                    disabled={loadingAudio === lead.id}
+                    className="gap-2 ml-4"
+                  >
+                    {playingLeadId === lead.id ? (
+                      <>
+                        <Pause className="w-4 h-4" />
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4" />
+                        {loadingAudio === lead.id ? 'Loading...' : 'Play Voicemail'}
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
