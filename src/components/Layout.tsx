@@ -1,8 +1,9 @@
-import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, Inbox as InboxIcon, LogOut, PhoneIncoming } from "lucide-react";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { GlobalCallManager } from "@/components/GlobalCallManager";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -10,7 +11,6 @@ const navItems = [
   { title: "New Leads", url: "/new-leads", icon: PhoneIncoming },
   { title: "Pipelines", url: "/pipelines", icon: Layers },
   { title: "Contacts", url: "/contacts", icon: Phone },
-  { title: "Inbox", url: "/inbox", icon: InboxIcon },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -56,6 +56,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </NavLink>
             ))}
           </nav>
+
+          {/* Notifications */}
+          <NotificationBell />
 
           {/* Logout Button */}
           <Button
