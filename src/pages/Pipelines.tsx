@@ -18,6 +18,7 @@ import {
   DragStartEvent,
   DragEndEvent,
   DragOverEvent,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -207,6 +208,29 @@ function DraggableDeal({ deal }: { deal: Deal }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DroppableStage({ 
+  stage, 
+  children 
+}: { 
+  stage: Stage; 
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: stage.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`space-y-2 min-h-[500px] rounded-lg transition-colors ${
+        isOver ? 'bg-primary/5 border-2 border-primary border-dashed' : ''
+      }`}
+    >
+      {children}
     </div>
   );
 }
@@ -430,9 +454,8 @@ const Pipelines = () => {
                   <SortableContext
                     items={stage.deals.map((deal) => deal.id)}
                     strategy={verticalListSortingStrategy}
-                    id={stage.id}
                   >
-                    <div className="space-y-2 min-h-[500px]">
+                    <DroppableStage stage={stage}>
                       {stage.deals.map((deal) => (
                         <DraggableDeal key={deal.id} deal={deal} />
                       ))}
@@ -442,7 +465,7 @@ const Pipelines = () => {
                           <p className="text-xs text-muted-foreground">Drop deals here</p>
                         </div>
                       )}
-                    </div>
+                    </DroppableStage>
                   </SortableContext>
                 </div>
               </div>
