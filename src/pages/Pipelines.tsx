@@ -181,7 +181,7 @@ function DraggableDeal({ deal }: { deal: Deal }) {
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-2">
           <h4 className="font-semibold text-sm text-foreground leading-tight">
-            {deal.client}
+            {deal.client || 'Unknown Client'}
           </h4>
           <Badge 
             className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5`} 
@@ -194,16 +194,16 @@ function DraggableDeal({ deal }: { deal: Deal }) {
         <div className="space-y-1.5 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Building2 className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">Agent: {deal.agent}</span>
+            <span className="truncate">Agent: {deal.agent || 'Not assigned'}</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-foreground font-semibold">
               <DollarSign className="h-3 w-3 flex-shrink-0" />
-              <span>${deal.commission.toLocaleString()}</span>
+              <span>${(deal.commission || 0).toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Calendar className="h-3 w-3 flex-shrink-0" />
-              <span>{deal.closeDate}</span>
+              <span>{deal.closeDate || 'TBD'}</span>
             </div>
           </div>
         </div>
@@ -238,19 +238,30 @@ function DroppableStage({
 const Pipelines = () => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("real-estate");
   const [pipelines, setPipelines] = useState<Pipeline[]>(() => {
+    // Force clear old data structure
     const stored = localStorage.getItem("crm-pipelines");
     if (stored) {
       try {
         const parsedPipelines = JSON.parse(stored);
-        // Check if the data has the old structure and clear it if so
-        const firstDeal = parsedPipelines[0]?.stages?.[0]?.deals?.[0];
-        if (firstDeal && ('title' in firstDeal || 'value' in firstDeal)) {
-          // Old structure detected, clear localStorage and use new mock data
+        // Check if any deal has the old structure
+        const hasOldStructure = parsedPipelines.some((pipeline: any) =>
+          pipeline.stages?.some((stage: any) =>
+            stage.deals?.some((deal: any) => 
+              'title' in deal || 'value' in deal || 'date' in deal || 
+              !('commission' in deal) || !('agent' in deal) || !('closeDate' in deal)
+            )
+          )
+        );
+        
+        if (hasOldStructure) {
+          console.log('Old data structure detected, resetting to new structure');
           localStorage.removeItem("crm-pipelines");
           return mockPipelines;
         }
         return parsedPipelines;
-      } catch {
+      } catch (error) {
+        console.error('Error parsing pipelines:', error);
+        localStorage.removeItem("crm-pipelines");
         return mockPipelines;
       }
     }
@@ -494,7 +505,7 @@ const Pipelines = () => {
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="font-semibold text-sm text-foreground">
-                    {activeDeal.client}
+                    {activeDeal.client || 'Unknown Client'}
                   </h4>
                   <Badge className={priorityColors[activeDeal.priority]} variant="secondary">
                     {activeDeal.priority}
@@ -504,16 +515,16 @@ const Pipelines = () => {
                 <div className="space-y-1.5 text-xs">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Building2 className="h-3 w-3" />
-                    <span>Agent: {activeDeal.agent}</span>
+                    <span>Agent: {activeDeal.agent || 'Not assigned'}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-foreground font-semibold">
                       <DollarSign className="h-3 w-3" />
-                      <span>${activeDeal.commission.toLocaleString()}</span>
+                      <span>${(activeDeal.commission || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="h-3 w-3" />
-                      <span>{activeDeal.closeDate}</span>
+                      <span>{activeDeal.closeDate || 'TBD'}</span>
                     </div>
                   </div>
                 </div>
