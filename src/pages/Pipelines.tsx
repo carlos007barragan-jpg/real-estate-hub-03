@@ -239,7 +239,22 @@ const Pipelines = () => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("real-estate");
   const [pipelines, setPipelines] = useState<Pipeline[]>(() => {
     const stored = localStorage.getItem("crm-pipelines");
-    return stored ? JSON.parse(stored) : mockPipelines;
+    if (stored) {
+      try {
+        const parsedPipelines = JSON.parse(stored);
+        // Check if the data has the old structure and clear it if so
+        const firstDeal = parsedPipelines[0]?.stages?.[0]?.deals?.[0];
+        if (firstDeal && ('title' in firstDeal || 'value' in firstDeal)) {
+          // Old structure detected, clear localStorage and use new mock data
+          localStorage.removeItem("crm-pipelines");
+          return mockPipelines;
+        }
+        return parsedPipelines;
+      } catch {
+        return mockPipelines;
+      }
+    }
+    return mockPipelines;
   });
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
