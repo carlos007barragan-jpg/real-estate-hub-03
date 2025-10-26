@@ -170,39 +170,44 @@ function DraggableDeal({ deal }: { deal: Deal }) {
   };
 
   return (
-    <Card
+    <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className="group p-4 hover:shadow-lg transition-all cursor-grab active:cursor-grabbing border-l-4 border-l-primary bg-card hover:scale-[1.02]"
+      className="bg-background rounded-lg p-3 border hover:border-primary/50 hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
     >
-      <div className="space-y-3">
+      <div className="space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+          <h4 className="font-medium text-sm text-foreground line-clamp-2 leading-tight">
             {deal.title}
-          </h3>
-          <Badge className={priorityColors[deal.priority]} variant="secondary">
+          </h4>
+          <Badge 
+            className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5`} 
+            variant="secondary"
+          >
             {deal.priority}
           </Badge>
         </div>
 
-        <div className="space-y-2.5 text-sm">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Building2 className="h-4 w-4 flex-shrink-0" />
+        <div className="space-y-1.5 text-xs">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Building2 className="h-3 w-3 flex-shrink-0" />
             <span className="truncate">{deal.client}</span>
           </div>
-          <div className="flex items-center gap-2 text-primary font-bold">
-            <DollarSign className="h-4 w-4 flex-shrink-0" />
-            <span>${deal.value.toLocaleString()}</span>
-          </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-4 w-4 flex-shrink-0" />
-            <span>{deal.date}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-foreground font-semibold">
+              <DollarSign className="h-3 w-3 flex-shrink-0" />
+              <span>${deal.value.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Calendar className="h-3 w-3 flex-shrink-0" />
+              <span>{deal.date}</span>
+            </div>
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -318,116 +323,82 @@ const Pipelines = () => {
     : currentPipeline;
 
   return (
-    <div className="min-h-screen bg-muted/20">
-      {/* Header Section */}
-      <div className="bg-background border-b">
-        <div className="container mx-auto p-6 md:p-8 space-y-6">
-          {/* Title and Actions */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
-                Sales Pipeline
-              </h1>
-              <p className="text-muted-foreground">
-                Track and manage deals through your sales process
-              </p>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
-                <SelectTrigger className="w-[200px] md:w-[250px]">
-                  <Layers className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Select pipeline" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pipelines.map((pipeline) => (
-                    <SelectItem key={pipeline.id} value={pipeline.id}>
-                      {pipeline.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <PipelineManager
-                pipelines={pipelines}
-                onUpdate={setPipelines}
-                currentPipelineId={selectedPipeline}
-                onSelectPipeline={setSelectedPipeline}
-              />
-            </div>
+    <div className="min-h-screen bg-background p-4 md:p-8">
+      <div className="max-w-[1600px] mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground mb-1">Pipeline</h1>
+            <p className="text-sm text-muted-foreground">
+              {currentPipeline.name}
+            </p>
           </div>
-
-          {/* Analytics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="border-l-4 border-l-primary hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <CardDescription className="text-xs uppercase tracking-wide font-medium">
-                  Total Pipeline Value
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  <span className="text-3xl font-bold text-foreground">
-                    ${analytics.totalValue.toLocaleString()}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-success hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <CardDescription className="text-xs uppercase tracking-wide font-medium">
-                  Active Deals
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <TrendingUp className="h-5 w-5 text-success" />
-                  <span className="text-3xl font-bold text-foreground">
-                    {analytics.totalDeals}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-l-4 border-l-info hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <CardDescription className="text-xs uppercase tracking-wide font-medium">
-                  Average Deal Size
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-2">
-                  <DollarSign className="h-5 w-5 text-info" />
-                  <span className="text-3xl font-bold text-foreground">
-                    ${Math.round(analytics.avgDealSize).toLocaleString()}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          
+          <div className="flex items-center gap-2">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search deals by title or client..."
+                placeholder="Search deals..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-9 w-[200px]"
               />
             </div>
-            <Button variant="outline" className="sm:w-auto">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+            <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map((pipeline) => (
+                  <SelectItem key={pipeline.id} value={pipeline.id}>
+                    {pipeline.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <PipelineManager
+              pipelines={pipelines}
+              onUpdate={setPipelines}
+              currentPipelineId={selectedPipeline}
+              onSelectPipeline={setSelectedPipeline}
+            />
           </div>
         </div>
-      </div>
 
-      {/* Pipeline Stages */}
-      <div className="container mx-auto p-6 md:p-8">
+        {/* Stats Bar */}
+        <div className="flex flex-wrap gap-6 p-4 rounded-lg bg-muted/30">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Pipeline Value</p>
+              <p className="text-lg font-bold">${analytics.totalValue.toLocaleString()}</p>
+            </div>
+          </div>
+          <Separator orientation="vertical" className="h-12" />
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-success" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total Deals</p>
+              <p className="text-lg font-bold">{analytics.totalDeals}</p>
+            </div>
+          </div>
+          <Separator orientation="vertical" className="h-12" />
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-info/10 flex items-center justify-center">
+              <Layers className="h-5 w-5 text-info" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Avg Deal Size</p>
+              <p className="text-lg font-bold">${Math.round(analytics.avgDealSize).toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Pipeline Stages */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -435,60 +406,46 @@ const Pipelines = () => {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="flex gap-4 overflow-x-auto pb-4">
             {filteredPipeline.stages.map((stage) => {
-            const stageValue = stage.deals.reduce((sum, deal) => sum + deal.value, 0);
+              const stageValue = stage.deals.reduce((sum, deal) => sum + deal.value, 0);
             
             return (
-              <Card key={stage.id} className="flex flex-col border-t-4 border-t-primary/20 shadow-sm">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <CardTitle className="text-lg font-semibold text-foreground">
-                      {stage.name}
-                    </CardTitle>
-                    <Badge variant="secondary" className="bg-primary/10 text-primary font-semibold">
-                      {stage.deals.length}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Total Value</span>
-                    <span className="font-semibold text-foreground">
-                      ${stageValue.toLocaleString()}
+              <div key={stage.id} className="flex-shrink-0 w-[320px]">
+                <div className="bg-muted/40 rounded-lg p-3 space-y-3">
+                  {/* Stage Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-sm text-foreground">{stage.name}</h3>
+                      <Badge variant="outline" className="h-5 px-1.5 text-xs">
+                        {stage.deals.length}
+                      </Badge>
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">
+                      ${(stageValue / 1000).toFixed(0)}k
                     </span>
                   </div>
-                  <Separator className="mt-3" />
-                </CardHeader>
 
-                <CardContent className="flex-1 pt-0">
+                  {/* Deals Container */}
                   <SortableContext
                     items={stage.deals.map((deal) => deal.id)}
                     strategy={verticalListSortingStrategy}
                     id={stage.id}
                   >
-                    <div className="space-y-3 min-h-[300px] p-4 rounded-lg bg-muted/30 border-2 border-dashed border-muted-foreground/20">
+                    <div className="space-y-2 min-h-[500px]">
                       {stage.deals.map((deal) => (
                         <DraggableDeal key={deal.id} deal={deal} />
                       ))}
 
                       {stage.deals.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-[200px] text-center space-y-3">
-                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                            <Building2 className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-muted-foreground">
-                              No deals yet
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Drag deals here or create new ones
-                            </p>
-                          </div>
+                        <div className="flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-muted-foreground/20 bg-background/50">
+                          <p className="text-xs text-muted-foreground">Drop deals here</p>
                         </div>
                       )}
                     </div>
                   </SortableContext>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
             })}
           </div>
