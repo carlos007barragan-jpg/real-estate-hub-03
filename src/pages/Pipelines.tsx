@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Building2, DollarSign, Calendar, TrendingUp, Layers } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PipelineManager } from "@/components/PipelineManager";
 import {
   DndContext,
   DragOverlay,
@@ -202,8 +203,16 @@ function DraggableDeal({ deal }: { deal: Deal }) {
 
 const Pipelines = () => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("real-estate");
-  const [pipelines, setPipelines] = useState<Pipeline[]>(mockPipelines);
+  const [pipelines, setPipelines] = useState<Pipeline[]>(() => {
+    const stored = localStorage.getItem("crm-pipelines");
+    return stored ? JSON.parse(stored) : mockPipelines;
+  });
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
+
+  // Persist pipelines to localStorage
+  useEffect(() => {
+    localStorage.setItem("crm-pipelines", JSON.stringify(pipelines));
+  }, [pipelines]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -295,19 +304,27 @@ const Pipelines = () => {
           <h1 className="text-3xl font-bold text-foreground">Pipeline</h1>
           <p className="text-muted-foreground mt-1">Track deals through your sales process</p>
         </div>
-        <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
-          <SelectTrigger className="w-[250px]">
-            <Layers className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Select pipeline" />
-          </SelectTrigger>
-          <SelectContent>
-            {pipelines.map((pipeline) => (
-              <SelectItem key={pipeline.id} value={pipeline.id}>
-                {pipeline.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
+            <SelectTrigger className="w-[250px]">
+              <Layers className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Select pipeline" />
+            </SelectTrigger>
+            <SelectContent>
+              {pipelines.map((pipeline) => (
+                <SelectItem key={pipeline.id} value={pipeline.id}>
+                  {pipeline.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <PipelineManager
+            pipelines={pipelines}
+            onUpdate={setPipelines}
+            currentPipelineId={selectedPipeline}
+            onSelectPipeline={setSelectedPipeline}
+          />
+        </div>
       </div>
 
       {/* Analytics Cards */}
