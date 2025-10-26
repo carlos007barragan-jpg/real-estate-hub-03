@@ -1,9 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
-import { Building2, DollarSign, Calendar, TrendingUp, Layers } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PipelineManager } from "@/components/PipelineManager";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import {
   DndContext,
   DragOverlay,
@@ -172,27 +175,29 @@ function DraggableDeal({ deal }: { deal: Deal }) {
       style={style}
       {...attributes}
       {...listeners}
-      className="p-4 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing border-l-4 border-l-primary"
+      className="group p-4 hover:shadow-lg transition-all cursor-grab active:cursor-grabbing border-l-4 border-l-primary bg-card hover:scale-[1.02]"
     >
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-medium text-foreground line-clamp-2">{deal.title}</h3>
+          <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+            {deal.title}
+          </h3>
           <Badge className={priorityColors[deal.priority]} variant="secondary">
             {deal.priority}
           </Badge>
         </div>
 
-        <div className="space-y-2 text-sm">
+        <div className="space-y-2.5 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Building2 className="h-3 w-3" />
-            <span>{deal.client}</span>
+            <Building2 className="h-4 w-4 flex-shrink-0" />
+            <span className="truncate">{deal.client}</span>
           </div>
-          <div className="flex items-center gap-2 text-primary font-semibold">
-            <DollarSign className="h-3 w-3" />
+          <div className="flex items-center gap-2 text-primary font-bold">
+            <DollarSign className="h-4 w-4 flex-shrink-0" />
             <span>${deal.value.toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-3 w-3" />
+            <Calendar className="h-4 w-4 flex-shrink-0" />
             <span>{deal.date}</span>
           </div>
         </div>
@@ -208,6 +213,7 @@ const Pipelines = () => {
     return stored ? JSON.parse(stored) : mockPipelines;
   });
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Persist pipelines to localStorage
   useEffect(() => {
@@ -297,136 +303,197 @@ const Pipelines = () => {
 
   if (!currentPipeline) return null;
 
+  const filteredPipeline = searchQuery
+    ? {
+        ...currentPipeline,
+        stages: currentPipeline.stages.map((stage) => ({
+          ...stage,
+          deals: stage.deals.filter(
+            (deal) =>
+              deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              deal.client.toLowerCase().includes(searchQuery.toLowerCase())
+          ),
+        })),
+      }
+    : currentPipeline;
+
   return (
-    <div className="p-8">
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Pipeline</h1>
-          <p className="text-muted-foreground mt-1">Track deals through your sales process</p>
+    <div className="min-h-screen bg-muted/20">
+      {/* Header Section */}
+      <div className="bg-background border-b">
+        <div className="container mx-auto p-6 md:p-8 space-y-6">
+          {/* Title and Actions */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+                Sales Pipeline
+              </h1>
+              <p className="text-muted-foreground">
+                Track and manage deals through your sales process
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
+                <SelectTrigger className="w-[200px] md:w-[250px]">
+                  <Layers className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Select pipeline" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelines.map((pipeline) => (
+                    <SelectItem key={pipeline.id} value={pipeline.id}>
+                      {pipeline.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <PipelineManager
+                pipelines={pipelines}
+                onUpdate={setPipelines}
+                currentPipelineId={selectedPipeline}
+                onSelectPipeline={setSelectedPipeline}
+              />
+            </div>
+          </div>
+
+          {/* Analytics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card className="border-l-4 border-l-primary hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <CardDescription className="text-xs uppercase tracking-wide font-medium">
+                  Total Pipeline Value
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline gap-2">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                  <span className="text-3xl font-bold text-foreground">
+                    ${analytics.totalValue.toLocaleString()}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-success hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <CardDescription className="text-xs uppercase tracking-wide font-medium">
+                  Active Deals
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline gap-2">
+                  <TrendingUp className="h-5 w-5 text-success" />
+                  <span className="text-3xl font-bold text-foreground">
+                    {analytics.totalDeals}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-l-4 border-l-info hover:shadow-md transition-shadow">
+              <CardHeader className="pb-3">
+                <CardDescription className="text-xs uppercase tracking-wide font-medium">
+                  Average Deal Size
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline gap-2">
+                  <DollarSign className="h-5 w-5 text-info" />
+                  <span className="text-3xl font-bold text-foreground">
+                    ${Math.round(analytics.avgDealSize).toLocaleString()}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search deals by title or client..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button variant="outline" className="sm:w-auto">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
-            <SelectTrigger className="w-[250px]">
-              <Layers className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Select pipeline" />
-            </SelectTrigger>
-            <SelectContent>
-              {pipelines.map((pipeline) => (
-                <SelectItem key={pipeline.id} value={pipeline.id}>
-                  {pipeline.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <PipelineManager
-            pipelines={pipelines}
-            onUpdate={setPipelines}
-            currentPipelineId={selectedPipeline}
-            onSelectPipeline={setSelectedPipeline}
-          />
-        </div>
-      </div>
-
-      {/* Analytics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Pipeline Value
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
-              <span className="text-2xl font-bold text-foreground">
-                ${analytics.totalValue.toLocaleString()}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Deals
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              <span className="text-2xl font-bold text-foreground">
-                {analytics.totalDeals}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Average Deal Size
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
-              <span className="text-2xl font-bold text-foreground">
-                ${Math.round(analytics.avgDealSize).toLocaleString()}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Pipeline Stages */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {currentPipeline.stages.map((stage) => {
+      <div className="container mx-auto p-6 md:p-8">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            {filteredPipeline.stages.map((stage) => {
             const stageValue = stage.deals.reduce((sum, deal) => sum + deal.value, 0);
             
             return (
-              <div key={stage.id} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-semibold text-foreground">{stage.name}</h2>
-                    <Badge variant="secondary" className="bg-muted">
+              <Card key={stage.id} className="flex flex-col border-t-4 border-t-primary/20 shadow-sm">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <CardTitle className="text-lg font-semibold text-foreground">
+                      {stage.name}
+                    </CardTitle>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary font-semibold">
                       {stage.deals.length}
                     </Badge>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    ${stageValue.toLocaleString()}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total Value</span>
+                    <span className="font-semibold text-foreground">
+                      ${stageValue.toLocaleString()}
+                    </span>
                   </div>
-                </div>
+                  <Separator className="mt-3" />
+                </CardHeader>
 
-                <SortableContext
-                  items={stage.deals.map((deal) => deal.id)}
-                  strategy={verticalListSortingStrategy}
-                  id={stage.id}
-                >
-                  <div className="space-y-3 min-h-[200px] p-3 rounded-lg bg-muted/20 border-2 border-dashed">
-                    {stage.deals.map((deal) => (
-                      <DraggableDeal key={deal.id} deal={deal} />
-                    ))}
+                <CardContent className="flex-1 pt-0">
+                  <SortableContext
+                    items={stage.deals.map((deal) => deal.id)}
+                    strategy={verticalListSortingStrategy}
+                    id={stage.id}
+                  >
+                    <div className="space-y-3 min-h-[300px] p-4 rounded-lg bg-muted/30 border-2 border-dashed border-muted-foreground/20">
+                      {stage.deals.map((deal) => (
+                        <DraggableDeal key={deal.id} deal={deal} />
+                      ))}
 
-                    {stage.deals.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground text-sm">
-                        Drop deals here
-                      </div>
-                    )}
-                  </div>
-                </SortableContext>
-              </div>
+                      {stage.deals.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-[200px] text-center space-y-3">
+                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                            <Building2 className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-muted-foreground">
+                              No deals yet
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Drag deals here or create new ones
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </SortableContext>
+                </CardContent>
+              </Card>
             );
-          })}
-        </div>
+            })}
+          </div>
 
-        <DragOverlay>
+          <DragOverlay>
           {activeDeal ? (
             <Card className="p-4 border-l-4 border-l-primary shadow-lg">
               <div className="space-y-3">
@@ -456,8 +523,9 @@ const Pipelines = () => {
               </div>
             </Card>
           ) : null}
-        </DragOverlay>
-      </DndContext>
+          </DragOverlay>
+        </DndContext>
+      </div>
     </div>
   );
 };
