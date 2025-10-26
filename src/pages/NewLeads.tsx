@@ -29,6 +29,7 @@ export default function NewLeads() {
   const [loading, setLoading] = useState(true);
   const [playingLeadId, setPlayingLeadId] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
+  const [stats, setStats] = useState({ total: 0, answered: 0, unanswered: 0 });
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -79,6 +80,19 @@ export default function NewLeads() {
       }) || [];
 
       setLeads(mergedLeads);
+      
+      // Calculate stats for all inbound calls
+      const { data: allInboundLeads } = await supabase
+        .from('leads')
+        .select('id, assigned_to')
+        .eq('user_id', user.id)
+        .eq('is_inbound_call', true);
+        
+      const total = allInboundLeads?.length || 0;
+      const answered = allInboundLeads?.filter(l => l.assigned_to !== 'unassigned').length || 0;
+      const unanswered = total - answered;
+      
+      setStats({ total, answered, unanswered });
     } catch (error: any) {
       console.error('Error fetching new leads:', error);
       toast({
@@ -220,6 +234,21 @@ export default function NewLeads() {
         <p className="text-muted-foreground mt-2">
           Unassigned leads from inbound calls - listen to voicemails and assign to agents
         </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="p-6">
+          <div className="text-sm text-muted-foreground">Total Inbound Calls</div>
+          <div className="text-3xl font-bold mt-2">{stats.total}</div>
+        </Card>
+        <Card className="p-6">
+          <div className="text-sm text-muted-foreground">Answered</div>
+          <div className="text-3xl font-bold mt-2 text-success">{stats.answered}</div>
+        </Card>
+        <Card className="p-6">
+          <div className="text-sm text-muted-foreground">Unanswered</div>
+          <div className="text-3xl font-bold mt-2 text-warning">{stats.unanswered}</div>
+        </Card>
       </div>
 
       {leads.length === 0 ? (

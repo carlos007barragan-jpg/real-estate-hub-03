@@ -92,6 +92,36 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_settings: {
+        Row: {
+          auto_roundrobin_unanswered: boolean
+          created_at: string
+          enable_round_robin: boolean
+          id: string
+          last_assigned_agent_index: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_roundrobin_unanswered?: boolean
+          created_at?: string
+          enable_round_robin?: boolean
+          id?: string
+          last_assigned_agent_index?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_roundrobin_unanswered?: boolean
+          created_at?: string
+          enable_round_robin?: boolean
+          id?: string
+          last_assigned_agent_index?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           file_name: string
@@ -324,15 +354,42 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "agent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -459,6 +516,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "agent"],
+    },
   },
 } as const

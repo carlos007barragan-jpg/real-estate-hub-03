@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
     
     // Get recording callback URL
     const recordingCallbackUrl = `${supabaseUrl}/functions/v1/recording-callback`;
-    const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}`;
+    const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${userId}`;
     
     // Build dial targets with active agent client identities
     let dialTargets = '';

@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Device, Call } from "@twilio/voice-sdk";
 import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export const GlobalCallManager = () => {
   const { toast } = useToast();
@@ -18,6 +19,7 @@ export const GlobalCallManager = () => {
   const [callDuration, setCallDuration] = useState(0);
   const intervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const { isAdmin } = useUserRole();
 
   useEffect(() => {
     initializeDevice();
@@ -197,7 +199,7 @@ export const GlobalCallManager = () => {
                 </Button>
               </div>
               
-              {leadId && (
+              {leadId && isAdmin && (
                 <ForwardLeadDialog 
                   leadId={leadId} 
                   onSuccess={() => {
@@ -240,7 +242,7 @@ export const GlobalCallManager = () => {
                 </Button>
               </div>
               
-              {leadId && (
+              {leadId && isAdmin && (
                 <ForwardLeadDialog 
                   leadId={leadId} 
                   onSuccess={() => {

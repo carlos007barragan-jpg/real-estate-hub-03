@@ -18,10 +18,12 @@ Deno.serve(async (req) => {
     const duration = formData.get('CallDuration') as string;
     const answeredBy = formData.get('AnsweredBy') as string;
     const calledNumber = formData.get('Called') as string;
+    const dialCallStatus = formData.get('DialCallStatus') as string;
     
-    // Get leadId from query params
+    // Get leadId and userId from query params
     const url = new URL(req.url);
     const leadId = url.searchParams.get('leadId');
+    const userId = url.searchParams.get('userId');
     
     console.log('Call status callback:', { callSid, callStatus, duration, answeredBy, calledNumber, leadId });
     
@@ -54,7 +56,6 @@ Deno.serve(async (req) => {
     
     // If call was answered and we have a leadId, assign lead to the agent who answered
     if (callStatus === 'answered' && leadId && calledNumber) {
-      // Find the agent who answered
       const { data: agent } = await supabase
         .from('agents')
         .select('user_id, phone_number')
@@ -62,21 +63,45 @@ Deno.serve(async (req) => {
         .single();
       
       if (agent) {
-        // Get user profile for agent name
         const { data: userData } = await supabase.auth.admin.getUserById(agent.user_id);
         const agentName = userData?.user?.email?.split('@')[0] || 'Unknown Agent';
         
-        // Update lead assignment
         await supabase
           .from('leads')
-          .update({
-            assigned_to: agentName,
-            agent_phone: calledNumber,
-            updated_at: new Date().toISOString(),
-          })
+          .update({ assigned_to: agentName, agent_phone: calledNumber })
           .eq('id', leadId);
         
         console.log(`Lead ${leadId} assigned to ${agentName}`);
+      }
+    }
+    
+    // Handle unanswered calls with auto round-robin
+    if ((dialCallStatus === 'no-answer' || dialCallStatus === 'busy') && leadId && userId) {
+      const { data: settings } = await supabase
+        .from('crm_settings')
+        .select('auto_roundrobin_unanswered, last_assigned_agent_index')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (settings?.auto_roundrobin_unanswered) {
+        const { data: agents } = await supabase
+          .from('agents')
+          .select('user_id, phone_number')
+          .eq('is_active', true);
+
+        if (agents && agents.length > 0) {
+          const nextIndex = (settings.last_assigned_agent_index || 0) % agents.length;
+          const nextAgent = agents[nextIndex];
+
+          await supabase.from('leads').update({
+            assigned_to: `Agent ${nextAgent.phone_number.substring(nextAgent.phone_number.length - 4)}`,
+            agent_phone: nextAgent.phone_number,
+          }).eq('id', leadId);
+
+          await supabase.from('crm_settings').update({ last_assigned_agent_index: nextIndex + 1 }).eq('user_id', userId);
+          
+          console.log(`Auto-assigned unanswered lead ${leadId} via round-robin`);
+        }
       }
     }
     

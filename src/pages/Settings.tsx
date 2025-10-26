@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AgentPhoneSetup } from "@/components/AgentPhoneSetup";
+import { RoundRobinSettings } from "@/components/RoundRobinSettings";
 import {
   Table,
   TableBody,
@@ -244,6 +245,7 @@ const Settings = () => {
         <TabsContent value="general">
           <div className="space-y-6">
             <AgentPhoneSetup />
+            <RoundRobinSettings />
             
             <Card className="p-6">
               <h2 className="text-xl font-semibold text-foreground mb-6">General Settings</h2>
