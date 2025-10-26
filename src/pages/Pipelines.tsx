@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -458,7 +458,7 @@ const Pipelines = () => {
         {/* Pipeline Stages */}
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
@@ -469,38 +469,41 @@ const Pipelines = () => {
             
             return (
               <div key={stage.id} className="flex-shrink-0 w-[320px]">
-                <div className="bg-muted/40 rounded-lg p-3 space-y-3">
-                  {/* Stage Header */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-sm text-foreground">{stage.name}</h3>
-                      <Badge variant="outline" className="h-5 px-1.5 text-xs">
-                        {stage.deals.length}
-                      </Badge>
+                <DroppableStage stage={stage}>
+                  <div className="bg-muted/40 rounded-lg p-3 space-y-3">
+                    {/* Stage Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-sm text-foreground">{stage.name}</h3>
+                        <Badge variant="outline" className="h-5 px-1.5 text-xs">
+                          {stage.deals.length}
+                        </Badge>
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        ${(stageValue / 1000).toFixed(0)}k
+                      </span>
                     </div>
-                    <span className="text-xs font-medium text-muted-foreground">
-                      ${(stageValue / 1000).toFixed(0)}k
-                    </span>
+
+                    {/* Deals Container */}
+                    <SortableContext
+                      id={stage.id}
+                      items={stage.deals.map((deal) => deal.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-2 min-h-[500px]">
+                        {stage.deals.map((deal) => (
+                          <DraggableDeal key={deal.id} deal={deal} />
+                        ))}
+
+                        {stage.deals.length === 0 && (
+                          <div className="flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-muted-foreground/20 bg-background/50">
+                            <p className="text-xs text-muted-foreground">Drop deals here</p>
+                          </div>
+                        )}
+                      </div>
+                    </SortableContext>
                   </div>
-
-                  {/* Deals Container */}
-                  <SortableContext
-                    items={stage.deals.map((deal) => deal.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <DroppableStage stage={stage}>
-                      {stage.deals.map((deal) => (
-                        <DraggableDeal key={deal.id} deal={deal} />
-                      ))}
-
-                      {stage.deals.length === 0 && (
-                        <div className="flex items-center justify-center h-32 rounded-lg border-2 border-dashed border-muted-foreground/20 bg-background/50">
-                          <p className="text-xs text-muted-foreground">Drop deals here</p>
-                        </div>
-                      )}
-                    </DroppableStage>
-                  </SortableContext>
-                </div>
+                </DroppableStage>
               </div>
             );
             })}
