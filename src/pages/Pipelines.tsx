@@ -30,10 +30,10 @@ import { CSS } from "@dnd-kit/utilities";
 
 interface Deal {
   id: string;
-  title: string;
   client: string;
-  value: number;
-  date: string;
+  agent: string;
+  commission: number;
+  closeDate: string;
   priority: "high" | "medium" | "low";
 }
 
@@ -60,18 +60,18 @@ const mockPipelines: Pipeline[] = [
         deals: [
           {
             id: "1",
-            title: "Downtown Condo Sale",
             client: "Sarah Johnson",
-            value: 450000,
-            date: "Jan 15",
+            agent: "Mike Davis",
+            commission: 13500,
+            closeDate: "Jan 30, 2025",
             priority: "high",
           },
           {
             id: "2",
-            title: "Suburban Home",
             client: "David Kim",
-            value: 380000,
-            date: "Jan 12",
+            agent: "Lisa Chen",
+            commission: 11400,
+            closeDate: "Feb 5, 2025",
             priority: "medium",
           },
         ],
@@ -82,10 +82,10 @@ const mockPipelines: Pipeline[] = [
         deals: [
           {
             id: "3",
-            title: "Luxury Apartment",
             client: "Michael Chen",
-            value: 650000,
-            date: "Jan 14",
+            agent: "Mike Davis",
+            commission: 19500,
+            closeDate: "Jan 28, 2025",
             priority: "high",
           },
         ],
@@ -96,10 +96,10 @@ const mockPipelines: Pipeline[] = [
         deals: [
           {
             id: "4",
-            title: "Family House",
             client: "Emily Rodriguez",
-            value: 520000,
-            date: "Jan 13",
+            agent: "Sarah Park",
+            commission: 15600,
+            closeDate: "Feb 10, 2025",
             priority: "medium",
           },
         ],
@@ -121,10 +121,10 @@ const mockPipelines: Pipeline[] = [
         deals: [
           {
             id: "5",
-            title: "Office Space Downtown",
             client: "Tech Corp Inc",
-            value: 1200000,
-            date: "Jan 10",
+            agent: "James Wilson",
+            commission: 36000,
+            closeDate: "Feb 15, 2025",
             priority: "high",
           },
         ],
@@ -180,8 +180,8 @@ function DraggableDeal({ deal }: { deal: Deal }) {
     >
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="font-medium text-sm text-foreground line-clamp-2 leading-tight">
-            {deal.title}
+          <h4 className="font-semibold text-sm text-foreground leading-tight">
+            {deal.client}
           </h4>
           <Badge 
             className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5`} 
@@ -194,16 +194,16 @@ function DraggableDeal({ deal }: { deal: Deal }) {
         <div className="space-y-1.5 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Building2 className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{deal.client}</span>
+            <span className="truncate">Agent: {deal.agent}</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-foreground font-semibold">
               <DollarSign className="h-3 w-3 flex-shrink-0" />
-              <span>${deal.value.toLocaleString()}</span>
+              <span>${deal.commission.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Calendar className="h-3 w-3 flex-shrink-0" />
-              <span>{deal.date}</span>
+              <span>{deal.closeDate}</span>
             </div>
           </div>
         </div>
@@ -262,7 +262,7 @@ const Pipelines = () => {
     if (!currentPipeline) return { totalValue: 0, totalDeals: 0, avgDealSize: 0 };
 
     const allDeals = currentPipeline.stages.flatMap((stage) => stage.deals);
-    const totalValue = allDeals.reduce((sum, deal) => sum + deal.value, 0);
+    const totalValue = allDeals.reduce((sum, deal) => sum + deal.commission, 0);
     const totalDeals = allDeals.length;
     const avgDealSize = totalDeals > 0 ? totalValue / totalDeals : 0;
 
@@ -339,8 +339,8 @@ const Pipelines = () => {
           ...stage,
           deals: stage.deals.filter(
             (deal) =>
-              deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              deal.client.toLowerCase().includes(searchQuery.toLowerCase())
+              deal.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              deal.agent.toLowerCase().includes(searchQuery.toLowerCase())
           ),
         })),
       }
@@ -395,10 +395,10 @@ const Pipelines = () => {
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
               <DollarSign className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Pipeline Value</p>
-              <p className="text-lg font-bold">${analytics.totalValue.toLocaleString()}</p>
-            </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Pipeline Value</p>
+            <p className="text-lg font-bold">${analytics.totalValue.toLocaleString()}</p>
+          </div>
           </div>
           <Separator orientation="vertical" className="h-12" />
           <div className="flex items-center gap-3">
@@ -430,9 +430,9 @@ const Pipelines = () => {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {filteredPipeline.stages.map((stage) => {
-              const stageValue = stage.deals.reduce((sum, deal) => sum + deal.value, 0);
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {filteredPipeline.stages.map((stage) => {
+            const stageValue = stage.deals.reduce((sum, deal) => sum + deal.commission, 0);
             
             return (
               <div key={stage.id} className="flex-shrink-0 w-[320px]">
@@ -475,33 +475,35 @@ const Pipelines = () => {
 
           <DragOverlay>
           {activeDeal ? (
-            <Card className="p-4 border-l-4 border-l-primary shadow-lg">
-              <div className="space-y-3">
+            <div className="bg-background rounded-lg p-3 border-2 border-primary shadow-lg w-[320px]">
+              <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-medium text-foreground line-clamp-2">
-                    {activeDeal.title}
-                  </h3>
+                  <h4 className="font-semibold text-sm text-foreground">
+                    {activeDeal.client}
+                  </h4>
                   <Badge className={priorityColors[activeDeal.priority]} variant="secondary">
                     {activeDeal.priority}
                   </Badge>
                 </div>
 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-1.5 text-xs">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Building2 className="h-3 w-3" />
-                    <span>{activeDeal.client}</span>
+                    <span>Agent: {activeDeal.agent}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-primary font-semibold">
-                    <DollarSign className="h-3 w-3" />
-                    <span>${activeDeal.value.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    <span>{activeDeal.date}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-foreground font-semibold">
+                      <DollarSign className="h-3 w-3" />
+                      <span>${activeDeal.commission.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      <span>{activeDeal.closeDate}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </Card>
+            </div>
           ) : null}
           </DragOverlay>
         </DndContext>

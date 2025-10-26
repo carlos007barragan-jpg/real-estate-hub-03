@@ -27,10 +27,10 @@ import { toast } from "sonner";
 
 interface Deal {
   id: string;
-  title: string;
   client: string;
-  value: number;
-  date: string;
+  agent: string;
+  commission: number;
+  closeDate: string;
   priority: "high" | "medium" | "low";
 }
 
