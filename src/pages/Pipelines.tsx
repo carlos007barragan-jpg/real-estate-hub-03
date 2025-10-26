@@ -304,41 +304,52 @@ const Pipelines = () => {
   };
 
   const handleDragOver = (event: DragOverEvent) => {
+    // Just for visual feedback during drag
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over) return;
+    setActiveDeal(null);
+    
+    if (!over || !currentPipeline) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
 
     // Find which stage contains the active deal
-    const activeStage = currentPipeline?.stages.find((stage) =>
+    const activeStage = currentPipeline.stages.find((stage) =>
       stage.deals.some((deal) => deal.id === activeId)
     );
 
     // Find which stage the deal is being dragged over
-    let overStage = currentPipeline?.stages.find((stage) => stage.id === overId);
+    let overStage = currentPipeline.stages.find((stage) => stage.id === overId);
     if (!overStage) {
-      overStage = currentPipeline?.stages.find((stage) =>
+      overStage = currentPipeline.stages.find((stage) =>
         stage.deals.some((deal) => deal.id === overId)
       );
     }
 
-    if (!activeStage || !overStage || activeStage.id === overStage.id) return;
+    if (!activeStage || !overStage) return;
+    if (activeStage.id === overStage.id) return; // Same stage, no need to move
 
+    // Move the deal to the new stage
     setPipelines((prevPipelines) =>
       prevPipelines.map((pipeline) => {
         if (pipeline.id !== selectedPipeline) return pipeline;
 
+        const activeDeal = activeStage.deals.find((deal) => deal.id === activeId);
+        if (!activeDeal) return pipeline;
+
         const newStages = pipeline.stages.map((stage) => {
           if (stage.id === activeStage.id) {
+            // Remove from source stage
             return {
               ...stage,
               deals: stage.deals.filter((deal) => deal.id !== activeId),
             };
           }
           if (stage.id === overStage.id) {
-            const activeDeal = activeStage.deals.find((deal) => deal.id === activeId);
-            if (!activeDeal) return stage;
+            // Add to target stage
             return {
               ...stage,
               deals: [...stage.deals, activeDeal],
@@ -350,10 +361,6 @@ const Pipelines = () => {
         return { ...pipeline, stages: newStages };
       })
     );
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveDeal(null);
   };
 
   if (!currentPipeline) return null;
