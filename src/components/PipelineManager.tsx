@@ -197,8 +197,9 @@ export function PipelineManager({
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="icon">
+          <Button variant="outline">
             <Settings className="h-4 w-4" />
+            Manage Pipelines
           </Button>
         </DialogTrigger>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
