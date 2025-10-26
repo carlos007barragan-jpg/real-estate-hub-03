@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   DndContext,
   DragOverlay,
-  pointerWithin,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -458,7 +458,7 @@ const Pipelines = () => {
         {/* Pipeline Stages */}
         <DndContext
           sensors={sensors}
-          collisionDetection={pointerWithin}
+          collisionDetection={rectIntersection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
