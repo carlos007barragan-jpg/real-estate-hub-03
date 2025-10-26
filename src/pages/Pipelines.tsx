@@ -162,7 +162,7 @@ function DraggableDeal({ deal }: { deal: Deal }) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: deal.id });
+  } = useSortable({ id: `deal-${deal.id}` });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -220,7 +220,7 @@ function DroppableStage({
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id: stage.id,
+    id: `stage-${stage.id}`,
   });
 
   return (
@@ -297,9 +297,11 @@ const Pipelines = () => {
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
+    const activeId = String(active.id);
+    const dealId = activeId.startsWith('deal-') ? activeId.slice(5) : activeId;
     const deal = currentPipeline?.stages
       .flatMap((stage) => stage.deals)
-      .find((d) => d.id === active.id);
+      .find((d) => d.id === dealId);
     setActiveDeal(deal || null);
   };
 
@@ -313,19 +315,25 @@ const Pipelines = () => {
     
     if (!over || !currentPipeline) return;
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
+    const activeIdStr = String(active.id);
+    const draggedDealId = activeIdStr.startsWith('deal-') ? activeIdStr.slice(5) : activeIdStr;
+
+    const overIdStr = String(over.id);
 
     // Find which stage contains the active deal
     const activeStage = currentPipeline.stages.find((stage) =>
-      stage.deals.some((deal) => deal.id === activeId)
+      stage.deals.some((deal) => deal.id === draggedDealId)
     );
 
     // Find which stage the deal is being dragged over
-    let overStage = currentPipeline.stages.find((stage) => stage.id === overId);
-    if (!overStage) {
+    let overStage: Stage | undefined;
+    if (overIdStr.startsWith('stage-')) {
+      const targetStageId = overIdStr.slice(6);
+      overStage = currentPipeline.stages.find((stage) => stage.id === targetStageId);
+    } else if (overIdStr.startsWith('deal-')) {
+      const overDealId = overIdStr.slice(5);
       overStage = currentPipeline.stages.find((stage) =>
-        stage.deals.some((deal) => deal.id === overId)
+        stage.deals.some((deal) => deal.id === overDealId)
       );
     }
 
@@ -337,7 +345,7 @@ const Pipelines = () => {
       prevPipelines.map((pipeline) => {
         if (pipeline.id !== selectedPipeline) return pipeline;
 
-        const activeDeal = activeStage.deals.find((deal) => deal.id === activeId);
+        const activeDeal = activeStage.deals.find((deal) => deal.id === draggedDealId);
         if (!activeDeal) return pipeline;
 
         const newStages = pipeline.stages.map((stage) => {
@@ -345,10 +353,10 @@ const Pipelines = () => {
             // Remove from source stage
             return {
               ...stage,
-              deals: stage.deals.filter((deal) => deal.id !== activeId),
+              deals: stage.deals.filter((deal) => deal.id !== draggedDealId),
             };
           }
-          if (stage.id === overStage.id) {
+          if (stage.id === overStage!.id) {
             // Add to target stage
             return {
               ...stage,
@@ -487,7 +495,7 @@ const Pipelines = () => {
                     {/* Deals Container */}
                     <SortableContext
                       id={stage.id}
-                      items={stage.deals.map((deal) => deal.id)}
+                      items={stage.deals.map((deal) => `deal-${deal.id}`)}
                       strategy={verticalListSortingStrategy}
                     >
                       <div className="space-y-2 min-h-[500px]">
@@ -511,7 +519,7 @@ const Pipelines = () => {
 
           <DragOverlay>
           {activeDeal ? (
-            <div className="bg-background rounded-lg p-3 border-2 border-primary shadow-lg w-[320px]">
+            <div className="pointer-events-none bg-background rounded-lg p-3 border-2 border-primary shadow-lg w-[320px]">
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="font-semibold text-sm text-foreground">
