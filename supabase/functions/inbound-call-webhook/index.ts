@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
 
     if (identities.length > 0) {
       dialTargets = identities
-        .map(id => `<Client statusCallback="${statusCallbackUrlEsc}" statusCallbackMethod="POST" statusCallbackEvent="initiated ringing answered completed"><Identity>${id}</Identity></Client>`) 
+        .map(id => `<Client><Identity>${id}</Identity></Client>`) 
         .join('\n    ');
     } else {
       // Fallback to a default PSTN number if no web agents are configured
