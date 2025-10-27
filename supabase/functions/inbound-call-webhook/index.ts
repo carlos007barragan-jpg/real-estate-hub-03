@@ -132,21 +132,31 @@ Deno.serve(async (req) => {
       }
     }
 
+    // If no identities from active agents, attempt to ring the lead owner
+    if (identities.length === 0 && userId) {
+      const { data: ownerRes, error: ownerError } = await supabase.auth.admin.getUserById(userId);
+      if (!ownerError && ownerRes?.user?.email) {
+        identities.push(ownerRes.user.email);
+      }
+    }
+
     if (identities.length > 0) {
       dialTargets = identities.map(id => `<Client>${id}</Client>`).join('\n    ');
     } else {
       // Fallback to a default PSTN number if no web agents are configured
       dialTargets = `<Number>${Deno.env.get('TWILIO_PHONE_NUMBER')}</Number>`;
     }
+
+    console.log('Dial identities resolved:', identities, 'Dial targets built:', dialTargets);
     
     // Return TwiML to ring web agents or capture voicemail
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">Thank you for calling. Please hold while we connect you to an agent.</Say>
+  <Say voice="alice">Thank you for calling. Please hold while we connect you to an agent.</Say>
   <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" timeout="30" statusCallback="${statusCallbackUrl}" statusCallbackMethod="POST" statusCallbackEvent="answered completed">
     ${dialTargets}
   </Dial>
-  <Say voice="Polly.Joanna">We're sorry, no one is available to take your call. Please leave a message after the tone.</Say>
+  <Say voice="alice">We're sorry, no one is available to take your call. Please leave a message after the tone.</Say>
   <Record maxLength="120" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" />
 </Response>`;
 
@@ -159,7 +169,7 @@ Deno.serve(async (req) => {
     console.error('Error in inbound call webhook:', error);
     const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">We're sorry, an error occurred. Please try again later.</Say>
+  <Say voice="alice">We're sorry, an error occurred. Please try again later.</Say>
 </Response>`;
     
     return new Response(errorTwiml, {
