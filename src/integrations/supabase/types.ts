@@ -97,6 +97,8 @@ export type Database = {
           auto_roundrobin_unanswered: boolean
           created_at: string
           enable_round_robin: boolean
+          fallback_phone_1: string | null
+          fallback_phone_2: string | null
           id: string
           last_assigned_agent_index: number
           updated_at: string
@@ -106,6 +108,8 @@ export type Database = {
           auto_roundrobin_unanswered?: boolean
           created_at?: string
           enable_round_robin?: boolean
+          fallback_phone_1?: string | null
+          fallback_phone_2?: string | null
           id?: string
           last_assigned_agent_index?: number
           updated_at?: string
@@ -115,6 +119,8 @@ export type Database = {
           auto_roundrobin_unanswered?: boolean
           created_at?: string
           enable_round_robin?: boolean
+          fallback_phone_1?: string | null
+          fallback_phone_2?: string | null
           id?: string
           last_assigned_agent_index?: number
           updated_at?: string

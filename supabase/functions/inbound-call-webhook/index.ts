@@ -129,20 +129,22 @@ Deno.serve(async (req) => {
       return email.replace(/@/g, '_at_').replace(/\./g, '_').replace(/[^a-zA-Z0-9_]/g, '');
     };
 
-    // Build dial targets with active agent client identities AND phone numbers
+    // Get CRM settings for fallback phone numbers
+    const { data: crmSettings } = await supabase
+      .from('crm_settings')
+      .select('fallback_phone_1, fallback_phone_2')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    // Build dial targets with active agent client identities
     let dialTargets = '';
     const identities: string[] = [];
-    const phoneNumbers: string[] = [];
     
     if (agents && agents.length > 0) {
       for (const agent of agents) {
         const { data: userRes, error: userError } = await supabase.auth.admin.getUserById(agent.user_id);
         if (!userError && userRes?.user?.email) {
           identities.push(sanitizeIdentity(userRes.user.email));
-        }
-        // Also collect phone numbers
-        if (agent.phone_number) {
-          phoneNumbers.push(agent.phone_number);
         }
       }
     }
@@ -155,14 +157,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Build dial targets with both web clients and phone numbers
+    // Build dial targets with web clients first, then fallback phone numbers
     const clientTargets = identities.map(id => `<Client><Identity>${id}</Identity></Client>`);
-    const numberTargets = phoneNumbers.map(num => `<Number>${num}</Number>`);
+    const fallbackNumbers: string[] = [];
+    
+    if (crmSettings?.fallback_phone_1) fallbackNumbers.push(crmSettings.fallback_phone_1);
+    if (crmSettings?.fallback_phone_2) fallbackNumbers.push(crmSettings.fallback_phone_2);
+    
+    const numberTargets = fallbackNumbers.map(num => `<Number>${num}</Number>`);
     
     if (clientTargets.length > 0 || numberTargets.length > 0) {
       dialTargets = [...clientTargets, ...numberTargets].join('\n    ');
     } else {
-      // Fallback to a default PSTN number if no web agents are configured
+      // Fallback to a default PSTN number if nothing is configured
       dialTargets = `<Number>${Deno.env.get('TWILIO_PHONE_NUMBER')}</Number>`;
     }
 

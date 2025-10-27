@@ -2,13 +2,18 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 export const RoundRobinSettings = () => {
   const [autoRoundRobin, setAutoRoundRobin] = useState(false);
+  const [fallbackPhone1, setFallbackPhone1] = useState("");
+  const [fallbackPhone2, setFallbackPhone2] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -22,7 +27,7 @@ export const RoundRobinSettings = () => {
 
       const { data, error } = await supabase
         .from('crm_settings')
-        .select('auto_roundrobin_unanswered')
+        .select('auto_roundrobin_unanswered, fallback_phone_1, fallback_phone_2')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -30,6 +35,8 @@ export const RoundRobinSettings = () => {
 
       if (data) {
         setAutoRoundRobin(data.auto_roundrobin_unanswered);
+        setFallbackPhone1(data.fallback_phone_1 || "");
+        setFallbackPhone2(data.fallback_phone_2 || "");
       }
     } catch (error: any) {
       console.error('Error fetching settings:', error);
@@ -84,15 +91,68 @@ export const RoundRobinSettings = () => {
     }
   };
 
+  const handleSavePhoneNumbers = async () => {
+    try {
+      setSaving(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if settings exist
+      const { data: existing } = await supabase
+        .from('crm_settings')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing
+        const { error } = await supabase
+          .from('crm_settings')
+          .update({ 
+            fallback_phone_1: fallbackPhone1 || null,
+            fallback_phone_2: fallbackPhone2 || null 
+          })
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      } else {
+        // Create new
+        const { error } = await supabase
+          .from('crm_settings')
+          .insert({ 
+            user_id: user.id, 
+            fallback_phone_1: fallbackPhone1 || null,
+            fallback_phone_2: fallbackPhone2 || null 
+          });
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Phone Numbers Saved",
+        description: "Inbound calls will now ring these numbers if no one picks up on the CRM",
+      });
+    } catch (error: any) {
+      console.error('Error saving phone numbers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save phone numbers",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return null;
   }
 
   return (
     <Card className="p-6">
-      <h2 className="text-xl font-semibold text-foreground mb-6">Round Robin Settings</h2>
+      <h2 className="text-xl font-semibold text-foreground mb-6">Call Routing Settings</h2>
       <div className="space-y-6 max-w-2xl">
-        <div className="flex items-center justify-between py-4">
+        <div className="flex items-center justify-between py-4 border-b">
           <div className="flex items-center gap-3">
             <RefreshCw className="h-5 w-5 text-muted-foreground" />
             <div>
@@ -109,6 +169,48 @@ export const RoundRobinSettings = () => {
             checked={autoRoundRobin}
             onCheckedChange={handleToggle}
           />
+        </div>
+
+        <div className="space-y-4 pt-4">
+          <div className="flex items-center gap-3 mb-4">
+            <Phone className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <h3 className="text-base font-medium">Fallback Phone Numbers</h3>
+              <p className="text-sm text-muted-foreground">
+                These numbers will ring if no one picks up on the CRM web interface
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fallback-phone-1">Phone Number 1</Label>
+            <Input
+              id="fallback-phone-1"
+              type="tel"
+              placeholder="+1234567890"
+              value={fallbackPhone1}
+              onChange={(e) => setFallbackPhone1(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="fallback-phone-2">Phone Number 2</Label>
+            <Input
+              id="fallback-phone-2"
+              type="tel"
+              placeholder="+1234567890"
+              value={fallbackPhone2}
+              onChange={(e) => setFallbackPhone2(e.target.value)}
+            />
+          </div>
+
+          <Button 
+            onClick={handleSavePhoneNumbers} 
+            disabled={saving}
+            className="mt-4"
+          >
+            {saving ? "Saving..." : "Save Phone Numbers"}
+          </Button>
         </div>
       </div>
     </Card>
