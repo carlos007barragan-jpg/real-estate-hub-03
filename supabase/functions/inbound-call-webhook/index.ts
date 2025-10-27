@@ -116,9 +116,13 @@ Deno.serve(async (req) => {
       .select('phone_number, user_id')
       .eq('is_active', true);
     
-    // Get recording callback URL
+    // Get recording callback URL and escape XML-sensitive characters for attributes
+    const escapeXmlAttr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
     const recordingCallbackUrl = `${supabaseUrl}/functions/v1/recording-callback`;
+    const recordingCallbackUrlEsc = escapeXmlAttr(recordingCallbackUrl);
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${userId}`;
+    const statusCallbackUrlEsc = escapeXmlAttr(statusCallbackUrl);
     
     // Helper function to sanitize identity (must match get-twilio-token)
     const sanitizeIdentity = (email: string) => {
@@ -147,7 +151,7 @@ Deno.serve(async (req) => {
 
     if (identities.length > 0) {
       dialTargets = identities
-        .map(id => `<Client statusCallback="${statusCallbackUrl}" statusCallbackMethod="POST" statusCallbackEvent="answered completed"><Identity>${id}</Identity></Client>`) 
+        .map(id => `<Client statusCallback="${statusCallbackUrlEsc}" statusCallbackMethod="POST" statusCallbackEvent="answered completed"><Identity>${id}</Identity></Client>`) 
         .join('\n    ');
     } else {
       // Fallback to a default PSTN number if no web agents are configured
@@ -160,7 +164,7 @@ Deno.serve(async (req) => {
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice">Thank you for calling. Please hold while we connect you to an agent.</Say>
-  <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" timeout="45">
+  <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="45">
     ${dialTargets}
   </Dial>
   <Say voice="alice">We're sorry, no one is available to take your call. Please leave a message after the tone.</Say>
@@ -169,7 +173,7 @@ Deno.serve(async (req) => {
 
     return new Response(twiml, {
       headers: {
-        'Content-Type': 'application/xml',
+        'Content-Type': 'text/xml',
       },
     });
   } catch (error) {
@@ -181,7 +185,7 @@ Deno.serve(async (req) => {
     
     return new Response(errorTwiml, {
       headers: {
-        'Content-Type': 'application/xml',
+        'Content-Type': 'text/xml',
       },
       status: 500,
     });
