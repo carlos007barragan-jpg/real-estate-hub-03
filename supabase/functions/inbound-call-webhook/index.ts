@@ -120,6 +120,11 @@ Deno.serve(async (req) => {
     const recordingCallbackUrl = `${supabaseUrl}/functions/v1/recording-callback`;
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${userId}`;
     
+    // Helper function to sanitize identity (must match get-twilio-token)
+    const sanitizeIdentity = (email: string) => {
+      return email.replace(/@/g, '_at_').replace(/\./g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    };
+
     // Build dial targets with active agent client identities
     let dialTargets = '';
     const identities: string[] = [];
@@ -127,7 +132,7 @@ Deno.serve(async (req) => {
       for (const agent of agents) {
         const { data: userRes, error: userError } = await supabase.auth.admin.getUserById(agent.user_id);
         if (!userError && userRes?.user?.email) {
-          identities.push(userRes.user.email);
+          identities.push(sanitizeIdentity(userRes.user.email));
         }
       }
     }
@@ -136,7 +141,7 @@ Deno.serve(async (req) => {
     if (identities.length === 0 && userId) {
       const { data: ownerRes, error: ownerError } = await supabase.auth.admin.getUserById(userId);
       if (!ownerError && ownerRes?.user?.email) {
-        identities.push(ownerRes.user.email);
+        identities.push(sanitizeIdentity(ownerRes.user.email));
       }
     }
 
@@ -153,7 +158,7 @@ Deno.serve(async (req) => {
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice">Thank you for calling. Please hold while we connect you to an agent.</Say>
-  <Dial timeout="45">
+  <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" timeout="45" statusCallback="${statusCallbackUrl}" statusCallbackMethod="POST" statusCallbackEvent="answered completed">
     ${dialTargets}
   </Dial>
   <Say voice="alice">We're sorry, no one is available to take your call. Please leave a message after the tone.</Say>

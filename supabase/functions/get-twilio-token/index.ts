@@ -23,8 +23,13 @@ Deno.serve(async (req) => {
 
     const { identity } = await req.json();
     
+    // Sanitize identity to only alphanumeric and underscores (Twilio requirement)
+    const sanitizedIdentity = identity.replace(/@/g, '_at_').replace(/\./g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    
+    console.log('Token requested for identity:', identity, 'sanitized to:', sanitizedIdentity);
+    
     // Generate access token using Twilio REST API
-    const token = await generateToken(accountSid, apiKey, apiSecret, identity, twimlAppSid);
+    const token = await generateToken(accountSid, apiKey, apiSecret, sanitizedIdentity, twimlAppSid);
     
     return new Response(
       JSON.stringify({ token }),
