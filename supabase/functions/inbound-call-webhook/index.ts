@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice">Thank you for calling. Please hold while we connect you to an agent.</Say>
-  <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="45">
+  <Dial timeout="45">
     ${dialTargets}
   </Dial>
   <Say voice="alice">We're sorry, no one is available to take your call. Please leave a message after the tone.</Say>
