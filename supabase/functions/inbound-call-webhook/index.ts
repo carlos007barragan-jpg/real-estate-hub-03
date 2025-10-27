@@ -146,7 +146,9 @@ Deno.serve(async (req) => {
     }
 
     if (identities.length > 0) {
-      dialTargets = identities.map(id => `<Client>${id}</Client>`).join('\n    ');
+      dialTargets = identities
+        .map(id => `<Client><Identity>${id}</Identity></Client>`) 
+        .join('\n    ');
     } else {
       // Fallback to a default PSTN number if no web agents are configured
       dialTargets = `<Number>${Deno.env.get('TWILIO_PHONE_NUMBER')}</Number>`;
