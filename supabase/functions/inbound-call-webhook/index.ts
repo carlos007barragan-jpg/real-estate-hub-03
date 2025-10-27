@@ -129,14 +129,20 @@ Deno.serve(async (req) => {
       return email.replace(/@/g, '_at_').replace(/\./g, '_').replace(/[^a-zA-Z0-9_]/g, '');
     };
 
-    // Build dial targets with active agent client identities
+    // Build dial targets with active agent client identities AND phone numbers
     let dialTargets = '';
     const identities: string[] = [];
+    const phoneNumbers: string[] = [];
+    
     if (agents && agents.length > 0) {
       for (const agent of agents) {
         const { data: userRes, error: userError } = await supabase.auth.admin.getUserById(agent.user_id);
         if (!userError && userRes?.user?.email) {
           identities.push(sanitizeIdentity(userRes.user.email));
+        }
+        // Also collect phone numbers
+        if (agent.phone_number) {
+          phoneNumbers.push(agent.phone_number);
         }
       }
     }
@@ -149,10 +155,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (identities.length > 0) {
-      dialTargets = identities
-        .map(id => `<Client><Identity>${id}</Identity></Client>`) 
-        .join('\n    ');
+    // Build dial targets with both web clients and phone numbers
+    const clientTargets = identities.map(id => `<Client><Identity>${id}</Identity></Client>`);
+    const numberTargets = phoneNumbers.map(num => `<Number>${num}</Number>`);
+    
+    if (clientTargets.length > 0 || numberTargets.length > 0) {
+      dialTargets = [...clientTargets, ...numberTargets].join('\n    ');
     } else {
       // Fallback to a default PSTN number if no web agents are configured
       dialTargets = `<Number>${Deno.env.get('TWILIO_PHONE_NUMBER')}</Number>`;
