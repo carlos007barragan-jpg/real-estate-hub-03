@@ -80,22 +80,34 @@ Deno.serve(async (req) => {
       console.log('Created new lead:', leadId);
     }
     
-    // Create call log entry
-    const { error: callLogError } = await supabase
+    // Check if call log already exists (Twilio may call webhook multiple times)
+    const { data: existingCallLog } = await supabase
       .from('call_logs')
-      .insert({
-        call_sid: callSid,
-        lead_id: leadId,
-        user_id: userId,
-        from_number: from,
-        to_number: to,
-        status: 'in-progress',
-        direction: 'inbound',
-        answered_by: answeredBy,
-      });
+      .select('id')
+      .eq('call_sid', callSid)
+      .single();
     
-    if (callLogError) {
-      console.error('Error creating call log:', callLogError);
+    // Only create call log if it doesn't exist
+    if (!existingCallLog) {
+      const { error: callLogError } = await supabase
+        .from('call_logs')
+        .insert({
+          call_sid: callSid,
+          lead_id: leadId,
+          user_id: userId,
+          from_number: from,
+          to_number: to,
+          status: 'in-progress',
+          direction: 'inbound',
+          answered_by: answeredBy,
+        });
+      
+      if (callLogError) {
+        console.error('Error creating call log:', callLogError);
+        // Don't throw error - we still want to return valid TwiML
+      }
+    } else {
+      console.log('Call log already exists for call_sid:', callSid);
     }
     
     // Get all active agents
