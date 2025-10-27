@@ -34,6 +34,7 @@ export const EditContactInfoDialog = ({
 }: EditContactInfoDialogProps) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
+    name: leadData.name || "",
     email: leadData.email || "",
     phone: leadData.phone || "",
     spouseEmail: leadData.spouseEmail || "",
@@ -56,6 +57,7 @@ export const EditContactInfoDialog = ({
       const { error } = await supabase
         .from("leads")
         .update({
+          name: formData.name,
           email: formData.email,
           phone: formData.phone,
           spouse_email: formData.spouseEmail || null,
@@ -68,6 +70,7 @@ export const EditContactInfoDialog = ({
           current_address: formData.currentAddress || null,
           assigned_to: formData.assignedTo || null,
           timeframe: formData.timeframe || null,
+          is_inbound_call: leadData.isInboundCall || leadData.is_inbound_call || false,
         })
         .eq("id", leadData.id);
 
@@ -97,6 +100,17 @@ export const EditContactInfoDialog = ({
           <DialogTitle>Edit Contact Information</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+            />
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
