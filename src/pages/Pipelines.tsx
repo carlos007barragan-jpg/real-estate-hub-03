@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PipelineManager } from "@/components/PipelineManager";
+import { DealNotesDialog } from "@/components/DealNotesDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -156,8 +156,7 @@ const priorityColors = {
   low: "bg-muted text-muted-foreground",
 };
 
-function DraggableDeal({ deal }: { deal: Deal }) {
-  const navigate = useNavigate();
+function DraggableDeal({ deal, onOpenNotes }: { deal: Deal; onOpenNotes: (deal: Deal) => void }) {
   const {
     attributes,
     listeners,
@@ -174,10 +173,8 @@ function DraggableDeal({ deal }: { deal: Deal }) {
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    if (deal.leadId) {
-      e.stopPropagation();
-      navigate(`/leads/${deal.leadId}`);
-    }
+    e.stopPropagation();
+    onOpenNotes(deal);
   };
 
   return (
@@ -280,6 +277,8 @@ const Pipelines = () => {
   });
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
 
   // Persist pipelines to localStorage
   useEffect(() => {
@@ -380,6 +379,11 @@ const Pipelines = () => {
         return { ...pipeline, stages: newStages };
       })
     );
+  };
+
+  const handleOpenNotes = (deal: Deal) => {
+    setSelectedDeal(deal);
+    setNotesDialogOpen(true);
   };
 
   if (!currentPipeline) return null;
@@ -511,7 +515,7 @@ const Pipelines = () => {
                     >
                       <div className="space-y-2 min-h-[500px]">
                         {stage.deals.map((deal) => (
-                          <DraggableDeal key={deal.id} deal={deal} />
+                          <DraggableDeal key={deal.id} deal={deal} onOpenNotes={handleOpenNotes} />
                         ))}
 
                         {stage.deals.length === 0 && (
@@ -562,6 +566,12 @@ const Pipelines = () => {
           ) : null}
           </DragOverlay>
         </DndContext>
+
+        <DealNotesDialog
+          open={notesDialogOpen}
+          onOpenChange={setNotesDialogOpen}
+          deal={selectedDeal}
+        />
       </div>
     </div>
   );

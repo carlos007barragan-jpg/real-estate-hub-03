@@ -63,6 +63,29 @@ const LeadProfile = () => {
   const [currentStage, setCurrentStage] = useState<PipelineStage>("New Lead");
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("two-column");
 
+  const fetchNotes = async () => {
+    if (!id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*")
+        .eq("lead_id", id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      setNotes(data?.map(note => ({
+        id: note.id,
+        content: note.content,
+        author: note.author,
+        timestamp: new Date(note.created_at).toLocaleString(),
+      })) || []);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+    }
+  };
+
   const fetchLead = async () => {
     if (!id) return;
     
@@ -179,16 +202,7 @@ const LeadProfile = () => {
   }, [id, toast]);
 
   const [messages, setMessages] = useState<Message[]>([]);
-
-  const [notes, setNotes] = useState<Note[]>([
-    {
-      id: "1",
-      content: "Lead is very interested in properties with large backyards. Has a budget of $450k.",
-      author: "John Smith",
-      timestamp: "2024-01-15 2:30 PM",
-    },
-  ]);
-
+  const [notes, setNotes] = useState<Note[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [newNote, setNewNote] = useState("");
 
@@ -221,16 +235,37 @@ const LeadProfile = () => {
     }
   };
 
-  const handleAddNote = () => {
-    if (newNote.trim()) {
-      const note: Note = {
-        id: (notes.length + 1).toString(),
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !id) return;
+
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Not authenticated");
+
+      const { error } = await supabase.from("notes").insert({
+        lead_id: id,
+        user_id: userData.user.id,
         content: newNote,
-        author: "Current Agent",
-        timestamp: new Date().toLocaleString(),
-      };
-      setNotes([...notes, note]);
+        author: "Agent",
+        note_type: "general",
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Note added",
+        description: "Note has been saved successfully",
+      });
+
       setNewNote("");
+      await fetchNotes();
+    } catch (error: any) {
+      console.error("Error adding note:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 

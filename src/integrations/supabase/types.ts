@@ -280,6 +280,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notes: {
+        Row: {
+          author: string
+          content: string
+          created_at: string
+          id: string
+          lead_id: string
+          note_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          author: string
+          content: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          note_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          author?: string
+          content?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          note_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sms_logs: {
         Row: {
           created_at: string
