@@ -59,7 +59,7 @@ const mockPipelines: Pipeline[] = [
     stages: [
       {
         id: "1",
-        name: "New Opportunities",
+        name: "New Lead",
         deals: [
           {
             id: "1",
@@ -81,7 +81,17 @@ const mockPipelines: Pipeline[] = [
       },
       {
         id: "2",
-        name: "Viewing Scheduled",
+        name: "Contacted",
+        deals: [],
+      },
+      {
+        id: "3",
+        name: "Qualified",
+        deals: [],
+      },
+      {
+        id: "4",
+        name: "Showing Scheduled",
         deals: [
           {
             id: "3",
@@ -94,7 +104,7 @@ const mockPipelines: Pipeline[] = [
         ],
       },
       {
-        id: "3",
+        id: "5",
         name: "Offer Made",
         deals: [
           {
@@ -108,8 +118,18 @@ const mockPipelines: Pipeline[] = [
         ],
       },
       {
-        id: "4",
-        name: "Closing",
+        id: "6",
+        name: "Under Contract",
+        deals: [],
+      },
+      {
+        id: "7",
+        name: "Closed Won",
+        deals: [],
+      },
+      {
+        id: "8",
+        name: "Closed Lost",
         deals: [],
       },
     ],
@@ -120,7 +140,7 @@ const mockPipelines: Pipeline[] = [
     stages: [
       {
         id: "1",
-        name: "Lead",
+        name: "New Lead",
         deals: [
           {
             id: "5",
@@ -134,17 +154,37 @@ const mockPipelines: Pipeline[] = [
       },
       {
         id: "2",
-        name: "Negotiation",
+        name: "Contacted",
         deals: [],
       },
       {
         id: "3",
-        name: "Contract",
+        name: "Qualified",
         deals: [],
       },
       {
         id: "4",
-        name: "Closed",
+        name: "Showing Scheduled",
+        deals: [],
+      },
+      {
+        id: "5",
+        name: "Offer Made",
+        deals: [],
+      },
+      {
+        id: "6",
+        name: "Under Contract",
+        deals: [],
+      },
+      {
+        id: "7",
+        name: "Closed Won",
+        deals: [],
+      },
+      {
+        id: "8",
+        name: "Closed Lost",
         deals: [],
       },
     ],
