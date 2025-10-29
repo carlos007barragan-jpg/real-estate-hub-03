@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Building2, DollarSign, Calendar, User } from "lucide-react";
+import { PlusCircle, Building2, DollarSign, Calendar, User, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -43,6 +44,7 @@ export function DealNotesDialog({ open, onOpenChange, deal }: DealNotesDialogPro
   const [newNote, setNewNote] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (open && deal?.leadId) {
@@ -105,18 +107,40 @@ export function DealNotesDialog({ open, onOpenChange, deal }: DealNotesDialogPro
     }
   };
 
+  const handleViewFullProfile = () => {
+    if (deal?.leadId) {
+      navigate(`/leads/${deal.leadId}`);
+      onOpenChange(false);
+    }
+  };
+
   if (!deal) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Deal Details
-          </DialogTitle>
-          <DialogDescription>
-            View and manage pipeline notes for this deal
-          </DialogDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                Deal Details
+              </DialogTitle>
+              <DialogDescription>
+                View and manage pipeline notes for this deal
+              </DialogDescription>
+            </div>
+            {deal?.leadId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleViewFullProfile}
+                className="gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View Full Profile
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         {/* Deal Summary */}
