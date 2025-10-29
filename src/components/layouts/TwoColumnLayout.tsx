@@ -119,6 +119,12 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
                           </div>
                         </div>
                       )}
+                      {leadData.pipeline && (
+                        <div>
+                          <span className="text-muted-foreground">Lead Pipeline Status:</span> 
+                          <span className="ml-1">{leadData.pipeline}</span>
+                        </div>
+                      )}
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
