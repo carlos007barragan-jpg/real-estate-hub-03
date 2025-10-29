@@ -566,25 +566,6 @@ const LeadProfile = () => {
         {currentLifecycle === "Moved to Pipeline" && (
           <>
             <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
-              <Layers className="h-4 w-4 text-primary" />
-              <div className="flex-1">
-                <span className="text-xs font-medium">Select Pipeline</span>
-              </div>
-              <Select value={currentPipeline} onValueChange={handlePipelineChange}>
-                <SelectTrigger className="w-[180px] h-7 text-xs">
-                  <SelectValue placeholder="Choose pipeline..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePipelines.map((pipeline) => (
-                    <SelectItem key={pipeline.id} value={pipeline.id}>
-                      {pipeline.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
               <Building2 className="h-4 w-4 text-primary" />
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-1">
