@@ -187,9 +187,16 @@ function DraggableDeal({ deal, onOpenNotes }: { deal: Deal; onOpenNotes: (deal: 
       <div
         {...attributes}
         {...listeners}
-        className="flex items-center justify-center w-6 bg-muted/30 cursor-grab active:cursor-grabbing rounded-l-lg hover:bg-muted/50 transition-colors"
+        className="flex items-center justify-center w-6 bg-muted/30 rounded-l-lg hover:bg-muted/50 transition-colors touch-none"
+        style={{ cursor: 'grab' }}
+        onMouseDown={(e) => {
+          (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
+        }}
+        onMouseUp={(e) => {
+          (e.currentTarget as HTMLElement).style.cursor = 'grab';
+        }}
       >
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
+        <GripVertical className="h-4 w-4 text-muted-foreground pointer-events-none" />
       </div>
 
       {/* Clickable Card Content */}
