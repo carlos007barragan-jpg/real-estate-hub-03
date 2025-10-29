@@ -8,6 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AgentPhoneSetup } from "@/components/AgentPhoneSetup";
 import { RoundRobinSettings } from "@/components/RoundRobinSettings";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   Table,
   TableBody,
@@ -43,19 +45,10 @@ import { useToast } from "@/hooks/use-toast";
 
 interface User {
   id: string;
-  name: string;
   email: string;
-  role: "admin" | "agent" | "viewer";
-  status: "active" | "inactive";
+  role: "admin" | "agent";
+  created_at: string;
 }
-
-const mockUsers: User[] = [
-  { id: "1", name: "John Smith", email: "john@realestate.com", role: "admin", status: "active" },
-  { id: "2", name: "Maria Garcia", email: "maria@realestate.com", role: "agent", status: "active" },
-  { id: "3", name: "Alex Johnson", email: "alex@realestate.com", role: "agent", status: "active" },
-  { id: "4", name: "Lisa Chen", email: "lisa@realestate.com", role: "agent", status: "active" },
-  { id: "5", name: "Mark Wilson", email: "mark@realestate.com", role: "viewer", status: "inactive" },
-];
 
 const roleColors = {
   admin: "bg-destructive text-destructive-foreground",
@@ -65,16 +58,21 @@ const roleColors = {
 
 const Settings = () => {
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const { isAdmin, loading: roleLoading } = useUserRole();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "agent" | "viewer">("agent");
+  const [inviteRole, setInviteRole] = useState<"admin" | "agent">("agent");
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
 
   useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem("darkMode", darkMode.toString());
-    // Manually dispatch storage event for same-window updates
     window.dispatchEvent(new Event("storage"));
     if (darkMode) {
       document.documentElement.classList.add("dark");
@@ -83,7 +81,41 @@ const Settings = () => {
     }
   }, [darkMode]);
 
-  const handleInviteUser = () => {
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('id, user_id, role, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const usersWithEmails = await Promise.all(
+        (data || []).map(async (userRole) => {
+          const { data: { user } } = await supabase.auth.admin.getUserById(userRole.user_id);
+          return {
+            id: userRole.id,
+            email: user?.email || 'Unknown',
+            role: userRole.role as "admin" | "agent",
+            created_at: userRole.created_at
+          };
+        })
+      );
+
+      setUsers(usersWithEmails);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load users",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInviteUser = async () => {
     if (!inviteEmail) {
       toast({
         title: "Error",
@@ -93,11 +125,107 @@ const Settings = () => {
       return;
     }
 
-    toast({
-      title: "Invitation Sent",
-      description: `Invitation sent to ${inviteEmail}`,
-    });
-    setInviteEmail("");
+    if (!isAdmin) {
+      toast({
+        title: "Permission Denied",
+        description: "Only admins can invite users",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail);
+      
+      if (error) throw error;
+
+      if (data.user) {
+        await supabase.from('user_roles').insert({
+          user_id: data.user.id,
+          role: inviteRole
+        });
+      }
+
+      toast({
+        title: "Invitation Sent",
+        description: `Invitation sent to ${inviteEmail}`,
+      });
+      
+      setInviteEmail("");
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to invite user",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: "admin" | "agent") => {
+    if (!isAdmin) {
+      toast({
+        title: "Permission Denied",
+        description: "Only admins can change roles",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ role: newRole })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Role updated successfully",
+      });
+      
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveUser = async (userId: string) => {
+    if (!isAdmin) {
+      toast({
+        title: "Permission Denied",
+        description: "Only admins can remove users",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "User removed successfully",
+      });
+      
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove user",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -150,7 +278,7 @@ const Settings = () => {
                       <Label htmlFor="role">Role</Label>
                       <Select
                         value={inviteRole}
-                        onValueChange={(value: "admin" | "agent" | "viewer") =>
+                        onValueChange={(value: "admin" | "agent") =>
                           setInviteRole(value)
                         }
                       >
@@ -160,7 +288,6 @@ const Settings = () => {
                         <SelectContent>
                           <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="agent">Agent</SelectItem>
-                          <SelectItem value="viewer">Viewer</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -172,59 +299,62 @@ const Settings = () => {
               </Dialog>
             </div>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                    <TableCell>
-                      <Badge className={roleColors[user.role]} variant="secondary">
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={
-                          user.status === "active"
-                            ? "bg-success text-success-foreground"
-                            : "bg-muted text-muted-foreground"
-                        }
-                      >
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-popover">
-                          <DropdownMenuItem>Edit Role</DropdownMenuItem>
-                          <DropdownMenuItem>Resend Invitation</DropdownMenuItem>
-                          <DropdownMenuItem>
-                            {user.status === "active" ? "Deactivate" : "Activate"}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">Remove</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            {loading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading users...</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Added</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.email}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={user.role}
+                          onValueChange={(value: "admin" | "agent") => handleRoleChange(user.id, value)}
+                          disabled={!isAdmin}
+                        >
+                          <SelectTrigger className="w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="agent">Agent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(user.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" disabled={!isAdmin}>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-popover">
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleRemoveUser(user.id)}
+                            >
+                              Remove User
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
 
             <div className="mt-8 p-4 bg-muted/50 rounded-lg">
               <div className="flex gap-4">
@@ -232,9 +362,8 @@ const Settings = () => {
                 <div>
                   <h3 className="font-semibold text-foreground mb-1">Role Permissions</h3>
                   <ul className="space-y-1 text-sm text-muted-foreground">
-                    <li><strong>Admin:</strong> Full access to all features and settings</li>
-                    <li><strong>Agent:</strong> Manage leads, contacts, and pipelines</li>
-                    <li><strong>Viewer:</strong> View-only access to reports and data</li>
+                    <li><strong>Admin:</strong> Full access to all features, settings, and user management</li>
+                    <li><strong>Agent:</strong> Manage leads, contacts, pipelines, and make calls</li>
                   </ul>
                 </div>
               </div>
