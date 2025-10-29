@@ -11,6 +11,7 @@ import { TwoColumnLayout } from "@/components/layouts/TwoColumnLayout";
 import { SingleColumnLayout } from "@/components/layouts/SingleColumnLayout";
 import { TableLayout } from "@/components/layouts/TableLayout";
 import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
+import { PipelineAssignmentDialog } from "@/components/PipelineAssignmentDialog";
 
 interface Message {
   id: string;
@@ -63,6 +64,7 @@ const LeadProfile = () => {
   const [currentStage, setCurrentStage] = useState<PipelineStage>("New Lead");
   const [currentPipeline, setCurrentPipeline] = useState<string>("");
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("two-column");
+  const [pipelineDialogOpen, setPipelineDialogOpen] = useState(false);
 
   const availablePipelines = [
     { id: "real-estate", name: "Real Estate Sales" },
@@ -278,6 +280,28 @@ const LeadProfile = () => {
 
   const handleLifecycleChange = async (newLifecycle: LeadLifecycle) => {
     if (!leadData) return;
+    
+    // If moving to Pipeline, show assignment dialog
+    if (newLifecycle === "Moved to Pipeline") {
+      try {
+        const { error } = await supabase
+          .from("leads")
+          .update({ lead_lifecycle: newLifecycle })
+          .eq("id", leadData.id);
+
+        if (error) throw error;
+
+        setCurrentLifecycle(newLifecycle);
+        setPipelineDialogOpen(true);
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+      return;
+    }
     
     try {
       const { error } = await supabase
@@ -633,6 +657,14 @@ const LeadProfile = () => {
             onLeadUpdate={fetchLead}
           />
         )}
+
+        <PipelineAssignmentDialog
+          open={pipelineDialogOpen}
+          onOpenChange={setPipelineDialogOpen}
+          leadId={leadData.id}
+          leadName={leadData.name}
+          onSuccess={fetchLead}
+        />
       </div>
     </div>
   );
