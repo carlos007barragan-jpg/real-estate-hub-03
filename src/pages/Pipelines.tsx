@@ -8,6 +8,7 @@ import { DealNotesDialog } from "@/components/DealNotesDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
 import {
   DndContext,
   DragOverlay,
@@ -264,45 +265,95 @@ function DroppableStage({
 
 const Pipelines = () => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("real-estate");
-  const [pipelines, setPipelines] = useState<Pipeline[]>(() => {
-    // Force clear old data structure
-    const stored = localStorage.getItem("crm-pipelines");
-    if (stored) {
-      try {
-        const parsedPipelines = JSON.parse(stored);
-        // Check if any deal has the old structure
-        const hasOldStructure = parsedPipelines.some((pipeline: any) =>
-          pipeline.stages?.some((stage: any) =>
-            stage.deals?.some((deal: any) => 
-              'title' in deal || 'value' in deal || 'date' in deal || 
-              !('commission' in deal) || !('agent' in deal) || !('closeDate' in deal)
-            )
-          )
-        );
-        
-        if (hasOldStructure) {
-          console.log('Old data structure detected, resetting to new structure');
-          localStorage.removeItem("crm-pipelines");
-          return mockPipelines;
-        }
-        return parsedPipelines;
-      } catch (error) {
-        console.error('Error parsing pipelines:', error);
-        localStorage.removeItem("crm-pipelines");
-        return mockPipelines;
-      }
-    }
-    return mockPipelines;
-  });
+  const [pipelines, setPipelines] = useState<Pipeline[]>(mockPipelines);
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
 
-  // Persist pipelines to localStorage
+  // Fetch leads from database and sync with pipelines
   useEffect(() => {
-    localStorage.setItem("crm-pipelines", JSON.stringify(pipelines));
-  }, [pipelines]);
+    const fetchLeads = async () => {
+      try {
+        const { data: leads, error } = await supabase
+          .from("leads")
+          .select("*")
+          .not("pipeline", "is", null)
+          .eq("lead_lifecycle", "Moved to Pipeline");
+
+        if (error) throw error;
+
+        // Transform leads into deals grouped by pipeline and stage
+        const pipelineMap = new Map<string, Map<string, Deal[]>>();
+
+        leads?.forEach((lead) => {
+          const pipelineId = lead.pipeline;
+          const stage = lead.pipeline_stage;
+
+          if (!pipelineMap.has(pipelineId)) {
+            pipelineMap.set(pipelineId, new Map());
+          }
+
+          const stageMap = pipelineMap.get(pipelineId)!;
+          if (!stageMap.has(stage)) {
+            stageMap.set(stage, []);
+          }
+
+          const deal: Deal = {
+            id: lead.id,
+            client: lead.name,
+            agent: lead.assigned_to || "Not assigned",
+            commission: parseFloat(lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
+            closeDate: lead.timeframe || "TBD",
+            priority: lead.lead_temperature === "hot" ? "high" : lead.lead_temperature === "warm" ? "medium" : "low",
+            leadId: lead.id,
+          };
+
+          stageMap.get(stage)!.push(deal);
+        });
+
+        // Update pipelines with real data
+        const updatedPipelines = mockPipelines.map((pipeline) => {
+          const pipelineDeals = pipelineMap.get(pipeline.id);
+          
+          if (!pipelineDeals) return pipeline;
+
+          const updatedStages = pipeline.stages.map((stage) => ({
+            ...stage,
+            deals: pipelineDeals.get(stage.name) || [],
+          }));
+
+          return { ...pipeline, stages: updatedStages };
+        });
+
+        setPipelines(updatedPipelines);
+      } catch (error) {
+        console.error("Error fetching leads:", error);
+      }
+    };
+
+    fetchLeads();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel("leads_pipeline_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "leads",
+        },
+        () => {
+          fetchLeads();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -368,6 +419,18 @@ const Pipelines = () => {
 
     if (!activeStage || !overStage) return;
     if (activeStage.id === overStage.id) return; // Same stage, no need to move
+
+    // Update the database
+    const activeDeal = activeStage.deals.find((deal) => deal.id === draggedDealId);
+    if (activeDeal?.leadId) {
+      supabase
+        .from("leads")
+        .update({ pipeline_stage: overStage.name })
+        .eq("id", activeDeal.leadId)
+        .then(({ error }) => {
+          if (error) console.error("Error updating lead stage:", error);
+        });
+    }
 
     // Move the deal to the new stage
     setPipelines((prevPipelines) =>

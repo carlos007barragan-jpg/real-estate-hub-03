@@ -190,6 +190,7 @@ export type Database = {
           marital_status: string | null
           name: string
           phone: string
+          pipeline: string | null
           pipeline_stage: string
           preferred_contact_method: string | null
           property_address: string | null
@@ -226,6 +227,7 @@ export type Database = {
           marital_status?: string | null
           name: string
           phone: string
+          pipeline?: string | null
           pipeline_stage?: string
           preferred_contact_method?: string | null
           property_address?: string | null
@@ -262,6 +264,7 @@ export type Database = {
           marital_status?: string | null
           name?: string
           phone?: string
+          pipeline?: string | null
           pipeline_stage?: string
           preferred_contact_method?: string | null
           property_address?: string | null

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, LayoutGrid, Columns2, Table2 } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, LayoutGrid, Columns2, Table2, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -61,7 +61,13 @@ const LeadProfile = () => {
   const [loading, setLoading] = useState(true);
   const [currentLifecycle, setCurrentLifecycle] = useState<LeadLifecycle>("Contact");
   const [currentStage, setCurrentStage] = useState<PipelineStage>("New Lead");
+  const [currentPipeline, setCurrentPipeline] = useState<string>("");
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("two-column");
+
+  const availablePipelines = [
+    { id: "real-estate", name: "Real Estate Sales" },
+    { id: "commercial", name: "Commercial Properties" },
+  ];
 
   const fetchNotes = async () => {
     if (!id) return;
@@ -114,6 +120,7 @@ const LeadProfile = () => {
           timeframe: data.timeframe || "Not specified",
           leadLifecycle: data.lead_lifecycle as LeadLifecycle,
           pipelineStage: data.pipeline_stage as PipelineStage,
+          pipeline: data.pipeline || null,
           downPayment: data.down_payment || null,
           financingType: data.financing_type || null,
           area: data.area || null,
@@ -319,6 +326,31 @@ const LeadProfile = () => {
     }
   };
 
+  const handlePipelineChange = async (newPipeline: string) => {
+    if (!leadData) return;
+    
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({ pipeline: newPipeline })
+        .eq("id", leadData.id);
+
+      if (error) throw error;
+
+      setCurrentPipeline(newPipeline);
+      toast({
+        title: "Pipeline Updated",
+        description: `Lead assigned to ${availablePipelines.find(p => p.id === newPipeline)?.name}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleLeadTemperatureChange = async (newTemperature: 'hot' | 'warm' | 'cold') => {
     if (!leadData) return;
     
@@ -508,26 +540,47 @@ const LeadProfile = () => {
         </div>
 
         {currentLifecycle === "Moved to Pipeline" && (
-          <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
-            <Building2 className="h-4 w-4 text-primary" />
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium">Pipeline Progress</span>
-                <span className="text-xs text-muted-foreground">{Math.round(getStageProgress())}%</span>
+          <>
+            <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
+              <Layers className="h-4 w-4 text-primary" />
+              <div className="flex-1">
+                <span className="text-xs font-medium">Select Pipeline</span>
               </div>
-              <Progress value={getStageProgress()} className="h-1.5" />
+              <Select value={currentPipeline} onValueChange={handlePipelineChange}>
+                <SelectTrigger className="w-[180px] h-7 text-xs">
+                  <SelectValue placeholder="Choose pipeline..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availablePipelines.map((pipeline) => (
+                    <SelectItem key={pipeline.id} value={pipeline.id}>
+                      {pipeline.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={currentStage} onValueChange={handleStageChange}>
-              <SelectTrigger className="w-[140px] h-7 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {pipelineStages.map((stage) => (
-                  <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            
+            <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
+              <Building2 className="h-4 w-4 text-primary" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium">Pipeline Progress</span>
+                  <span className="text-xs text-muted-foreground">{Math.round(getStageProgress())}%</span>
+                </div>
+                <Progress value={getStageProgress()} className="h-1.5" />
+              </div>
+              <Select value={currentStage} onValueChange={handleStageChange}>
+                <SelectTrigger className="w-[140px] h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pipelineStages.map((stage) => (
+                    <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
         )}
 
         {layoutVariant === "two-column" && (
