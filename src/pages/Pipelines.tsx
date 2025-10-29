@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search } from "lucide-react";
+import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -172,7 +172,7 @@ function DraggableDeal({ deal, onOpenNotes }: { deal: Deal; onOpenNotes: (deal: 
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleNotesClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onOpenNotes(deal);
   };
@@ -183,20 +183,29 @@ function DraggableDeal({ deal, onOpenNotes }: { deal: Deal; onOpenNotes: (deal: 
       style={style}
       {...attributes}
       {...listeners}
-      onClick={handleClick}
-      className="bg-background rounded-lg p-3 border hover:border-primary/50 hover:shadow-md transition-all cursor-pointer"
+      className="bg-background rounded-lg p-3 border hover:border-primary/50 hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
     >
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-2">
           <h4 className="font-semibold text-sm text-foreground leading-tight">
             {deal.client || 'Unknown Client'}
           </h4>
-          <Badge 
-            className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5`} 
-            variant="secondary"
-          >
-            {deal.priority}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-primary/10"
+              onClick={handleNotesClick}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+            </Button>
+            <Badge 
+              className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5`} 
+              variant="secondary"
+            >
+              {deal.priority}
+            </Badge>
+          </div>
         </div>
 
         <div className="space-y-1.5 text-xs">
