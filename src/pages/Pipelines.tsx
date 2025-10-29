@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ interface Deal {
   commission: number;
   closeDate: string;
   priority: "high" | "medium" | "low";
+  leadId?: string;
 }
 
 interface Stage {
@@ -155,6 +157,7 @@ const priorityColors = {
 };
 
 function DraggableDeal({ deal }: { deal: Deal }) {
+  const navigate = useNavigate();
   const {
     attributes,
     listeners,
@@ -170,13 +173,21 @@ function DraggableDeal({ deal }: { deal: Deal }) {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (deal.leadId) {
+      e.stopPropagation();
+      navigate(`/leads/${deal.leadId}`);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-background rounded-lg p-3 border hover:border-primary/50 hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
+      onClick={handleClick}
+      className="bg-background rounded-lg p-3 border hover:border-primary/50 hover:shadow-md transition-all cursor-pointer"
     >
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-2">
