@@ -47,6 +47,7 @@ export type Database = {
           duration: number | null
           from_number: string
           id: string
+          is_demo_data: boolean | null
           lead_id: string
           recording_duration: number | null
           recording_url: string | null
@@ -64,6 +65,7 @@ export type Database = {
           duration?: number | null
           from_number: string
           id?: string
+          is_demo_data?: boolean | null
           lead_id: string
           recording_duration?: number | null
           recording_url?: string | null
@@ -81,6 +83,7 @@ export type Database = {
           duration?: number | null
           from_number?: string
           id?: string
+          is_demo_data?: boolean | null
           lead_id?: string
           recording_duration?: number | null
           recording_url?: string | null
@@ -134,6 +137,7 @@ export type Database = {
           file_path: string
           file_size: number
           id: string
+          is_demo_data: boolean | null
           lead_id: string
           mime_type: string
           uploaded_at: string
@@ -144,6 +148,7 @@ export type Database = {
           file_path: string
           file_size: number
           id?: string
+          is_demo_data?: boolean | null
           lead_id: string
           mime_type: string
           uploaded_at?: string
@@ -154,6 +159,7 @@ export type Database = {
           file_path?: string
           file_size?: number
           id?: string
+          is_demo_data?: boolean | null
           lead_id?: string
           mime_type?: string
           uploaded_at?: string
@@ -183,6 +189,7 @@ export type Database = {
           email: string
           financing_type: string | null
           id: string
+          is_demo_data: boolean | null
           is_inbound_call: boolean | null
           language_preference: string | null
           lead_lifecycle: string
@@ -220,6 +227,7 @@ export type Database = {
           email: string
           financing_type?: string | null
           id?: string
+          is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
           lead_lifecycle?: string
@@ -257,6 +265,7 @@ export type Database = {
           email?: string
           financing_type?: string | null
           id?: string
+          is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
           lead_lifecycle?: string
@@ -289,6 +298,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          is_demo_data: boolean | null
           lead_id: string
           note_type: string
           updated_at: string
@@ -299,6 +309,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          is_demo_data?: boolean | null
           lead_id: string
           note_type?: string
           updated_at?: string
@@ -309,6 +320,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          is_demo_data?: boolean | null
           lead_id?: string
           note_type?: string
           updated_at?: string
@@ -350,6 +362,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_demo_data: boolean | null
           lead_id: string
           message: string
           message_sid: string | null
@@ -360,6 +373,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_demo_data?: boolean | null
           lead_id: string
           message: string
           message_sid?: string | null
@@ -370,6 +384,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_demo_data?: boolean | null
           lead_id?: string
           message?: string
           message_sid?: string | null
@@ -386,6 +401,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          is_demo_data: boolean | null
           lead_id: string
           status: string
           title: string
@@ -398,6 +414,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_demo_data?: boolean | null
           lead_id: string
           status?: string
           title: string
@@ -410,6 +427,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          is_demo_data?: boolean | null
           lead_id?: string
           status?: string
           title?: string

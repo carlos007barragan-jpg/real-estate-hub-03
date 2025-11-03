@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Mail, Shield, MoreVertical, UserCog, Moon } from "lucide-react";
+import { Plus, Mail, Shield, MoreVertical, UserCog, Moon, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,6 +69,7 @@ const Settings = () => {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
+  const [deletingDemoData, setDeletingDemoData] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -247,6 +248,49 @@ const Settings = () => {
         description: error.message || "Failed to remove user",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleClearDemoData = async () => {
+    if (!isAdmin) {
+      toast({
+        title: "Permission Denied",
+        description: "Only administrators can clear demo data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setDeletingDemoData(true);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Delete demo data from all tables
+      const deletePromises = [
+        supabase.from('leads').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('tasks').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('notes').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('call_logs').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('sms_logs').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('documents').delete().eq('user_id', user.id).eq('is_demo_data', true),
+      ];
+      
+      await Promise.all(deletePromises);
+
+      toast({
+        title: "Success",
+        description: "All demo data has been removed",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to clear demo data",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingDemoData(false);
     }
   };
 
@@ -449,6 +493,42 @@ const Settings = () => {
                 <Button>Save Changes</Button>
               </div>
             </Card>
+
+            {isAdmin && (
+              <Card className="p-6 border-warning">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-full bg-warning/10">
+                    <Trash2 className="h-6 w-6 text-warning" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-xl font-semibold text-foreground mb-2">Data Management</h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Remove all demo data from your CRM to start with a clean slate. This action cannot be undone.
+                    </p>
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-warning/5 border border-warning/20 mb-4">
+                      <AlertCircle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
+                      <div className="text-sm">
+                        <p className="font-medium text-foreground mb-1">What will be deleted:</p>
+                        <ul className="text-muted-foreground space-y-1 list-disc list-inside">
+                          <li>All leads marked as demo data</li>
+                          <li>Associated tasks, notes, and documents</li>
+                          <li>Call logs and SMS logs from demo leads</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="destructive" 
+                      onClick={handleClearDemoData}
+                      disabled={deletingDemoData}
+                      className="gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {deletingDemoData ? "Clearing Demo Data..." : "Clear All Demo Data"}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
         </TabsContent>
 

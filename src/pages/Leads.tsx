@@ -41,6 +41,7 @@ interface Lead {
   date: string;
   assignedTo?: string;
   isInboundCall?: boolean;
+  isDemoData?: boolean;
 }
 
 
@@ -87,6 +88,7 @@ const Leads = () => {
         date: new Date(lead.created_at).toLocaleDateString(),
         assignedTo: lead.assigned_to || undefined,
         isInboundCall: lead.is_inbound_call || false,
+        isDemoData: lead.is_demo_data || false,
       }));
 
       setLeads(formattedLeads);
@@ -230,6 +232,12 @@ const Leads = () => {
                       <Badge variant="outline" className="gap-1 border-info text-info bg-info/5">
                         <PhoneIncoming className="h-3 w-3" />
                         <span className="text-xs">Inbound</span>
+                      </Badge>
+                    )}
+                    {lead.isDemoData && (
+                      <Badge variant="outline" className="gap-1 border-warning text-warning bg-warning/5">
+                        <AlertCircle className="h-3 w-3" />
+                        <span className="text-xs">Demo</span>
                       </Badge>
                     )}
                     <span>{lead.name}</span>
