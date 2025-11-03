@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical } from "lucide-react";
+import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical, Trash2, Edit } from "lucide-react";
 import { EditDealDialog } from "@/components/EditDealDialog";
 import { OfferMadeValidationDialog } from "@/components/OfferMadeValidationDialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -207,12 +207,13 @@ const priorityColors = {
   low: "bg-muted text-muted-foreground",
 };
 
-function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit }: { 
+function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit, onDelete }: { 
   deal: Deal; 
   onOpenNotes: (deal: Deal) => void;
   onPriorityChange: (dealId: string, priority: "high" | "medium" | "low") => void;
   onNavigate: (leadId: string) => void;
   onEdit: (leadId?: string) => void;
+  onDelete: (dealId: string, leadId?: string) => void;
 }) {
   const { toast } = useToast();
   const {
@@ -302,16 +303,29 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(deal.leadId);
-                }}
-                className="p-1 rounded hover:bg-muted transition-colors"
-                aria-label="Edit deal"
-              >
-                <MoreVertical className="h-3 w-3 text-muted-foreground" />
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="p-1 rounded hover:bg-muted transition-colors"
+                    aria-label="Deal options"
+                  >
+                    <MoreVertical className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="z-50 bg-popover">
+                  <DropdownMenuItem onClick={() => onEdit(deal.leadId)}>
+                    <Edit className="h-3 w-3 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => onDelete(deal.id, deal.leadId)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -707,6 +721,34 @@ const Pipelines = () => {
     );
   };
 
+  const handleDeleteDeal = async (dealId: string, leadId?: string) => {
+    if (!leadId) return;
+
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", leadId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Deal Deleted",
+        description: "The deal has been removed from your CRM",
+      });
+
+      // Refresh the deals
+      fetchDeals();
+    } catch (error) {
+      console.error("Error deleting deal:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the deal",
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredPipeline = searchQuery
     ? {
         ...currentPipeline,
@@ -844,6 +886,7 @@ const Pipelines = () => {
                               setSelectedDealLeadId(leadId);
                               setEditDialogOpen(true);
                             }}
+                            onDelete={handleDeleteDeal}
                           />
                         ))}
 
