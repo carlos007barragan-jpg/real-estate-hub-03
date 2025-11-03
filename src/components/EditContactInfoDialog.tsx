@@ -39,6 +39,7 @@ export const EditContactInfoDialog = ({
     phone: leadData.phone || "",
     spouseEmail: leadData.spouseEmail || "",
     spousePhone: leadData.spousePhone || "",
+    spouseName: leadData.spouseName || "",
     maritalStatus: leadData.maritalStatus || "",
     socialStatus: leadData.socialStatus || "",
     preferredContactMethod: leadData.preferredContactMethod || "",
@@ -47,6 +48,9 @@ export const EditContactInfoDialog = ({
     currentAddress: leadData.currentAddress || "",
     assignedTo: leadData.assignedTo || "",
     timeframe: leadData.timeframe || "",
+    closeDate: leadData.closeDate || "",
+    commission: leadData.commission || "",
+    propertyOfInterest: leadData.propertyOfInterest || "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -62,6 +66,7 @@ export const EditContactInfoDialog = ({
           phone: formData.phone,
           spouse_email: formData.spouseEmail || null,
           spouse_phone: formData.spousePhone || null,
+          spouse_name: formData.spouseName || null,
           marital_status: formData.maritalStatus || null,
           social_status: formData.socialStatus || null,
           preferred_contact_method: formData.preferredContactMethod || null,
@@ -70,6 +75,9 @@ export const EditContactInfoDialog = ({
           current_address: formData.currentAddress || null,
           assigned_to: formData.assignedTo || null,
           timeframe: formData.timeframe || null,
+          close_date: formData.closeDate || null,
+          commission: formData.commission || null,
+          property_of_interest: formData.propertyOfInterest || null,
           is_inbound_call: leadData.isInboundCall || leadData.is_inbound_call || false,
         })
         .eq("id", leadData.id);
@@ -157,6 +165,17 @@ export const EditContactInfoDialog = ({
                 }
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="spouseName">Spouse Name</Label>
+            <Input
+              id="spouseName"
+              value={formData.spouseName}
+              onChange={(e) =>
+                setFormData({ ...formData, spouseName: e.target.value })
+              }
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -263,6 +282,41 @@ export const EditContactInfoDialog = ({
               value={formData.assignedTo}
               onChange={(e) =>
                 setFormData({ ...formData, assignedTo: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="closeDate">Close Date</Label>
+              <Input
+                id="closeDate"
+                type="date"
+                value={formData.closeDate}
+                onChange={(e) =>
+                  setFormData({ ...formData, closeDate: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="commission">Commission</Label>
+              <Input
+                id="commission"
+                value={formData.commission}
+                onChange={(e) =>
+                  setFormData({ ...formData, commission: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="propertyOfInterest">Property of Interest</Label>
+            <Input
+              id="propertyOfInterest"
+              value={formData.propertyOfInterest}
+              onChange={(e) =>
+                setFormData({ ...formData, propertyOfInterest: e.target.value })
               }
             />
           </div>

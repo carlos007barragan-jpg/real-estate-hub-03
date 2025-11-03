@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, Trash2, MoreVertical } from "lucide-react";
+import { EditDealDialog } from "@/components/EditDealDialog";
+import { OfferMadeValidationDialog } from "@/components/OfferMadeValidationDialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -205,12 +207,13 @@ const priorityColors = {
   low: "bg-muted text-muted-foreground",
 };
 
-function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onDelete }: { 
+function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onDelete, onEdit }: { 
   deal: Deal; 
   onOpenNotes: (deal: Deal) => void;
   onPriorityChange: (dealId: string, priority: "high" | "medium" | "low") => void;
   onNavigate: (leadId: string) => void;
   onDelete: (dealId: string, leadId?: string) => void;
+  onEdit: (leadId?: string) => void;
 }) {
   const { toast } = useToast();
   const {
@@ -311,11 +314,7 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onDele
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="z-50 bg-popover">
                   <DropdownMenuItem 
-                    onClick={() => {
-                      if (deal.leadId) {
-                        onNavigate(deal.leadId);
-                      }
-                    }}
+                    onClick={() => onEdit(deal.leadId)}
                   >
                     Edit
                   </DropdownMenuItem>
@@ -414,6 +413,11 @@ const Pipelines = () => {
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
+  const [selectedDealLeadId, setSelectedDealLeadId] = useState<string | undefined>();
+  const [pendingStageChange, setPendingStageChange] = useState<{ dealId: string; stage: string } | null>(null);
+  const [pipelineManagerOpen, setPipelineManagerOpen] = useState(false);
   const { toast } = useToast();
 
   // Fetch leads from database and sync with pipelines
@@ -544,6 +548,7 @@ const Pipelines = () => {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    
     setActiveDeal(null);
     setIsDragging(false);
     
@@ -631,16 +636,38 @@ const Pipelines = () => {
     if (!activeStage || !overStage) return;
     if (activeStage.id === overStage.id) return; // Same stage, no need to move
 
+    // If moving to "Offer Made", validate required fields
+    if (overStage.name === "Offer Made") {
+      const activeDeal = activeStage.deals.find((deal) => deal.id === draggedDealId);
+      setPendingStageChange({ dealId: draggedDealId, stage: overStage.name });
+      setSelectedDealLeadId(activeDeal?.leadId);
+      setValidationDialogOpen(true);
+      return;
+    }
+
+    await performStageChange(draggedDealId, overStage.name);
+  };
+
+  const performStageChange = async (dealId: string, newStageName: string) => {
+    if (!currentPipeline) return;
+
+    // Find which stage contains the deal
+    const activeStage = currentPipeline.stages.find((stage) =>
+      stage.deals.some((deal) => deal.id === dealId)
+    );
+
+    // Find the target stage
+    const overStage = currentPipeline.stages.find((stage) => stage.name === newStageName);
+
+    if (!activeStage || !overStage) return;
+
     // Update the database
-    const activeDeal = activeStage.deals.find((deal) => deal.id === draggedDealId);
+    const activeDeal = activeStage.deals.find((deal) => deal.id === dealId);
     if (activeDeal?.leadId) {
-      supabase
+      await supabase
         .from("leads")
         .update({ pipeline_stage: overStage.name })
-        .eq("id", activeDeal.leadId)
-        .then(({ error }) => {
-          if (error) console.error("Error updating lead stage:", error);
-        });
+        .eq("id", activeDeal.leadId);
     }
 
     // Move the deal to the new stage
@@ -648,22 +675,22 @@ const Pipelines = () => {
       prevPipelines.map((pipeline) => {
         if (pipeline.id !== selectedPipeline) return pipeline;
 
-        const activeDeal = activeStage.deals.find((deal) => deal.id === draggedDealId);
-        if (!activeDeal) return pipeline;
+        const deal = activeStage.deals.find((d) => d.id === dealId);
+        if (!deal) return pipeline;
 
         const newStages = pipeline.stages.map((stage) => {
           if (stage.id === activeStage.id) {
             // Remove from source stage
             return {
               ...stage,
-              deals: stage.deals.filter((deal) => deal.id !== draggedDealId),
+              deals: stage.deals.filter((d) => d.id !== dealId),
             };
           }
           if (stage.id === overStage!.id) {
             // Add to target stage
             return {
               ...stage,
-              deals: [...stage.deals, activeDeal],
+              deals: [...stage.deals, deal],
             };
           }
           return stage;
@@ -672,6 +699,72 @@ const Pipelines = () => {
         return { ...pipeline, stages: newStages };
       })
     );
+  };
+
+  const fetchDeals = async () => {
+    try {
+      const { data: leads, error } = await supabase
+        .from("leads")
+        .select("*")
+        .not("pipeline", "is", null)
+        .eq("lead_lifecycle", "Moved to Pipeline");
+
+      if (error) throw error;
+
+      // Transform leads into deals grouped by pipeline and stage
+      const pipelineMap = new Map<string, Map<string, Deal[]>>();
+
+      leads?.forEach((lead) => {
+        const pipelineId = lead.pipeline;
+        const stage = lead.pipeline_stage;
+
+        if (!pipelineMap.has(pipelineId)) {
+          pipelineMap.set(pipelineId, new Map());
+        }
+
+        const stageMap = pipelineMap.get(pipelineId)!;
+        if (!stageMap.has(stage)) {
+          stageMap.set(stage, []);
+        }
+
+        const deal: Deal = {
+          id: lead.id,
+          client: lead.name,
+          agent: lead.assigned_to || "Not assigned",
+          commission: parseFloat(lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
+          closeDate: lead.timeframe || "TBD",
+          priority: lead.lead_temperature === "hot" ? "high" : lead.lead_temperature === "warm" ? "medium" : "low",
+          leadId: lead.id,
+        };
+
+        stageMap.get(stage)!.push(deal);
+      });
+
+      // Update pipelines with real data
+      const updatedPipelines = mockPipelines.map((pipeline) => {
+        const pipelineDeals = pipelineMap.get(pipeline.id);
+        
+        if (!pipelineDeals) return pipeline;
+
+        const updatedStages = pipeline.stages.map((stage) => ({
+          ...stage,
+          deals: (pipelineDeals.get(stage.name) || []),
+        }));
+
+        // Filter out locally deleted deals
+        const deletedIds: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
+        const filteredStages = updatedStages.map((stage) => ({
+          ...stage,
+          deals: stage.deals.filter((d) => !deletedIds.includes(d.id)),
+        }));
+
+        return { ...pipeline, stages: filteredStages };
+      });
+
+      setPipelines(updatedPipelines);
+    } catch (error) {
+      console.error("Error fetching leads:", error);
+    }
   };
 
   const handleOpenNotes = (deal: Deal) => {
@@ -885,6 +978,10 @@ const Pipelines = () => {
                             onPriorityChange={handlePriorityChange}
                             onNavigate={handleNavigateToLead}
                             onDelete={handleDeleteDeal}
+                            onEdit={(leadId) => {
+                              setSelectedDealLeadId(leadId);
+                              setEditDialogOpen(true);
+                            }}
                           />
                         ))}
 
@@ -943,6 +1040,25 @@ const Pipelines = () => {
           open={notesDialogOpen}
           onOpenChange={setNotesDialogOpen}
           deal={selectedDeal}
+        />
+
+        <EditDealDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          leadId={selectedDealLeadId}
+          onSave={fetchDeals}
+        />
+
+        <OfferMadeValidationDialog
+          open={validationDialogOpen}
+          onOpenChange={setValidationDialogOpen}
+          leadId={selectedDealLeadId}
+          onComplete={() => {
+            if (pendingStageChange) {
+              performStageChange(pendingStageChange.dealId, pendingStageChange.stage);
+              setPendingStageChange(null);
+            }
+          }}
         />
       </div>
     </div>

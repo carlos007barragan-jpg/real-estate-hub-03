@@ -60,6 +60,13 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
               <Phone className="h-3 w-3 text-muted-foreground" />
               <span>{leadData.phone}</span>
             </div>
+            {leadData.spouseName && (
+              <div className="flex items-center gap-2">
+                <User className="h-3 w-3 text-muted-foreground" />
+                <span>{leadData.spouseName}</span>
+                <span className="text-muted-foreground">(Spouse Name)</span>
+              </div>
+            )}
             {leadData.spousePhone && (
               <div className="flex items-center gap-2">
                 <Phone className="h-3 w-3 text-muted-foreground" />
@@ -147,6 +154,18 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
               <Calendar className="h-3 w-3 text-muted-foreground" />
               <span>{leadData.timeframe}</span>
             </div>
+            {leadData.closeDate && (
+              <div className="flex items-center gap-2">
+                <Calendar className="h-3 w-3 text-muted-foreground" />
+                <span>Close Date: {leadData.closeDate}</span>
+              </div>
+            )}
+            {leadData.commission && (
+              <div className="flex items-center gap-2">
+                <Building2 className="h-3 w-3 text-muted-foreground" />
+                <span>Commission: {leadData.commission}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -155,6 +174,15 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
             <CardTitle className="text-sm font-semibold">Property</CardTitle>
           </CardHeader>
           <CardContent className="p-3 pt-0 space-y-2 text-xs">
+            {leadData.propertyOfInterest && (
+              <div className="flex items-start gap-2">
+                <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
+                <div>
+                  <span className="text-muted-foreground">Property of Interest:</span>
+                  <span className="ml-1 leading-tight">{leadData.propertyOfInterest}</span>
+                </div>
+              </div>
+            )}
             <div className="flex items-start gap-2">
               <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
               <span className="leading-tight">{leadData.propertyInterest.address}</span>

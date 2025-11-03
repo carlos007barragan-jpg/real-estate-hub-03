@@ -183,6 +183,8 @@ export type Database = {
           bathrooms: number | null
           bedrooms: number | null
           budget: string | null
+          close_date: string | null
+          commission: string | null
           created_at: string
           current_address: string | null
           down_payment: string | null
@@ -201,11 +203,13 @@ export type Database = {
           pipeline_stage: string
           preferred_contact_method: string | null
           property_address: string | null
+          property_of_interest: string | null
           property_type: string | null
           social_status: string | null
           source: string
           source_call_sid: string | null
           spouse_email: string | null
+          spouse_name: string | null
           spouse_phone: string | null
           sqft: string | null
           status: string
@@ -221,6 +225,8 @@ export type Database = {
           bathrooms?: number | null
           bedrooms?: number | null
           budget?: string | null
+          close_date?: string | null
+          commission?: string | null
           created_at?: string
           current_address?: string | null
           down_payment?: string | null
@@ -239,11 +245,13 @@ export type Database = {
           pipeline_stage?: string
           preferred_contact_method?: string | null
           property_address?: string | null
+          property_of_interest?: string | null
           property_type?: string | null
           social_status?: string | null
           source: string
           source_call_sid?: string | null
           spouse_email?: string | null
+          spouse_name?: string | null
           spouse_phone?: string | null
           sqft?: string | null
           status?: string
@@ -259,6 +267,8 @@ export type Database = {
           bathrooms?: number | null
           bedrooms?: number | null
           budget?: string | null
+          close_date?: string | null
+          commission?: string | null
           created_at?: string
           current_address?: string | null
           down_payment?: string | null
@@ -277,11 +287,13 @@ export type Database = {
           pipeline_stage?: string
           preferred_contact_method?: string | null
           property_address?: string | null
+          property_of_interest?: string | null
           property_type?: string | null
           social_status?: string | null
           source?: string
           source_call_sid?: string | null
           spouse_email?: string | null
+          spouse_name?: string | null
           spouse_phone?: string | null
           sqft?: string | null
           status?: string

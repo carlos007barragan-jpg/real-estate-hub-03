@@ -114,6 +114,7 @@ const LeadProfile = () => {
           phone: data.phone,
           spousePhone: data.spouse_phone || null,
           spouseEmail: data.spouse_email || null,
+          spouseName: data.spouse_name || null,
           status: data.status,
           source: data.source,
           value: data.value || "$0",
@@ -132,6 +133,9 @@ const LeadProfile = () => {
           languagePreference: data.language_preference || null,
           preferredContactMethod: data.preferred_contact_method || null,
           socialStatus: data.social_status || null,
+          closeDate: data.close_date ? new Date(data.close_date).toLocaleDateString() : null,
+          commission: data.commission || null,
+          propertyOfInterest: data.property_of_interest || null,
           propertyInterest: {
             address: data.property_address || "Not specified",
             propertyType: data.property_type || "Not specified",
