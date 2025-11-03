@@ -246,6 +246,10 @@ const Contacts = () => {
     return matchesSearch && matchesCategory && matchesVendorSubcategory;
   });
 
+  const handleDeleteContact = (id: string) => {
+    setContacts(prev => prev.filter(c => c.id !== id));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="p-6 md:p-8 max-w-7xl mx-auto">
@@ -360,7 +364,7 @@ const Contacts = () => {
                         <DropdownMenuItem>View Details</DropdownMenuItem>
                         <DropdownMenuItem>Edit Contact</DropdownMenuItem>
                         <DropdownMenuItem>Send Email</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteContact(contact.id)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
