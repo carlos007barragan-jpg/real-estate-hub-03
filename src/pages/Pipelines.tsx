@@ -435,10 +435,17 @@ const Pipelines = () => {
 
           const updatedStages = pipeline.stages.map((stage) => ({
             ...stage,
-            deals: pipelineDeals.get(stage.name) || [],
+            deals: (pipelineDeals.get(stage.name) || []),
           }));
 
-          return { ...pipeline, stages: updatedStages };
+          // Filter out locally deleted deals
+          const deletedIds: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
+          const filteredStages = updatedStages.map((stage) => ({
+            ...stage,
+            deals: stage.deals.filter((d) => !deletedIds.includes(d.id)),
+          }));
+
+          return { ...pipeline, stages: filteredStages };
         });
 
         setPipelines(updatedPipelines);
@@ -547,12 +554,23 @@ const Pipelines = () => {
           .eq("id", activeDeal.leadId)
           .select('id');
         
+        // Persist deletion locally so it doesn't reappear on refresh
+        try {
+          const deletedLocal: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
+          if (!deletedLocal.includes(draggedDealId)) {
+            deletedLocal.push(draggedDealId);
+            localStorage.setItem('deletedDealIds', JSON.stringify(deletedLocal));
+          }
+        } catch {}
+        
         if (error) {
           console.error("Error deleting deal:", error);
           toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
         } else if (!deletedRows || deletedRows.length === 0) {
           console.warn('No rows deleted, likely due to permissions or ownership');
           toast({ title: 'Not allowed', description: 'You cannot delete this deal.', variant: 'destructive' });
+        } else {
+          toast({ title: 'Deal deleted' });
         }
       }
       return;
