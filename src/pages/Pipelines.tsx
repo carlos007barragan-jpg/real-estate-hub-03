@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical } from "lucide-react";
+import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -303,6 +303,36 @@ function DroppableStage({
   );
 }
 
+function TrashZone({ isVisible }: { isVisible: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'trash-zone',
+  });
+
+  if (!isVisible) return null;
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 animate-scale-in ${
+        isOver ? 'scale-110' : 'scale-100'
+      }`}
+    >
+      <div
+        className={`flex items-center gap-3 px-6 py-4 rounded-full shadow-2xl border-2 transition-all duration-200 ${
+          isOver
+            ? 'bg-destructive border-destructive text-destructive-foreground scale-110'
+            : 'bg-muted/95 backdrop-blur-sm border-border text-muted-foreground'
+        }`}
+      >
+        <Trash2 className={`h-6 w-6 transition-transform ${isOver ? 'animate-pulse' : ''}`} />
+        <span className="font-semibold">
+          {isOver ? 'Release to mark as lost' : 'Drop here to mark as lost'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const Pipelines = () => {
   const [selectedPipeline, setSelectedPipeline] = useState<string>("real-estate");
   const [pipelines, setPipelines] = useState<Pipeline[]>(mockPipelines);
@@ -310,6 +340,7 @@ const Pipelines = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Fetch leads from database and sync with pipelines
   useEffect(() => {
@@ -423,6 +454,7 @@ const Pipelines = () => {
       .flatMap((stage) => stage.deals)
       .find((d) => d.id === dealId);
     setActiveDeal(deal || null);
+    setIsDragging(true);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -432,8 +464,54 @@ const Pipelines = () => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDeal(null);
+    setIsDragging(false);
     
     if (!over || !currentPipeline) return;
+
+    // Check if dropped on trash zone
+    if (String(over.id) === 'trash-zone') {
+      const activeIdStr = String(active.id);
+      const draggedDealId = activeIdStr.startsWith('deal-') ? activeIdStr.slice(5) : activeIdStr;
+      
+      // Find which stage contains the deal
+      const activeStage = currentPipeline.stages.find((stage) =>
+        stage.deals.some((deal) => deal.id === draggedDealId)
+      );
+      
+      const activeDeal = activeStage?.deals.find((deal) => deal.id === draggedDealId);
+      
+      if (activeDeal?.leadId) {
+        // Mark as lost in database
+        supabase
+          .from("leads")
+          .update({ 
+            status: 'lost',
+            pipeline_stage: 'Closed Lost'
+          })
+          .eq("id", activeDeal.leadId)
+          .then(({ error }) => {
+            if (error) {
+              console.error("Error marking deal as lost:", error);
+            }
+          });
+      }
+
+      // Remove from current stage
+      setPipelines((prevPipelines) =>
+        prevPipelines.map((pipeline) => {
+          if (pipeline.id !== selectedPipeline) return pipeline;
+
+          return {
+            ...pipeline,
+            stages: pipeline.stages.map((stage) => ({
+              ...stage,
+              deals: stage.deals.filter((deal) => deal.id !== draggedDealId),
+            })),
+          };
+        })
+      );
+      return;
+    }
 
     const activeIdStr = String(active.id);
     const draggedDealId = activeIdStr.startsWith('deal-') ? activeIdStr.slice(5) : activeIdStr;
@@ -687,6 +765,8 @@ const Pipelines = () => {
             </div>
           ) : null}
           </DragOverlay>
+
+          <TrashZone isVisible={isDragging} />
         </DndContext>
 
         <DealNotesDialog
