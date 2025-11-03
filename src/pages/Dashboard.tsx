@@ -91,11 +91,21 @@ const Dashboard = () => {
       // Fetch active agents
       const { data: agents, error: agentsError } = await supabase
         .from("agents")
-        .select("*, profiles(first_name, last_name)")
+        .select("*")
         .eq("is_active", true);
 
       if (agentsError) throw agentsError;
       setActiveAgents(agents?.length || 0);
+
+      // Fetch all profiles for the agents
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("*");
+
+      // Create a map of user_id to profile for quick lookup
+      const profileMap = new Map(
+        (profiles || []).map((p) => [p.user_id, p])
+      );
 
       // Build agent stats
       const agentStatsData = await Promise.all(
@@ -122,7 +132,7 @@ const Dashboard = () => {
             .gte("created_at", weekStart.toISOString())
             .lte("created_at", weekEnd.toISOString());
 
-          const profile = agent.profiles as any;
+          const profile = profileMap.get(agent.user_id);
           const name = profile
             ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
             : "Unknown Agent";
