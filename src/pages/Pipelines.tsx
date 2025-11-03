@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, Trash2 } from "lucide-react";
+import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, Trash2, MoreVertical } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -285,7 +285,7 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onDele
                     {deal.priority}
                   </Badge>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="z-50 bg-popover">
                   <DropdownMenuItem onClick={() => handlePriorityChange("high")}>
                     <Badge className={`${priorityColors.high} mr-2`} variant="secondary">high</Badge>
                     High Priority
@@ -300,15 +300,33 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onDele
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(deal.id, deal.leadId);
-                }}
-                className="w-2 h-2 rounded-full bg-destructive/70 hover:bg-destructive transition-colors"
-                aria-label="Delete deal"
-                title="Delete deal"
-              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="p-1 rounded hover:bg-muted transition-colors"
+                    aria-label="Deal options"
+                  >
+                    <MoreVertical className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="z-50 bg-popover">
+                  <DropdownMenuItem 
+                    onClick={() => {
+                      if (deal.leadId) {
+                        onNavigate(deal.leadId);
+                      }
+                    }}
+                  >
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => onDelete(deal.id, deal.leadId)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
