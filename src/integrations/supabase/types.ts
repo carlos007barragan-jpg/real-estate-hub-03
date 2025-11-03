@@ -214,6 +214,7 @@ export type Database = {
           sqft: string | null
           status: string
           timeframe: string | null
+          title_office: string | null
           updated_at: string
           user_id: string
           value: string | null
@@ -256,6 +257,7 @@ export type Database = {
           sqft?: string | null
           status?: string
           timeframe?: string | null
+          title_office?: string | null
           updated_at?: string
           user_id: string
           value?: string | null
@@ -298,6 +300,7 @@ export type Database = {
           sqft?: string | null
           status?: string
           timeframe?: string | null
+          title_office?: string | null
           updated_at?: string
           user_id?: string
           value?: string | null

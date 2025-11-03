@@ -51,6 +51,7 @@ export const EditContactInfoDialog = ({
     closeDate: leadData.closeDate || "",
     commission: leadData.commission || "",
     propertyOfInterest: leadData.propertyOfInterest || "",
+    titleOffice: leadData.titleOffice || "",
   });
 
   const [saving, setSaving] = useState(false);
@@ -78,6 +79,7 @@ export const EditContactInfoDialog = ({
           close_date: formData.closeDate || null,
           commission: formData.commission || null,
           property_of_interest: formData.propertyOfInterest || null,
+          title_office: formData.titleOffice || null,
           is_inbound_call: leadData.isInboundCall || leadData.is_inbound_call || false,
         })
         .eq("id", leadData.id);
@@ -317,6 +319,17 @@ export const EditContactInfoDialog = ({
               value={formData.propertyOfInterest}
               onChange={(e) =>
                 setFormData({ ...formData, propertyOfInterest: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="titleOffice">Title Office</Label>
+            <Input
+              id="titleOffice"
+              value={formData.titleOffice}
+              onChange={(e) =>
+                setFormData({ ...formData, titleOffice: e.target.value })
               }
             />
           </div>

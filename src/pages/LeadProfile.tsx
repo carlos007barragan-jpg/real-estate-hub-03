@@ -136,6 +136,7 @@ const LeadProfile = () => {
           closeDate: data.close_date ? new Date(data.close_date).toLocaleDateString() : null,
           commission: data.commission || null,
           propertyOfInterest: data.property_of_interest || null,
+          titleOffice: data.title_office || null,
           propertyInterest: {
             address: data.property_address || "Not specified",
             propertyType: data.property_type || "Not specified",

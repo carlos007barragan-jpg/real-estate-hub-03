@@ -26,6 +26,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
   const [agent, setAgent] = useState("");
   const [commission, setCommission] = useState("");
   const [propertyOfInterest, setPropertyOfInterest] = useState("");
+  const [titleOffice, setTitleOffice] = useState("");
 
   useEffect(() => {
     if (open && leadId) {
@@ -40,7 +41,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
     try {
       const { data, error } = await supabase
         .from("leads")
-        .select("name, spouse_name, close_date, assigned_to, commission, property_of_interest")
+        .select("name, spouse_name, close_date, assigned_to, commission, property_of_interest, title_office")
         .eq("id", leadId)
         .single();
 
@@ -53,6 +54,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
         setAgent(data.assigned_to || "");
         setCommission(data.commission || "");
         setPropertyOfInterest(data.property_of_interest || "");
+        setTitleOffice(data.title_office || "");
       }
     } catch (error) {
       console.error("Error fetching lead data:", error);
@@ -76,6 +78,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
           assigned_to: agent,
           commission,
           property_of_interest: propertyOfInterest,
+          title_office: titleOffice,
         })
         .eq("id", leadId);
 
@@ -173,6 +176,16 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
               value={propertyOfInterest}
               onChange={(e) => setPropertyOfInterest(e.target.value)}
               placeholder="Property address or description"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="titleOffice">Title Office</Label>
+            <Input
+              id="titleOffice"
+              value={titleOffice}
+              onChange={(e) => setTitleOffice(e.target.value)}
+              placeholder="Title office name"
             />
           </div>
 

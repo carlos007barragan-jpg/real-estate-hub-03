@@ -166,6 +166,12 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
                 <span>Commission: {leadData.commission}</span>
               </div>
             )}
+            {leadData.titleOffice && (
+              <div className="flex items-center gap-2">
+                <Building2 className="h-3 w-3 text-muted-foreground" />
+                <span>Title Office: {leadData.titleOffice}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
