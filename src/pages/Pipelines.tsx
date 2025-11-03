@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -360,15 +360,15 @@ function TrashZone({ isVisible }: { isVisible: boolean }) {
       }`}
     >
       <div
-        className={`flex items-center gap-3 px-6 py-4 rounded-full shadow-2xl border-2 transition-all duration-200 ${
+        className={`w-[420px] h-24 flex items-center justify-center rounded-2xl shadow-2xl border-2 transition-all duration-200 ${
           isOver
-            ? 'bg-destructive border-destructive text-destructive-foreground scale-110'
+            ? 'bg-destructive border-destructive text-destructive-foreground'
             : 'bg-muted/95 backdrop-blur-sm border-border text-muted-foreground'
         }`}
       >
-        <Trash2 className={`h-6 w-6 transition-transform ${isOver ? 'animate-pulse' : ''}`} />
+        <Trash2 className={`h-6 w-6 mr-3 transition-transform ${isOver ? 'animate-pulse' : ''}`} />
         <span className="font-semibold">
-          {isOver ? 'Release to mark as lost' : 'Drop here to mark as lost'}
+          {isOver ? 'Release to delete deal' : 'Drop here to delete deal'}
         </span>
       </div>
     </div>
@@ -764,7 +764,7 @@ const Pipelines = () => {
         {/* Pipeline Stages */}
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
