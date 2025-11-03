@@ -20,17 +20,17 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => {
-  // Initialize dark mode from localStorage on app start
-  useEffect(() => {
-    const darkMode = localStorage.getItem("darkMode") === "true";
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+// Apply dark mode immediately before React renders to prevent flash
+const darkMode = localStorage.getItem("darkMode") === "true";
+if (darkMode) {
+  document.documentElement.classList.add("dark");
+} else {
+  document.documentElement.classList.remove("dark");
+}
 
-    // Listen for dark mode changes from Settings
+const App = () => {
+  // Listen for dark mode changes from Settings
+  useEffect(() => {
     const handleStorageChange = () => {
       const darkMode = localStorage.getItem("darkMode") === "true";
       if (darkMode) {
@@ -41,7 +41,14 @@ const App = () => {
     };
 
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    
+    // Custom event for same-page dark mode changes
+    window.addEventListener("darkModeChange", handleStorageChange);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("darkModeChange", handleStorageChange);
+    };
   }, []);
 
   return (

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { GlobalCallManager } from "@/components/GlobalCallManager";
 import { NotificationBell } from "@/components/NotificationBell";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -17,7 +18,8 @@ const navItems = [
 export function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate("/");
   };
 

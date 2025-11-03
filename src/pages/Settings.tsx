@@ -73,12 +73,13 @@ const Settings = () => {
 
   useEffect(() => {
     localStorage.setItem("darkMode", darkMode.toString());
-    window.dispatchEvent(new Event("storage"));
     if (darkMode) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+    // Dispatch custom event for same-page dark mode changes
+    window.dispatchEvent(new Event("darkModeChange"));
   }, [darkMode]);
 
   const fetchUsers = async () => {
