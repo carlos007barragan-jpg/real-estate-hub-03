@@ -481,22 +481,19 @@ const Pipelines = () => {
       const activeDeal = activeStage?.deals.find((deal) => deal.id === draggedDealId);
       
       if (activeDeal?.leadId) {
-        // Mark as lost in database
+        // Permanently delete the lead (deal) from database
         supabase
           .from("leads")
-          .update({ 
-            status: 'lost',
-            pipeline_stage: 'Closed Lost'
-          })
+          .delete()
           .eq("id", activeDeal.leadId)
           .then(({ error }) => {
             if (error) {
-              console.error("Error marking deal as lost:", error);
+              console.error("Error deleting deal:", error);
             }
           });
       }
 
-      // Remove from current stage
+      // Remove from current UI state immediately
       setPipelines((prevPipelines) =>
         prevPipelines.map((pipeline) => {
           if (pipeline.id !== selectedPipeline) return pipeline;
