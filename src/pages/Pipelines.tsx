@@ -3,6 +3,13 @@ import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Sear
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 import { PipelineManager } from "@/components/PipelineManager";
 import { DealNotesDialog } from "@/components/DealNotesDialog";
 import { Input } from "@/components/ui/input";
@@ -197,7 +204,12 @@ const priorityColors = {
   low: "bg-muted text-muted-foreground",
 };
 
-function DraggableDeal({ deal, onOpenNotes }: { deal: Deal; onOpenNotes: (deal: Deal) => void }) {
+function DraggableDeal({ deal, onOpenNotes, onPriorityChange }: { 
+  deal: Deal; 
+  onOpenNotes: (deal: Deal) => void;
+  onPriorityChange: (dealId: string, priority: "high" | "medium" | "low") => void;
+}) {
+  const { toast } = useToast();
   const {
     attributes,
     setNodeRef,
@@ -216,6 +228,14 @@ function DraggableDeal({ deal, onOpenNotes }: { deal: Deal; onOpenNotes: (deal: 
   const handleCardClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onOpenNotes(deal);
+  };
+
+  const handlePriorityChange = (newPriority: "high" | "medium" | "low") => {
+    onPriorityChange(deal.id, newPriority);
+    toast({
+      title: "Priority Updated",
+      description: `Deal priority changed to ${newPriority}`,
+    });
   };
 
   return (
@@ -250,12 +270,30 @@ function DraggableDeal({ deal, onOpenNotes }: { deal: Deal; onOpenNotes: (deal: 
             <h4 className="font-semibold text-sm text-foreground leading-tight">
               {deal.client || 'Unknown Client'}
             </h4>
-            <Badge 
-              className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5`} 
-              variant="secondary"
-            >
-              {deal.priority}
-            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Badge 
+                  className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5 cursor-pointer hover:opacity-80 transition-opacity`} 
+                  variant="secondary"
+                >
+                  {deal.priority}
+                </Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={() => handlePriorityChange("high")}>
+                  <Badge className={`${priorityColors.high} mr-2`} variant="secondary">high</Badge>
+                  High Priority
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePriorityChange("medium")}>
+                  <Badge className={`${priorityColors.medium} mr-2`} variant="secondary">medium</Badge>
+                  Medium Priority
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handlePriorityChange("low")}>
+                  <Badge className={`${priorityColors.low} mr-2`} variant="secondary">low</Badge>
+                  Low Priority
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="space-y-1.5 text-xs">
@@ -583,6 +621,40 @@ const Pipelines = () => {
     setNotesDialogOpen(true);
   };
 
+  const handlePriorityChange = async (dealId: string, newPriority: "high" | "medium" | "low") => {
+    // Find the deal and update in database
+    const deal = currentPipeline?.stages
+      .flatMap(stage => stage.deals)
+      .find(d => d.id === dealId);
+
+    if (deal?.leadId) {
+      // Map priority to lead_temperature
+      const temperatureMap = {
+        high: "hot",
+        medium: "warm",
+        low: "cold"
+      };
+
+      await supabase
+        .from("leads")
+        .update({ lead_temperature: temperatureMap[newPriority] })
+        .eq("id", deal.leadId);
+    }
+
+    // Update local state
+    setPipelines((prevPipelines) =>
+      prevPipelines.map((pipeline) => ({
+        ...pipeline,
+        stages: pipeline.stages.map((stage) => ({
+          ...stage,
+          deals: stage.deals.map((d) =>
+            d.id === dealId ? { ...d, priority: newPriority } : d
+          ),
+        })),
+      }))
+    );
+  };
+
   if (!currentPipeline) return null;
 
   const filteredPipeline = searchQuery
@@ -712,7 +784,12 @@ const Pipelines = () => {
                     >
                       <div className="space-y-2 min-h-[500px]">
                         {stage.deals.map((deal) => (
-                          <DraggableDeal key={deal.id} deal={deal} onOpenNotes={handleOpenNotes} />
+                          <DraggableDeal 
+                            key={deal.id} 
+                            deal={deal} 
+                            onOpenNotes={handleOpenNotes}
+                            onPriorityChange={handlePriorityChange}
+                          />
                         ))}
 
                         {stage.deals.length === 0 && (
