@@ -17,6 +17,7 @@ export const GlobalCallManager = () => {
   const [leadId, setLeadId] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [outgoingCallDetails, setOutgoingCallDetails] = useState<{ phoneNumber: string; contactName: string } | null>(null);
   const intervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { isAdmin } = useUserRole();
@@ -24,13 +25,22 @@ export const GlobalCallManager = () => {
   useEffect(() => {
     initializeDevice();
     
+    // Listen for outgoing call requests
+    const handleInitiateCall = (event: any) => {
+      const { phoneNumber, contactName } = event.detail;
+      makeOutgoingCall(phoneNumber, contactName);
+    };
+    
+    window.addEventListener('initiateCall', handleInitiateCall);
+    
     return () => {
+      window.removeEventListener('initiateCall', handleInitiateCall);
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (audioRef.current) audioRef.current.pause();
       if (call) call.disconnect();
       if (device) device.destroy();
     };
-  }, []);
+  }, [device]);
 
   const initializeDevice = async () => {
     try {
@@ -130,6 +140,52 @@ export const GlobalCallManager = () => {
     setLeadId(null);
   };
 
+  const makeOutgoingCall = async (phoneNumber: string, contactName: string) => {
+    if (!device) {
+      toast({
+        title: "Device not ready",
+        description: "Please wait for the device to initialize",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setOutgoingCallDetails({ phoneNumber, contactName });
+      
+      const outgoingCall = await device.connect({
+        params: {
+          To: phoneNumber,
+        },
+      });
+
+      setCall(outgoingCall);
+      setIncomingFrom(contactName);
+      setCallDuration(0);
+
+      intervalRef.current = window.setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+
+      outgoingCall.on('disconnect', () => {
+        endCall();
+      });
+
+      toast({
+        title: "Call Connected",
+        description: `Calling ${contactName}...`,
+      });
+    } catch (error: any) {
+      console.error('Error making outgoing call:', error);
+      toast({
+        title: "Call Failed",
+        description: error.message || "Failed to initiate call",
+        variant: "destructive",
+      });
+      setOutgoingCallDetails(null);
+    }
+  };
+
   const endCall = async () => {
     const finalDuration = callDuration;
     const currentCallSid = call?.parameters.CallSid;
@@ -154,6 +210,7 @@ export const GlobalCallManager = () => {
     setCallDuration(0);
     setIsMuted(false);
     setLeadId(null);
+    setOutgoingCallDetails(null);
     
     toast({
       title: "Call Ended",

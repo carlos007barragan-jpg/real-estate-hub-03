@@ -106,36 +106,16 @@ const ContactProfile = () => {
     }
   };
 
-  const handleCall = async () => {
+  const handleCall = () => {
     if (!contact) return;
     
-    setCalling(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase.functions.invoke('make-call', {
-        body: {
-          to: contact.phone,
-          from: user.email,
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Calling...",
-        description: `Initiating call to ${contact.name}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Call Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setCalling(false);
-    }
+    // Dispatch custom event to trigger GlobalCallManager
+    window.dispatchEvent(new CustomEvent('initiateCall', {
+      detail: {
+        phoneNumber: contact.phone,
+        contactName: contact.name
+      }
+    }));
   };
 
   if (loading) {

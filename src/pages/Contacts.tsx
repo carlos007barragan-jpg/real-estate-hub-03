@@ -232,6 +232,12 @@ const Contacts = () => {
     return () => window.removeEventListener('demoDataCleared', handler);
   }, []);
 
+  // Load deleted contacts from localStorage
+  useEffect(() => {
+    const deletedIds = JSON.parse(localStorage.getItem('deletedContactIds') || '[]');
+    setContacts(prev => prev.filter(c => !deletedIds.includes(c.id)));
+  }, []);
+
   const getCategoryCount = (category: ContactCategory) => {
     return contacts.filter(c => c.category === category).length;
   };
@@ -254,37 +260,28 @@ const Contacts = () => {
 
   const handleDeleteContact = (id: string) => {
     setContacts(prev => prev.filter(c => c.id !== id));
+    
+    // Persist deletion to localStorage
+    const deletedIds = JSON.parse(localStorage.getItem('deletedContactIds') || '[]');
+    deletedIds.push(id);
+    localStorage.setItem('deletedContactIds', JSON.stringify(deletedIds));
+    
+    toast({
+      title: "Contact Deleted",
+      description: "Contact has been removed",
+    });
   };
 
   const handleCall = async (contact: Contact, e: React.MouseEvent) => {
     e.stopPropagation();
-    setCalling(contact.id);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase.functions.invoke('make-call', {
-        body: {
-          to: contact.phone,
-          from: user.email,
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Calling...",
-        description: `Initiating call to ${contact.name}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Call Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setCalling(null);
-    }
+    
+    // Dispatch custom event to trigger GlobalCallManager
+    window.dispatchEvent(new CustomEvent('initiateCall', {
+      detail: {
+        phoneNumber: contact.phone,
+        contactName: contact.name
+      }
+    }));
   };
 
   return (
