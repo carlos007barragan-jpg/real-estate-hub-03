@@ -1,4 +1,5 @@
-import { TrendingUp, Users, Phone, Mail, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -9,8 +10,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { supabase } from "@/integrations/supabase/client";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 
-interface Agent {
+interface AgentStats {
   id: string;
   name: string;
   calls: number;
@@ -19,45 +25,173 @@ interface Agent {
   status: "active" | "offline";
 }
 
-const mockAgents: Agent[] = [
-  {
-    id: "1",
-    name: "John Smith",
-    calls: 45,
-    messages: 128,
-    newLeads: 12,
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Maria Garcia",
-    calls: 38,
-    messages: 95,
-    newLeads: 8,
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Alex Johnson",
-    calls: 52,
-    messages: 142,
-    newLeads: 15,
-    status: "offline",
-  },
-  {
-    id: "4",
-    name: "Lisa Chen",
-    calls: 41,
-    messages: 110,
-    newLeads: 10,
-    status: "active",
-  },
-];
+interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  status: string;
+  lead_id: string;
+}
 
 const Dashboard = () => {
-  const totalCalls = mockAgents.reduce((sum, agent) => sum + agent.calls, 0);
-  const totalMessages = mockAgents.reduce((sum, agent) => sum + agent.messages, 0);
-  const totalNewLeads = mockAgents.reduce((sum, agent) => sum + agent.newLeads, 0);
+  const [loading, setLoading] = useState(true);
+  const [totalCalls, setTotalCalls] = useState(0);
+  const [totalMessages, setTotalMessages] = useState(0);
+  const [totalNewLeads, setTotalNewLeads] = useState(0);
+  const [activeAgents, setActiveAgents] = useState(0);
+  const [agentStats, setAgentStats] = useState<AgentStats[]>([]);
+  const [todayTasks, setTodayTasks] = useState<Task[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const today = new Date();
+      const weekStart = startOfWeek(today);
+      const weekEnd = endOfWeek(today);
+
+      // Fetch calls for this week
+      const { data: calls, error: callsError } = await supabase
+        .from("call_logs")
+        .select("*")
+        .gte("created_at", weekStart.toISOString())
+        .lte("created_at", weekEnd.toISOString());
+
+      if (callsError) throw callsError;
+      setTotalCalls(calls?.length || 0);
+
+      // Fetch messages for this week
+      const { data: messages, error: messagesError } = await supabase
+        .from("sms_logs")
+        .select("*")
+        .gte("created_at", weekStart.toISOString())
+        .lte("created_at", weekEnd.toISOString());
+
+      if (messagesError) throw messagesError;
+      setTotalMessages(messages?.length || 0);
+
+      // Fetch new leads for this week
+      const { data: leads, error: leadsError } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("status", "new")
+        .gte("created_at", weekStart.toISOString())
+        .lte("created_at", weekEnd.toISOString());
+
+      if (leadsError) throw leadsError;
+      setTotalNewLeads(leads?.length || 0);
+
+      // Fetch active agents
+      const { data: agents, error: agentsError } = await supabase
+        .from("agents")
+        .select("*, profiles(first_name, last_name)")
+        .eq("is_active", true);
+
+      if (agentsError) throw agentsError;
+      setActiveAgents(agents?.length || 0);
+
+      // Build agent stats
+      const agentStatsData = await Promise.all(
+        (agents || []).map(async (agent) => {
+          const { data: agentCalls } = await supabase
+            .from("call_logs")
+            .select("*")
+            .eq("user_id", agent.user_id)
+            .gte("created_at", weekStart.toISOString())
+            .lte("created_at", weekEnd.toISOString());
+
+          const { data: agentMessages } = await supabase
+            .from("sms_logs")
+            .select("*")
+            .eq("user_id", agent.user_id)
+            .gte("created_at", weekStart.toISOString())
+            .lte("created_at", weekEnd.toISOString());
+
+          const { data: agentLeads } = await supabase
+            .from("leads")
+            .select("*")
+            .eq("user_id", agent.user_id)
+            .eq("status", "new")
+            .gte("created_at", weekStart.toISOString())
+            .lte("created_at", weekEnd.toISOString());
+
+          const profile = agent.profiles as any;
+          const name = profile
+            ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
+            : "Unknown Agent";
+
+          return {
+            id: agent.id,
+            name: name || "Unknown Agent",
+            calls: agentCalls?.length || 0,
+            messages: agentMessages?.length || 0,
+            newLeads: agentLeads?.length || 0,
+            status: agent.is_active ? "active" : "offline",
+          } as AgentStats;
+        })
+      );
+
+      setAgentStats(agentStatsData);
+
+      // Fetch today's tasks for the current user
+      const todayStart = startOfDay(today);
+      const todayEnd = endOfDay(today);
+
+      const { data: tasks, error: tasksError } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", user.id)
+        .gte("due_date", todayStart.toISOString())
+        .lte("due_date", todayEnd.toISOString())
+        .order("due_date", { ascending: true });
+
+      if (tasksError) throw tasksError;
+      setTodayTasks(tasks || []);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      toast.error("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleTask = async (taskId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "completed" ? "pending" : "completed";
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        status: newStatus,
+        completed_at: newStatus === "completed" ? new Date().toISOString() : null,
+      })
+      .eq("id", taskId);
+
+    if (error) {
+      toast.error("Failed to update task");
+      return;
+    }
+
+    setTodayTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId ? { ...task, status: newStatus } : task
+      )
+    );
+    toast.success(`Task ${newStatus === "completed" ? "completed" : "reopened"}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <p className="text-muted-foreground">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -73,10 +207,7 @@ const Dashboard = () => {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Calls</p>
               <p className="text-3xl font-bold text-foreground mt-2">{totalCalls}</p>
-              <p className="text-sm text-success mt-1 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                +12% from last week
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">This week</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Phone className="h-6 w-6 text-primary" />
@@ -89,10 +220,7 @@ const Dashboard = () => {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Messages Sent</p>
               <p className="text-3xl font-bold text-foreground mt-2">{totalMessages}</p>
-              <p className="text-sm text-success mt-1 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                +8% from last week
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">This week</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-info/10 flex items-center justify-center">
               <Mail className="h-6 w-6 text-info" />
@@ -105,10 +233,7 @@ const Dashboard = () => {
             <div>
               <p className="text-sm font-medium text-muted-foreground">New Leads</p>
               <p className="text-3xl font-bold text-foreground mt-2">{totalNewLeads}</p>
-              <p className="text-sm text-success mt-1 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                +15% from last week
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">This week</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
               <UserPlus className="h-6 w-6 text-success" />
@@ -120,12 +245,8 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Active Agents</p>
-              <p className="text-3xl font-bold text-foreground mt-2">
-                {mockAgents.filter((a) => a.status === "active").length}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                of {mockAgents.length} total
-              </p>
+              <p className="text-3xl font-bold text-foreground mt-2">{activeAgents}</p>
+              <p className="text-sm text-muted-foreground mt-1">Currently online</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center">
               <Users className="h-6 w-6 text-warning" />
@@ -134,50 +255,110 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Business Growth Chart Placeholder */}
-      <Card className="p-6 mb-8">
-        <h2 className="text-xl font-semibold text-foreground mb-4">Business Growth</h2>
-        <div className="h-64 bg-muted/30 rounded-lg flex items-center justify-center">
-          <p className="text-muted-foreground">Growth chart visualization area</p>
-        </div>
-      </Card>
+      {/* Tasks and Calendar Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Today's Tasks */}
+        <Card className="p-6 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold text-foreground">Today's Tasks</h2>
+          </div>
+          {todayTasks.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No tasks due today</p>
+          ) : (
+            <div className="space-y-3">
+              {todayTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                >
+                  <Checkbox
+                    checked={task.status === "completed"}
+                    onCheckedChange={() => handleToggleTask(task.id, task.status)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`font-medium ${
+                        task.status === "completed"
+                          ? "line-through text-muted-foreground"
+                          : "text-foreground"
+                      }`}
+                    >
+                      {task.title}
+                    </p>
+                    {task.description && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {task.description}
+                      </p>
+                    )}
+                    {task.due_date && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Due: {format(new Date(task.due_date), "h:mm a")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Calendar */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold text-foreground">Calendar</h2>
+          </div>
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            className="rounded-md border"
+          />
+        </Card>
+      </div>
 
       {/* Agent Performance Table */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold text-foreground mb-4">Agent Performance</h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Agent Name</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Calls</TableHead>
-              <TableHead className="text-right">Messages</TableHead>
-              <TableHead className="text-right">New Leads</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {mockAgents.map((agent) => (
-              <TableRow key={agent.id}>
-                <TableCell className="font-medium">{agent.name}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={
-                      agent.status === "active"
-                        ? "bg-success text-success-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }
-                  >
-                    {agent.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right font-semibold">{agent.calls}</TableCell>
-                <TableCell className="text-right font-semibold">{agent.messages}</TableCell>
-                <TableCell className="text-right font-semibold">{agent.newLeads}</TableCell>
+        {agentStats.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No agent data available</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Agent Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Calls</TableHead>
+                <TableHead className="text-right">Messages</TableHead>
+                <TableHead className="text-right">New Leads</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {agentStats.map((agent) => (
+                <TableRow key={agent.id}>
+                  <TableCell className="font-medium">{agent.name}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="secondary"
+                      className={
+                        agent.status === "active"
+                          ? "bg-success text-success-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }
+                    >
+                      {agent.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">{agent.calls}</TableCell>
+                  <TableCell className="text-right font-semibold">{agent.messages}</TableCell>
+                  <TableCell className="text-right font-semibold">{agent.newLeads}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </Card>
     </div>
   );
