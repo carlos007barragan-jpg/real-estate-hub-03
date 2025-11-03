@@ -205,11 +205,12 @@ const priorityColors = {
   low: "bg-muted text-muted-foreground",
 };
 
-function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate }: { 
+function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onDelete }: { 
   deal: Deal; 
   onOpenNotes: (deal: Deal) => void;
   onPriorityChange: (dealId: string, priority: "high" | "medium" | "low") => void;
   onNavigate: (leadId: string) => void;
+  onDelete: (dealId: string, leadId?: string) => void;
 }) {
   const { toast } = useToast();
   const {
@@ -274,30 +275,41 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate }: {
             <h4 className="font-semibold text-sm text-foreground leading-tight">
               {deal.client || 'Unknown Client'}
             </h4>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Badge 
-                  className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5 cursor-pointer hover:opacity-80 transition-opacity`} 
-                  variant="secondary"
-                >
-                  {deal.priority}
-                </Badge>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem onClick={() => handlePriorityChange("high")}>
-                  <Badge className={`${priorityColors.high} mr-2`} variant="secondary">high</Badge>
-                  High Priority
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePriorityChange("medium")}>
-                  <Badge className={`${priorityColors.medium} mr-2`} variant="secondary">medium</Badge>
-                  Medium Priority
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handlePriorityChange("low")}>
-                  <Badge className={`${priorityColors.low} mr-2`} variant="secondary">low</Badge>
-                  Low Priority
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Badge 
+                    className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5 cursor-pointer hover:opacity-80 transition-opacity`} 
+                    variant="secondary"
+                  >
+                    {deal.priority}
+                  </Badge>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem onClick={() => handlePriorityChange("high")}>
+                    <Badge className={`${priorityColors.high} mr-2`} variant="secondary">high</Badge>
+                    High Priority
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handlePriorityChange("medium")}>
+                    <Badge className={`${priorityColors.medium} mr-2`} variant="secondary">medium</Badge>
+                    Medium Priority
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handlePriorityChange("low")}>
+                    <Badge className={`${priorityColors.low} mr-2`} variant="secondary">low</Badge>
+                    Low Priority
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(deal.id, deal.leadId);
+                }}
+                className="w-2 h-2 rounded-full bg-destructive/70 hover:bg-destructive transition-colors"
+                aria-label="Delete deal"
+                title="Delete deal"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5 text-xs">
@@ -687,7 +699,39 @@ const Pipelines = () => {
     );
   };
 
-  if (!currentPipeline) return null;
+  const handleDeleteDeal = async (dealId: string, leadId?: string) => {
+    // Optimistic UI removal
+    setPipelines((prev) => prev.map((pipeline) => ({
+      ...pipeline,
+      stages: pipeline.stages.map((stage) => ({
+        ...stage,
+        deals: stage.deals.filter((d) => d.id !== dealId),
+      })),
+    })));
+
+    // Persist locally to avoid reappearing on refresh
+    try {
+      const deletedLocal: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
+      if (!deletedLocal.includes(dealId)) {
+        deletedLocal.push(dealId);
+        localStorage.setItem('deletedDealIds', JSON.stringify(deletedLocal));
+      }
+    } catch {}
+
+    // Delete from DB
+    if (leadId) {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', leadId);
+      if (error) {
+        console.error('Delete failed', error);
+        toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Deal deleted' });
+      }
+    }
+  };
 
   const filteredPipeline = searchQuery
     ? {
@@ -822,6 +866,7 @@ const Pipelines = () => {
                             onOpenNotes={handleOpenNotes}
                             onPriorityChange={handlePriorityChange}
                             onNavigate={handleNavigateToLead}
+                            onDelete={handleDeleteDeal}
                           />
                         ))}
 
