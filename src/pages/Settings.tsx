@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Mail, Shield, MoreVertical, UserCog, Moon } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Mail, Shield, MoreVertical, UserCog, Moon, Upload, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +66,9 @@ const Settings = () => {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState<{ successful: string[]; failed: { email: string; error: string }[] } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -229,6 +232,115 @@ const Settings = () => {
     }
   };
 
+  const parseCSV = (text: string): { firstName: string; lastName: string; email: string; phoneNumber?: string; role: 'admin' | 'agent' }[] => {
+    const lines = text.trim().split('\n');
+    const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+    
+    const users = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim());
+      const user: any = {};
+      
+      headers.forEach((header, index) => {
+        if (header === 'first_name' || header === 'firstname') {
+          user.firstName = values[index];
+        } else if (header === 'last_name' || header === 'lastname') {
+          user.lastName = values[index];
+        } else if (header === 'email') {
+          user.email = values[index];
+        } else if (header === 'phone' || header === 'phone_number' || header === 'phonenumber') {
+          user.phoneNumber = values[index];
+        } else if (header === 'role') {
+          user.role = values[index].toLowerCase() === 'admin' ? 'admin' : 'agent';
+        }
+      });
+      
+      // Default role to agent if not specified
+      if (!user.role) {
+        user.role = 'agent';
+      }
+      
+      // Only add if we have required fields
+      if (user.firstName && user.lastName && user.email) {
+        users.push(user);
+      }
+    }
+    
+    return users;
+  };
+
+  const handleCSVImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!isAdmin) {
+      toast({
+        title: "Permission Denied",
+        description: "Only admins can import users",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setImporting(true);
+    setImportResults(null);
+
+    try {
+      const text = await file.text();
+      const users = parseCSV(text);
+
+      if (users.length === 0) {
+        toast({
+          title: "Error",
+          description: "No valid users found in CSV. Make sure it has columns: first_name, last_name, email, phone_number (optional), role (optional)",
+          variant: "destructive",
+        });
+        setImporting(false);
+        return;
+      }
+
+      toast({
+        title: "Importing...",
+        description: `Processing ${users.length} users...`,
+      });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await supabase.functions.invoke('bulk-import-users', {
+        body: { users },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const results = response.data;
+      setImportResults(results);
+
+      toast({
+        title: "Import Complete",
+        description: `Successfully imported ${results.successful.length} users. ${results.failed.length} failed.`,
+      });
+
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast({
+        title: "Import Failed",
+        description: error.message || "Failed to import users",
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -248,15 +360,37 @@ const Settings = () => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-xl font-semibold text-foreground">Team Members</h2>
-                <p className="text-sm text-muted-foreground mt-1">Manage users and their roles</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Manage users and their roles. 
+                  <a href="/sample-users-import.csv" download className="text-primary hover:underline ml-1">
+                    Download CSV template
+                  </a>
+                </p>
               </div>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Invite User
-                  </Button>
-                </DialogTrigger>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!isAdmin || importing}
+                >
+                  <Upload className="h-4 w-4" />
+                  {importing ? "Importing..." : "Import CSV"}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVImport}
+                  className="hidden"
+                />
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Invite User
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Invite New User</DialogTitle>
@@ -299,6 +433,42 @@ const Settings = () => {
                 </DialogContent>
               </Dialog>
             </div>
+            </div>
+
+            {importResults && (
+              <Card className="p-4 mb-6 bg-muted/50">
+                <div className="flex items-start gap-3">
+                  <FileText className="h-5 w-5 text-primary mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-2">Import Results</h3>
+                    <div className="space-y-2 text-sm">
+                      <p className="text-success">
+                        ✓ Successfully imported {importResults.successful.length} users
+                      </p>
+                      {importResults.failed.length > 0 && (
+                        <div className="text-destructive">
+                          <p className="font-medium mb-1">✗ Failed to import {importResults.failed.length} users:</p>
+                          <ul className="list-disc list-inside space-y-1 ml-2">
+                            {importResults.failed.map((failure, index) => (
+                              <li key={index}>
+                                {failure.email}: {failure.error}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setImportResults(null)}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </Card>
+            )}
 
             {loading ? (
               <div className="text-center py-8 text-muted-foreground">Loading users...</div>
