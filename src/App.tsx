@@ -17,6 +17,7 @@ import Contacts from "./pages/Contacts";
 import Inbox from "./pages/Inbox";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import CompleteProfile from "./pages/CompleteProfile";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
           <Route path="/leads" element={<ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute>} />
           <Route path="/new-leads" element={<ProtectedRoute><Layout><NewLeads /></Layout></ProtectedRoute>} />

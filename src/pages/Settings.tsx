@@ -49,7 +49,7 @@ interface User {
   firstName: string;
   lastName: string;
   phoneNumber: string | null;
-  role: "admin" | "agent";
+  role: "admin" | "agent" | "marketing_manager";
   created_at: string;
 }
 
@@ -65,7 +65,7 @@ const Settings = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"admin" | "agent">("agent");
+  const [inviteRole, setInviteRole] = useState<"admin" | "agent" | "marketing_manager">("agent");
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
@@ -111,7 +111,7 @@ const Settings = () => {
             firstName: profile?.first_name || '',
             lastName: profile?.last_name || '',
             phoneNumber: profile?.phone_number || null,
-            role: userRole.role as "admin" | "agent",
+            role: userRole.role as "admin" | "agent" | "marketing_manager",
             created_at: userRole.created_at
           };
         })
@@ -150,10 +150,17 @@ const Settings = () => {
     }
 
     try {
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail);
+      // Send invitation email - Supabase will send the email automatically
+      const { data, error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
+        data: {
+          invited_role: inviteRole, // Store the intended role in user metadata
+        },
+        redirectTo: `${window.location.origin}/complete-profile`,
+      });
       
       if (error) throw error;
 
+      // Pre-assign the role so admin can see it immediately
       if (data.user) {
         await supabase.from('user_roles').insert({
           user_id: data.user.id,
@@ -163,7 +170,7 @@ const Settings = () => {
 
       toast({
         title: "Invitation Sent",
-        description: `Invitation sent to ${inviteEmail}`,
+        description: `Invitation sent to ${inviteEmail} as ${inviteRole.replace('_', ' ')}`,
       });
       
       setInviteEmail("");
@@ -177,7 +184,7 @@ const Settings = () => {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: "admin" | "agent") => {
+  const handleRoleChange = async (userId: string, newRole: "admin" | "agent" | "marketing_manager") => {
     if (!isAdmin) {
       toast({
         title: "Permission Denied",
@@ -293,7 +300,7 @@ const Settings = () => {
                       <Label htmlFor="role">Role</Label>
                       <Select
                         value={inviteRole}
-                        onValueChange={(value: "admin" | "agent") =>
+                        onValueChange={(value: "admin" | "agent" | "marketing_manager") =>
                           setInviteRole(value)
                         }
                       >
@@ -303,6 +310,7 @@ const Settings = () => {
                         <SelectContent>
                           <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="agent">Agent</SelectItem>
+                          <SelectItem value="marketing_manager">Marketing Manager</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -341,15 +349,16 @@ const Settings = () => {
                       <TableCell>
                         <Select
                           value={user.role}
-                          onValueChange={(value: "admin" | "agent") => handleRoleChange(user.id, value)}
+                          onValueChange={(value: "admin" | "agent" | "marketing_manager") => handleRoleChange(user.id, value)}
                           disabled={!isAdmin}
                         >
-                          <SelectTrigger className="w-[120px]">
+                          <SelectTrigger className="w-[160px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="agent">Agent</SelectItem>
+                            <SelectItem value="marketing_manager">Marketing Manager</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
