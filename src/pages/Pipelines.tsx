@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -204,10 +205,11 @@ const priorityColors = {
   low: "bg-muted text-muted-foreground",
 };
 
-function DraggableDeal({ deal, onOpenNotes, onPriorityChange }: { 
+function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate }: { 
   deal: Deal; 
   onOpenNotes: (deal: Deal) => void;
   onPriorityChange: (dealId: string, priority: "high" | "medium" | "low") => void;
+  onNavigate: (leadId: string) => void;
 }) {
   const { toast } = useToast();
   const {
@@ -227,7 +229,9 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange }: {
 
   const handleCardClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onOpenNotes(deal);
+    if (deal.leadId) {
+      onNavigate(deal.leadId);
+    }
   };
 
   const handlePriorityChange = (newPriority: "high" | "medium" | "low") => {
@@ -372,6 +376,7 @@ function TrashZone({ isVisible }: { isVisible: boolean }) {
 }
 
 const Pipelines = () => {
+  const navigate = useNavigate();
   const [selectedPipeline, setSelectedPipeline] = useState<string>("real-estate");
   const [pipelines, setPipelines] = useState<Pipeline[]>(mockPipelines);
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
@@ -621,6 +626,10 @@ const Pipelines = () => {
     setNotesDialogOpen(true);
   };
 
+  const handleNavigateToLead = (leadId: string) => {
+    navigate(`/leads/${leadId}`);
+  };
+
   const handlePriorityChange = async (dealId: string, newPriority: "high" | "medium" | "low") => {
     // Find the deal and update in database
     const deal = currentPipeline?.stages
@@ -789,6 +798,7 @@ const Pipelines = () => {
                             deal={deal} 
                             onOpenNotes={handleOpenNotes}
                             onPriorityChange={handlePriorityChange}
+                            onNavigate={handleNavigateToLead}
                           />
                         ))}
 
