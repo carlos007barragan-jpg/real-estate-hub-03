@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   DndContext,
   DragOverlay,
-  rectIntersection,
+  closestCorners,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -384,6 +384,7 @@ const Pipelines = () => {
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const { toast } = useToast();
 
   // Fetch leads from database and sync with pipelines
   useEffect(() => {
@@ -540,14 +541,18 @@ const Pipelines = () => {
         );
 
         // Then permanently delete from database
-        const { error } = await supabase
+        const { data: deletedRows, error } = await supabase
           .from("leads")
           .delete()
-          .eq("id", activeDeal.leadId);
+          .eq("id", activeDeal.leadId)
+          .select('id');
         
         if (error) {
           console.error("Error deleting deal:", error);
-          // Optionally: revert UI changes on error
+          toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+        } else if (!deletedRows || deletedRows.length === 0) {
+          console.warn('No rows deleted, likely due to permissions or ownership');
+          toast({ title: 'Not allowed', description: 'You cannot delete this deal.', variant: 'destructive' });
         }
       }
       return;
@@ -759,7 +764,7 @@ const Pipelines = () => {
         {/* Pipeline Stages */}
         <DndContext
           sensors={sensors}
-          collisionDetection={rectIntersection}
+          collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
