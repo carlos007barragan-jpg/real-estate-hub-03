@@ -251,11 +251,11 @@ const Settings = () => {
     }
   };
 
-  const handleClearAllData = async () => {
+  const handleClearDemoData = async () => {
     if (!isAdmin) {
       toast({
         title: "Permission Denied",
-        description: "Only administrators can clear all data",
+        description: "Only administrators can clear demo data",
         variant: "destructive",
       });
       return;
@@ -267,26 +267,26 @@ const Settings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Delete ALL data from all tables for this user
+      // Delete only demo data from all tables for this user
       const deletePromises = [
-        supabase.from('leads').delete().eq('user_id', user.id),
-        supabase.from('tasks').delete().eq('user_id', user.id),
-        supabase.from('notes').delete().eq('user_id', user.id),
-        supabase.from('call_logs').delete().eq('user_id', user.id),
-        supabase.from('sms_logs').delete().eq('user_id', user.id),
-        supabase.from('documents').delete().eq('user_id', user.id),
+        supabase.from('leads').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('tasks').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('notes').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('call_logs').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('sms_logs').delete().eq('user_id', user.id).eq('is_demo_data', true),
+        supabase.from('documents').delete().eq('user_id', user.id).eq('is_demo_data', true),
       ];
       
       await Promise.all(deletePromises);
 
       toast({
         title: "Success",
-        description: "All CRM data has been cleared",
+        description: "All demo data has been cleared",
       });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to clear data",
+        description: error.message || "Failed to clear demo data",
         variant: "destructive",
       });
     } finally {
@@ -501,30 +501,30 @@ const Settings = () => {
                     <Trash2 className="h-6 w-6 text-destructive" />
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-xl font-semibold text-foreground mb-2">Danger Zone</h2>
+                    <h2 className="text-xl font-semibold text-foreground mb-2">Demo Data Management</h2>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Permanently delete all data from your CRM. This will clear everything and cannot be undone.
+                      Remove all demo data from your CRM to start with a clean slate.
                     </p>
                     <div className="flex items-start gap-3 p-3 rounded-lg bg-destructive/5 border border-destructive/20 mb-4">
                       <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
                       <div className="text-sm">
-                        <p className="font-medium text-foreground mb-1">This will permanently delete:</p>
+                        <p className="font-medium text-foreground mb-1">This will permanently delete all demo data including:</p>
                         <ul className="text-muted-foreground space-y-1 list-disc list-inside">
-                          <li>All leads and contacts</li>
-                          <li>All pipelines and deals</li>
-                          <li>All tasks, notes, and documents</li>
-                          <li>All call logs and SMS history</li>
+                          <li>Demo leads and contacts</li>
+                          <li>Demo tasks and notes</li>
+                          <li>Demo documents</li>
+                          <li>Demo call logs and SMS history</li>
                         </ul>
                       </div>
                     </div>
                     <Button 
                       variant="destructive" 
-                      onClick={handleClearAllData}
+                      onClick={handleClearDemoData}
                       disabled={deletingDemoData}
                       className="gap-2"
                     >
                       <Trash2 className="h-4 w-4" />
-                      {deletingDemoData ? "Clearing All Data..." : "Clear All CRM Data"}
+                      {deletingDemoData ? "Clearing Demo Data..." : "Clear All Demo Data"}
                     </Button>
                   </div>
                 </div>
