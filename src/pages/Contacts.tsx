@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Plus, Phone, Mail, MapPin, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ interface Contact {
   category: ContactCategory;
   vendorSubcategory?: VendorSubcategory;
   company?: string;
+  isDemoData?: boolean;
 }
 
 const mockContacts: Contact[] = [
@@ -217,12 +218,19 @@ const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<ContactCategory | "all">("all");
   const [vendorFilter, setVendorFilter] = useState<VendorSubcategory | "all">("all");
+  const [contacts, setContacts] = useState<Contact[]>(() => mockContacts.map(c => ({ ...c, isDemoData: true })));
+
+  useEffect(() => {
+    const handler = () => setContacts(prev => prev.filter(c => !c.isDemoData));
+    window.addEventListener('demoDataCleared', handler);
+    return () => window.removeEventListener('demoDataCleared', handler);
+  }, []);
 
   const getCategoryCount = (category: ContactCategory) => {
-    return mockContacts.filter(c => c.category === category).length;
+    return contacts.filter(c => c.category === category).length;
   };
 
-  const filteredContacts = mockContacts.filter((contact) => {
+  const filteredContacts = contacts.filter((contact) => {
     const matchesSearch = 
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -291,7 +299,7 @@ const Contacts = () => {
             <TabsList className="w-full justify-start overflow-x-auto flex-wrap h-auto gap-2 bg-muted/50 p-2">
               <TabsTrigger value="all" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
                 All Contacts
-                <Badge variant="secondary" className="ml-1">{mockContacts.length}</Badge>
+                <Badge variant="secondary" className="ml-1">{contacts.length}</Badge>
               </TabsTrigger>
               {Object.entries(categoryLabels).map(([key, label]) => (
                 <TabsTrigger key={key} value={key} className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
@@ -358,11 +366,14 @@ const Contacts = () => {
                   </div>
 
                   {/* Category Badge */}
-                  <div className="mb-4">
+                  <div className="mb-4 flex items-center gap-2">
                     <Badge variant="outline" className="text-xs font-medium border-primary/20 bg-primary/5">
                       {categoryLabels[contact.category]}
                       {contact.vendorSubcategory && ` • ${vendorSubcategoryLabels[contact.vendorSubcategory]}`}
                     </Badge>
+                    {contact.isDemoData && (
+                      <Badge variant="secondary" className="text-xs font-medium">Demo</Badge>
+                    )}
                   </div>
 
                   {/* Contact Info */}

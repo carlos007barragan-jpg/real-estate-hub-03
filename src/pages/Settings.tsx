@@ -279,6 +279,9 @@ const Settings = () => {
       
       await Promise.all(deletePromises);
 
+      // Notify UI to clear any local demo data
+      window.dispatchEvent(new Event("demoDataCleared"));
+
       toast({
         title: "Success",
         description: "All demo data has been cleared",
