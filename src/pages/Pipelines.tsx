@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, Trash2, MoreVertical } from "lucide-react";
+import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical } from "lucide-react";
 import { EditDealDialog } from "@/components/EditDealDialog";
 import { OfferMadeValidationDialog } from "@/components/OfferMadeValidationDialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -207,12 +207,11 @@ const priorityColors = {
   low: "bg-muted text-muted-foreground",
 };
 
-function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onDelete, onEdit }: { 
+function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit }: { 
   deal: Deal; 
   onOpenNotes: (deal: Deal) => void;
   onPriorityChange: (dealId: string, priority: "high" | "medium" | "low") => void;
   onNavigate: (leadId: string) => void;
-  onDelete: (dealId: string, leadId?: string) => void;
   onEdit: (leadId?: string) => void;
 }) {
   const { toast } = useToast();
@@ -303,29 +302,16 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onDele
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <button
-                    className="p-1 rounded hover:bg-muted transition-colors"
-                    aria-label="Deal options"
-                  >
-                    <MoreVertical className="h-3 w-3 text-muted-foreground" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="z-50 bg-popover">
-                  <DropdownMenuItem 
-                    onClick={() => onEdit(deal.leadId)}
-                  >
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => onDelete(deal.id, deal.leadId)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(deal.leadId);
+                }}
+                className="p-1 rounded hover:bg-muted transition-colors"
+                aria-label="Edit deal"
+              >
+                <MoreVertical className="h-3 w-3 text-muted-foreground" />
+              </button>
             </div>
           </div>
 
@@ -374,35 +360,6 @@ function DroppableStage({
   );
 }
 
-function TrashZone({ isVisible }: { isVisible: boolean }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: 'trash-zone',
-  });
-
-  if (!isVisible) return null;
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 animate-scale-in ${
-        isOver ? 'scale-110' : 'scale-100'
-      }`}
-    >
-      <div
-        className={`w-[420px] h-24 flex items-center justify-center rounded-2xl shadow-2xl border-2 transition-all duration-200 ${
-          isOver
-            ? 'bg-destructive border-destructive text-destructive-foreground'
-            : 'bg-muted/95 backdrop-blur-sm border-border text-muted-foreground'
-        }`}
-      >
-        <Trash2 className={`h-6 w-6 mr-3 transition-transform ${isOver ? 'animate-pulse' : ''}`} />
-        <span className="font-semibold">
-          {isOver ? 'Release to delete deal' : 'Drop here to delete deal'}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 const Pipelines = () => {
   const navigate = useNavigate();
@@ -412,7 +369,6 @@ const Pipelines = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
   const [selectedDealLeadId, setSelectedDealLeadId] = useState<string | undefined>();
@@ -539,7 +495,6 @@ const Pipelines = () => {
       .flatMap((stage) => stage.deals)
       .find((d) => d.id === dealId);
     setActiveDeal(deal || null);
-    setIsDragging(true);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -550,66 +505,8 @@ const Pipelines = () => {
     const { active, over } = event;
     
     setActiveDeal(null);
-    setIsDragging(false);
     
     if (!over || !currentPipeline) return;
-
-    // Check if dropped on trash zone
-    if (String(over.id) === 'trash-zone') {
-      const activeIdStr = String(active.id);
-      const draggedDealId = activeIdStr.startsWith('deal-') ? activeIdStr.slice(5) : activeIdStr;
-      
-      // Find which stage contains the deal
-      const activeStage = currentPipeline.stages.find((stage) =>
-        stage.deals.some((deal) => deal.id === draggedDealId)
-      );
-      
-      const activeDeal = activeStage?.deals.find((deal) => deal.id === draggedDealId);
-      
-      if (activeDeal?.leadId) {
-        // Remove from UI immediately for better UX
-        setPipelines((prevPipelines) =>
-          prevPipelines.map((pipeline) => {
-            if (pipeline.id !== selectedPipeline) return pipeline;
-
-            return {
-              ...pipeline,
-              stages: pipeline.stages.map((stage) => ({
-                ...stage,
-                deals: stage.deals.filter((deal) => deal.id !== draggedDealId),
-              })),
-            };
-          })
-        );
-
-        // Then permanently delete from database
-        const { data: deletedRows, error } = await supabase
-          .from("leads")
-          .delete()
-          .eq("id", activeDeal.leadId)
-          .select('id');
-        
-        // Persist deletion locally so it doesn't reappear on refresh
-        try {
-          const deletedLocal: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
-          if (!deletedLocal.includes(draggedDealId)) {
-            deletedLocal.push(draggedDealId);
-            localStorage.setItem('deletedDealIds', JSON.stringify(deletedLocal));
-          }
-        } catch {}
-        
-        if (error) {
-          console.error("Error deleting deal:", error);
-          toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-        } else if (!deletedRows || deletedRows.length === 0) {
-          console.warn('No rows deleted, likely due to permissions or ownership');
-          toast({ title: 'Not allowed', description: 'You cannot delete this deal.', variant: 'destructive' });
-        } else {
-          toast({ title: 'Deal deleted' });
-        }
-      }
-      return;
-    }
 
     const activeIdStr = String(active.id);
     const draggedDealId = activeIdStr.startsWith('deal-') ? activeIdStr.slice(5) : activeIdStr;
@@ -810,40 +707,6 @@ const Pipelines = () => {
     );
   };
 
-  const handleDeleteDeal = async (dealId: string, leadId?: string) => {
-    // Optimistic UI removal
-    setPipelines((prev) => prev.map((pipeline) => ({
-      ...pipeline,
-      stages: pipeline.stages.map((stage) => ({
-        ...stage,
-        deals: stage.deals.filter((d) => d.id !== dealId),
-      })),
-    })));
-
-    // Persist locally to avoid reappearing on refresh
-    try {
-      const deletedLocal: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
-      if (!deletedLocal.includes(dealId)) {
-        deletedLocal.push(dealId);
-        localStorage.setItem('deletedDealIds', JSON.stringify(deletedLocal));
-      }
-    } catch {}
-
-    // Delete from DB
-    if (leadId) {
-      const { error } = await supabase
-        .from('leads')
-        .delete()
-        .eq('id', leadId);
-      if (error) {
-        console.error('Delete failed', error);
-        toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Deal deleted' });
-      }
-    }
-  };
-
   const filteredPipeline = searchQuery
     ? {
         ...currentPipeline,
@@ -977,7 +840,6 @@ const Pipelines = () => {
                             onOpenNotes={handleOpenNotes}
                             onPriorityChange={handlePriorityChange}
                             onNavigate={handleNavigateToLead}
-                            onDelete={handleDeleteDeal}
                             onEdit={(leadId) => {
                               setSelectedDealLeadId(leadId);
                               setEditDialogOpen(true);
@@ -1032,8 +894,6 @@ const Pipelines = () => {
             </div>
           ) : null}
           </DragOverlay>
-
-          <TrashZone isVisible={isDragging} />
         </DndContext>
 
         <DealNotesDialog
