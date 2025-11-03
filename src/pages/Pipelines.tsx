@@ -504,7 +504,7 @@ const Pipelines = () => {
     // Just for visual feedback during drag
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDeal(null);
     setIsDragging(false);
@@ -524,32 +524,32 @@ const Pipelines = () => {
       const activeDeal = activeStage?.deals.find((deal) => deal.id === draggedDealId);
       
       if (activeDeal?.leadId) {
-        // Permanently delete the lead (deal) from database
-        supabase
+        // Remove from UI immediately for better UX
+        setPipelines((prevPipelines) =>
+          prevPipelines.map((pipeline) => {
+            if (pipeline.id !== selectedPipeline) return pipeline;
+
+            return {
+              ...pipeline,
+              stages: pipeline.stages.map((stage) => ({
+                ...stage,
+                deals: stage.deals.filter((deal) => deal.id !== draggedDealId),
+              })),
+            };
+          })
+        );
+
+        // Then permanently delete from database
+        const { error } = await supabase
           .from("leads")
           .delete()
-          .eq("id", activeDeal.leadId)
-          .then(({ error }) => {
-            if (error) {
-              console.error("Error deleting deal:", error);
-            }
-          });
+          .eq("id", activeDeal.leadId);
+        
+        if (error) {
+          console.error("Error deleting deal:", error);
+          // Optionally: revert UI changes on error
+        }
       }
-
-      // Remove from current UI state immediately
-      setPipelines((prevPipelines) =>
-        prevPipelines.map((pipeline) => {
-          if (pipeline.id !== selectedPipeline) return pipeline;
-
-          return {
-            ...pipeline,
-            stages: pipeline.stages.map((stage) => ({
-              ...stage,
-              deals: stage.deals.filter((deal) => deal.id !== draggedDealId),
-            })),
-          };
-        })
-      );
       return;
     }
 
