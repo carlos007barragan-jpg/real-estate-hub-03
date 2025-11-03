@@ -14,6 +14,7 @@ import NewLeads from "./pages/NewLeads";
 import LeadProfile from "./pages/LeadProfile";
 import Pipelines from "./pages/Pipelines";
 import Contacts from "./pages/Contacts";
+import ContactProfile from "./pages/ContactProfile";
 import Inbox from "./pages/Inbox";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -68,6 +69,7 @@ const App = () => {
           <Route path="/leads/:id" element={<ProtectedRoute><Layout><LeadProfile /></Layout></ProtectedRoute>} />
           <Route path="/pipelines" element={<ProtectedRoute><Layout><Pipelines /></Layout></ProtectedRoute>} />
           <Route path="/contacts" element={<ProtectedRoute><Layout><Contacts /></Layout></ProtectedRoute>} />
+          <Route path="/contacts/:id" element={<ProtectedRoute><Layout><ContactProfile /></Layout></ProtectedRoute>} />
           <Route path="/inbox" element={<ProtectedRoute><Layout><Inbox /></Layout></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />

@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Plus, Phone, Mail, MapPin, MoreVertical } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -215,10 +218,13 @@ const vendorSubcategoryLabels: Record<VendorSubcategory, string> = {
 };
 
 const Contacts = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<ContactCategory | "all">("all");
   const [vendorFilter, setVendorFilter] = useState<VendorSubcategory | "all">("all");
   const [contacts, setContacts] = useState<Contact[]>(() => mockContacts.map(c => ({ ...c, isDemoData: true })));
+  const [calling, setCalling] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = () => setContacts(prev => prev.filter(c => !c.isDemoData));
@@ -248,6 +254,37 @@ const Contacts = () => {
 
   const handleDeleteContact = (id: string) => {
     setContacts(prev => prev.filter(c => c.id !== id));
+  };
+
+  const handleCall = async (contact: Contact, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCalling(contact.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase.functions.invoke('make-call', {
+        body: {
+          to: contact.phone,
+          from: user.email,
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Calling...",
+        description: `Initiating call to ${contact.name}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Call Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setCalling(null);
+    }
   };
 
   return (
@@ -329,7 +366,8 @@ const Contacts = () => {
             {filteredContacts.map((contact, index) => (
               <Card 
                 key={contact.id} 
-                className="group relative overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm"
+                onClick={() => navigate(`/contacts/${contact.id}`)}
+                className="group relative overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm cursor-pointer"
                 style={{ animationDelay: `${index * 50}ms` }}
               >
                 {/* Gradient Overlay */}
@@ -356,15 +394,28 @@ const Contacts = () => {
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="shrink-0 hover:bg-muted">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="shrink-0 hover:bg-muted"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover w-48">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/contacts/${contact.id}`)}>View Details</DropdownMenuItem>
                         <DropdownMenuItem>Edit Contact</DropdownMenuItem>
                         <DropdownMenuItem>Send Email</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteContact(contact.id)}>Delete</DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteContact(contact.id);
+                          }}
+                        >
+                          Delete
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -411,10 +462,24 @@ const Contacts = () => {
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="hover:bg-primary hover:text-primary-foreground transition-colors">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="hover:bg-primary hover:text-primary-foreground transition-colors"
+                        onClick={(e) => handleCall(contact, e)}
+                        disabled={calling === contact.id}
+                      >
                         <Phone className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" className="hover:bg-primary hover:text-primary-foreground transition-colors">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="hover:bg-primary hover:text-primary-foreground transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `mailto:${contact.email}`;
+                        }}
+                      >
                         <Mail className="h-4 w-4" />
                       </Button>
                     </div>
