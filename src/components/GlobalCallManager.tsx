@@ -20,6 +20,8 @@ export const GlobalCallManager = () => {
   const [outgoingCallDetails, setOutgoingCallDetails] = useState<{ phoneNumber: string; contactName: string } | null>(null);
   const intervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const deviceRef = useRef<Device | null>(null);
+  const callRef = useRef<Call | null>(null);
   const { isAdmin } = useUserRole();
 
   useEffect(() => {
@@ -37,10 +39,10 @@ export const GlobalCallManager = () => {
       window.removeEventListener('initiateCall', handleInitiateCall);
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (audioRef.current) audioRef.current.pause();
-      if (call) call.disconnect();
-      if (device) device.destroy();
+      if (callRef.current) callRef.current.disconnect();
+      if (deviceRef.current) deviceRef.current.destroy();
     };
-  }, [device]);
+  }, []);
 
   const initializeDevice = async () => {
     try {
@@ -96,6 +98,7 @@ export const GlobalCallManager = () => {
 
       await newDevice.register();
       setDevice(newDevice);
+      deviceRef.current = newDevice;
     } catch (error: any) {
       console.error('Error initializing device:', error);
     }
@@ -109,6 +112,7 @@ export const GlobalCallManager = () => {
     }
     
     setCall(incomingCall);
+    callRef.current = incomingCall;
     setIncomingCall(null);
     setCallDuration(0);
     
@@ -127,6 +131,7 @@ export const GlobalCallManager = () => {
       console.error('Failed to accept call', e);
       toast({ title: '❌ Failed to accept call', description: e.message, variant: 'destructive' });
       setCall(null);
+      callRef.current = null;
     }
   };
 
@@ -160,6 +165,7 @@ export const GlobalCallManager = () => {
       });
 
       setCall(outgoingCall);
+      callRef.current = outgoingCall;
       setIncomingFrom(contactName);
       setCallDuration(0);
 
@@ -207,6 +213,7 @@ export const GlobalCallManager = () => {
     }
     
     setCall(null);
+    callRef.current = null;
     setCallDuration(0);
     setIsMuted(false);
     setLeadId(null);
