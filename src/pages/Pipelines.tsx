@@ -378,7 +378,17 @@ function DroppableStage({
 const Pipelines = () => {
   const navigate = useNavigate();
   const [selectedPipeline, setSelectedPipeline] = useState<string>("real-estate");
-  const [pipelines, setPipelines] = useState<Pipeline[]>(mockPipelines);
+  // Initialize with empty deals to prevent flash of mock data
+  const [pipelines, setPipelines] = useState<Pipeline[]>(() => {
+    const deletedIds: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
+    return mockPipelines.map(pipeline => ({
+      ...pipeline,
+      stages: pipeline.stages.map(stage => ({
+        ...stage,
+        deals: stage.deals.filter(d => !deletedIds.includes(d.id))
+      }))
+    }));
+  });
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
