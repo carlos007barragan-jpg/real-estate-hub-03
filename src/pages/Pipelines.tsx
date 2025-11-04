@@ -662,14 +662,7 @@ const Pipelines = () => {
           deals: (pipelineDeals.get(stage.name) || []),
         }));
 
-        // Filter out locally deleted deals
-        const deletedIds: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
-        const filteredStages = updatedStages.map((stage) => ({
-          ...stage,
-          deals: stage.deals.filter((d) => !deletedIds.includes(d.id)),
-        }));
-
-        return { ...pipeline, stages: filteredStages };
+        return { ...pipeline, stages: updatedStages };
       });
 
       setPipelines(updatedPipelines);
@@ -723,17 +716,20 @@ const Pipelines = () => {
 
   const handleDeleteDeal = async (dealId: string, leadId?: string) => {
     try {
-      // If there's a leadId, delete from database
-      if (leadId) {
-        const { error } = await supabase
-          .from("leads")
-          .delete()
-          .eq("id", leadId);
+      // The dealId IS the leadId (they're the same)
+      const idToDelete = leadId || dealId;
 
-        if (error) throw error;
+      const { error } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", idToDelete);
+
+      if (error) {
+        console.error("Database deletion error:", error);
+        throw error;
       }
 
-      // Remove from local state
+      // Remove from local state immediately
       setPipelines((prevPipelines) =>
         prevPipelines.map((pipeline) => ({
           ...pipeline,
@@ -746,13 +742,13 @@ const Pipelines = () => {
 
       toast({
         title: "Deal Deleted",
-        description: "The deal has been removed from your pipeline",
+        description: "The deal has been permanently removed",
       });
     } catch (error) {
       console.error("Error deleting deal:", error);
       toast({
         title: "Error",
-        description: "Failed to delete the deal",
+        description: "Failed to delete the deal. Please try again.",
         variant: "destructive",
       });
     }
