@@ -24,23 +24,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background">
+    <div className="min-h-screen w-full bg-background pb-20 md:pb-0">
       <GlobalCallManager />
-      {/* Horizontal Navigation Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-md">
+      
+      {/* Desktop Header Navigation */}
+      <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-md hidden md:block">
         <div className="flex h-16 items-center px-4 md:px-6">
-          {/* Logo/Brand */}
           <div className="flex items-center gap-2 mr-6">
             <Building2 className="h-6 w-6 text-primary-foreground" />
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-bold text-primary-foreground">RealEstate CRM</h1>
-            </div>
+            <h1 className="text-lg font-bold text-primary-foreground">RealEstate CRM</h1>
           </div>
 
-          <Separator orientation="vertical" className="h-8 mr-4 hidden md:block bg-primary-foreground/20" />
+          <Separator orientation="vertical" className="h-8 mr-4 bg-primary-foreground/20" />
 
-          {/* Navigation Links */}
-          <nav className="flex items-center gap-1 flex-1 overflow-x-auto">
+          <nav className="flex items-center gap-1 flex-1">
             {navItems.map((item) => (
               <NavLink
                 key={item.title}
@@ -54,15 +51,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 }
               >
                 <item.icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{item.title}</span>
+                <span>{item.title}</span>
               </NavLink>
             ))}
           </nav>
 
-          {/* Notifications */}
           <NotificationBell />
 
-          {/* Logout Button */}
           <Button
             variant="ghost"
             size="sm"
@@ -70,8 +65,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className="ml-4 gap-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
           >
             <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Logout</span>
+            <span>Logout</span>
           </Button>
+        </div>
+      </header>
+
+      {/* Mobile Header */}
+      <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-md md:hidden">
+        <div className="flex h-14 items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-primary-foreground" />
+            <h1 className="text-base font-bold text-primary-foreground">RE CRM</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="gap-2 text-primary-foreground/80 hover:bg-primary-foreground/10"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -79,6 +95,28 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1">
         {children}
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card shadow-lg md:hidden safe-area-inset-bottom">
+        <div className="flex items-center justify-around h-16 px-2">
+          {navItems.slice(0, 5).map((item) => (
+            <NavLink
+              key={item.title}
+              to={item.url}
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px] ${
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`
+              }
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="text-[10px] font-medium">{item.title}</span>
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
