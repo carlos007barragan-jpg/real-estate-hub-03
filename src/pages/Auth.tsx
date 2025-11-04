@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { authSchema, emailSchema, passwordSchema, phoneSchema, nameSchema } from "@/lib/validation";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -50,6 +51,24 @@ const Auth = () => {
       toast({
         title: "Passwords don't match",
         description: "Please make sure both passwords are the same.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate inputs
+    try {
+      authSchema.parse({
+        email,
+        password,
+        firstName,
+        lastName,
+        phoneNumber: phoneNumber || undefined,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Validation error",
+        description: error.errors?.[0]?.message || "Please check your inputs",
         variant: "destructive",
       });
       return;
@@ -133,6 +152,20 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate inputs
+    try {
+      emailSchema.parse(email);
+      passwordSchema.parse(password);
+    } catch (error: any) {
+      toast({
+        title: "Validation error",
+        description: error.errors?.[0]?.message || "Please check your inputs",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {

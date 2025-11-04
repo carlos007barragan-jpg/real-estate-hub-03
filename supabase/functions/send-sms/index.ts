@@ -15,6 +15,17 @@ Deno.serve(async (req) => {
   try {
     const { to, message, leadId } = await req.json();
     
+    // Validate inputs
+    if (!to || typeof to !== 'string' || to.length < 10 || to.length > 16) {
+      throw new Error('Invalid phone number format');
+    }
+    if (!message || typeof message !== 'string' || message.length === 0 || message.length > 1000) {
+      throw new Error('Message must be between 1 and 1000 characters');
+    }
+    if (leadId && typeof leadId !== 'string') {
+      throw new Error('Invalid leadId format');
+    }
+    
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {

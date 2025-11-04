@@ -21,6 +21,7 @@ import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
+import { nameSchema, emailSchema, phoneSchema } from "@/lib/validation";
 
 interface CustomField {
   id: string;
@@ -159,6 +160,28 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate inputs
+    try {
+      nameSchema.parse(formData.name);
+      emailSchema.parse(formData.email);
+      phoneSchema.parse(formData.phone);
+      
+      if (formData.spouse_email) {
+        emailSchema.parse(formData.spouse_email);
+      }
+      if (formData.spouse_phone) {
+        phoneSchema.parse(formData.spouse_phone);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Validation error",
+        description: error.errors?.[0]?.message || "Please check your inputs",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {

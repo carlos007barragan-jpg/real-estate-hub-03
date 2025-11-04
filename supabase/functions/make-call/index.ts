@@ -14,6 +14,14 @@ Deno.serve(async (req) => {
   try {
     const { to, leadName } = await req.json();
     
+    // Validate inputs
+    if (!to || typeof to !== 'string' || to.length < 10 || to.length > 16) {
+      throw new Error('Invalid phone number format');
+    }
+    if (leadName && (typeof leadName !== 'string' || leadName.length > 100)) {
+      throw new Error('Lead name must be less than 100 characters');
+    }
+    
     // Normalize phone number to E.164 format
     const normalizedPhone = to.replace(/\D/g, ''); // Remove all non-digits
     const e164Phone = normalizedPhone.startsWith('1') 

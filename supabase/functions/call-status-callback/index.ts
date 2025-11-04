@@ -6,6 +6,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Validate Twilio signature for security
+async function validateTwilioSignature(req: Request, params: Record<string, string>): Promise<boolean> {
+  const signature = req.headers.get('X-Twilio-Signature');
+  if (!signature) {
+    console.error('Missing X-Twilio-Signature header');
+    return false;
+  }
+
+  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+  if (!authToken) {
+    console.error('TWILIO_AUTH_TOKEN not configured');
+    return false;
+  }
+
+  const url = req.url;
+  const data = Object.keys(params).sort().map(key => key + params[key]).join('');
+  
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(authToken);
+  const messageData = encoder.encode(url + data);
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign']
+  );
+  
+  const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+  const expectedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
+  
+  return signature === expectedSignature;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -13,12 +48,23 @@ Deno.serve(async (req) => {
 
   try {
     const formData = await req.formData();
-    const callSid = formData.get('CallSid') as string;
-    const callStatus = formData.get('CallStatus') as string;
-    const duration = formData.get('CallDuration') as string;
-    const answeredBy = formData.get('AnsweredBy') as string;
-    const calledNumber = formData.get('Called') as string;
-    const dialCallStatus = formData.get('DialCallStatus') as string;
+    const params: Record<string, string> = {};
+    for (const [key, value] of formData.entries()) {
+      params[key] = value.toString();
+    }
+    
+    // Validate Twilio signature
+    const isValid = await validateTwilioSignature(req, params);
+    if (!isValid) {
+      console.error('Invalid Twilio signature');
+      return new Response('Unauthorized', { status: 401 });
+    }
+    const callSid = params['CallSid'];
+    const callStatus = params['CallStatus'];
+    const duration = params['CallDuration'];
+    const answeredBy = params['AnsweredBy'];
+    const calledNumber = params['Called'];
+    const dialCallStatus = params['DialCallStatus'];
     
     // Get leadId and userId from query params
     const url = new URL(req.url);
