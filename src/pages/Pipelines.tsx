@@ -718,7 +718,37 @@ const Pipelines = () => {
     try {
       // The dealId IS the leadId (they're the same)
       const idToDelete = leadId || dealId;
+      
+      console.log("Attempting to delete deal:", { dealId, leadId, idToDelete });
 
+      // First verify the lead exists and get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      console.log("Current user:", user.id);
+
+      // Check if the lead exists and belongs to the user
+      const { data: existingLead, error: fetchError } = await supabase
+        .from("leads")
+        .select("id, user_id")
+        .eq("id", idToDelete)
+        .single();
+
+      if (fetchError) {
+        console.error("Error fetching lead:", fetchError);
+        throw new Error("Could not find the lead to delete");
+      }
+
+      console.log("Existing lead:", existingLead);
+
+      if (existingLead.user_id !== user.id) {
+        throw new Error("You don't have permission to delete this lead");
+      }
+
+      // Now delete
       const { error } = await supabase
         .from("leads")
         .delete()
@@ -728,6 +758,8 @@ const Pipelines = () => {
         console.error("Database deletion error:", error);
         throw error;
       }
+
+      console.log("Successfully deleted from database");
 
       // Remove from local state immediately
       setPipelines((prevPipelines) =>
@@ -744,11 +776,11 @@ const Pipelines = () => {
         title: "Deal Deleted",
         description: "The deal has been permanently removed",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting deal:", error);
       toast({
         title: "Error",
-        description: "Failed to delete the deal. Please try again.",
+        description: error.message || "Failed to delete the deal. Please try again.",
         variant: "destructive",
       });
     }
