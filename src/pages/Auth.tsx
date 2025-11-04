@@ -89,12 +89,12 @@ const Auth = () => {
           console.error('Profile creation error:', profileError);
         }
 
-        // Assign default role (agent)
+        // Assign admin role to new users
         const { error: roleError } = await supabase
           .from('user_roles')
           .insert({
             user_id: data.user.id,
-            role: 'agent',
+            role: 'admin',
           });
 
         if (roleError) {
