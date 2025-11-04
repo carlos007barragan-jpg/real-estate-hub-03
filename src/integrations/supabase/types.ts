@@ -131,6 +131,45 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_fields: {
+        Row: {
+          created_at: string
+          display_order: number
+          field_label: string
+          field_name: string
+          field_type: string
+          id: string
+          is_required: boolean
+          options: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          field_label: string
+          field_name: string
+          field_type: string
+          id?: string
+          is_required?: boolean
+          options?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          field_label?: string
+          field_name?: string
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          options?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           file_name: string
@@ -187,6 +226,7 @@ export type Database = {
           commission: string | null
           created_at: string
           current_address: string | null
+          custom_data: Json | null
           down_payment: string | null
           email: string
           financing_type: string | null
@@ -230,6 +270,7 @@ export type Database = {
           commission?: string | null
           created_at?: string
           current_address?: string | null
+          custom_data?: Json | null
           down_payment?: string | null
           email: string
           financing_type?: string | null
@@ -273,6 +314,7 @@ export type Database = {
           commission?: string | null
           created_at?: string
           current_address?: string | null
+          custom_data?: Json | null
           down_payment?: string | null
           email?: string
           financing_type?: string | null
