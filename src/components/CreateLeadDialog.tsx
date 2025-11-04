@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +20,17 @@ import {
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
+
+interface CustomField {
+  id: string;
+  field_name: string;
+  field_label: string;
+  field_type: string;
+  options: string[] | null;
+  is_required: boolean;
+  display_order: number;
+}
 
 interface CreateLeadDialogProps {
   onLeadCreated: () => void;
@@ -29,6 +40,8 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -50,6 +63,99 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     preferred_contact_method: "phone",
     social_status: "",
   });
+
+  useEffect(() => {
+    if (open) {
+      fetchCustomFields();
+    }
+  }, [open]);
+
+  const fetchCustomFields = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("custom_fields")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      setCustomFields(data || []);
+    } catch (error) {
+      console.error("Error fetching custom fields:", error);
+    }
+  };
+
+  const renderCustomField = (field: CustomField) => {
+    const value = customFieldValues[field.field_name] || "";
+
+    switch (field.field_type) {
+      case "textarea":
+        return (
+          <Textarea
+            id={field.field_name}
+            value={value}
+            onChange={(e) => setCustomFieldValues({
+              ...customFieldValues,
+              [field.field_name]: e.target.value
+            })}
+            placeholder={field.field_label}
+            required={field.is_required}
+          />
+        );
+      case "select":
+        return (
+          <Select
+            value={value}
+            onValueChange={(val) => setCustomFieldValues({
+              ...customFieldValues,
+              [field.field_name]: val
+            })}
+            required={field.is_required}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={`Select ${field.field_label}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {field.options?.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      case "date":
+        return (
+          <Input
+            id={field.field_name}
+            type="date"
+            value={value}
+            onChange={(e) => setCustomFieldValues({
+              ...customFieldValues,
+              [field.field_name]: e.target.value
+            })}
+            required={field.is_required}
+          />
+        );
+      default:
+        return (
+          <Input
+            id={field.field_name}
+            type={field.field_type}
+            value={value}
+            onChange={(e) => setCustomFieldValues({
+              ...customFieldValues,
+              [field.field_name]: e.target.value
+            })}
+            placeholder={field.field_label}
+            required={field.is_required}
+          />
+        );
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +191,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         language_preference: formData.language_preference,
         preferred_contact_method: formData.preferred_contact_method,
         social_status: formData.social_status || null,
+        custom_data: customFieldValues,
       });
 
       if (error) throw error;
@@ -115,6 +222,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         preferred_contact_method: "phone",
         social_status: "",
       });
+      setCustomFieldValues({});
       setOpen(false);
       onLeadCreated();
     } catch (error: any) {
@@ -405,6 +513,21 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
               placeholder="Agent name"
             />
           </div>
+
+          {/* Custom Fields Section */}
+          {customFields.length > 0 && (
+            <div className="pt-4 border-t space-y-4">
+              <h3 className="font-semibold text-foreground">Additional Information</h3>
+              {customFields.map((field) => (
+                <div key={field.id} className="space-y-2">
+                  <Label htmlFor={field.field_name}>
+                    {field.field_label} {field.is_required && "*"}
+                  </Label>
+                  {renderCustomField(field)}
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

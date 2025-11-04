@@ -17,7 +17,7 @@ import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { CallHistory } from "@/components/CallHistory";
 import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
 
-export const TableLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
+export const TableLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
 

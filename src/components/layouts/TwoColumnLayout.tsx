@@ -17,7 +17,7 @@ import { DocumentsSection } from "@/components/DocumentsSection";
 import { MessagingSection } from "@/components/MessagingSection";
 import { ActivitySection } from "@/components/ActivitySection";
 
-export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
+export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
@@ -132,6 +132,18 @@ export const TwoColumnLayout = ({ leadData, handleCall, handleSendMessage, handl
                           <span className="ml-1">{leadData.pipeline}</span>
                         </div>
                       )}
+                      {/* Custom Fields */}
+                      {customFields.map((field: any) => {
+                        const value = leadData.customData?.[field.field_name];
+                        if (!value) return null;
+                        
+                        return (
+                          <div key={field.id}>
+                            <span className="text-muted-foreground">{field.field_label}:</span> 
+                            <span className="ml-1">{value}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </CollapsibleContent>
                 </Collapsible>

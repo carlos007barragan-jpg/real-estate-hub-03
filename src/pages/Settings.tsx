@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AgentPhoneSetup } from "@/components/AgentPhoneSetup";
 import { RoundRobinSettings } from "@/components/RoundRobinSettings";
+import { CustomFieldsManager } from "@/components/CustomFieldsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -308,6 +309,7 @@ const Settings = () => {
         <TabsList className="mb-6">
           <TabsTrigger value="users">Users & Roles</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="fields">Custom Fields</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
 
@@ -448,6 +450,10 @@ const Settings = () => {
               </div>
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="fields">
+          <CustomFieldsManager />
         </TabsContent>
 
         <TabsContent value="general">

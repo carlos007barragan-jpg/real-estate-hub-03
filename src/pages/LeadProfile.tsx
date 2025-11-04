@@ -65,6 +65,7 @@ const LeadProfile = () => {
   const [currentPipeline, setCurrentPipeline] = useState<string>("");
   const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("two-column");
   const [pipelineDialogOpen, setPipelineDialogOpen] = useState(false);
+  const [customFields, setCustomFields] = useState<any[]>([]);
 
   const availablePipelines = [
     { id: "real-estate", name: "Real Estate Sales" },
@@ -145,9 +146,13 @@ const LeadProfile = () => {
             sqft: data.sqft || "0",
             budget: data.budget || "Not specified",
           },
+          customData: data.custom_data || {},
         });
         setCurrentLifecycle(data.lead_lifecycle as LeadLifecycle);
         setCurrentStage(data.pipeline_stage as PipelineStage);
+        
+        // Fetch custom fields for this user
+        await fetchCustomFields(data.user_id);
       }
     } catch (error: any) {
       console.error("Error fetching lead:", error);
@@ -158,6 +163,21 @@ const LeadProfile = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCustomFields = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("custom_fields")
+        .select("*")
+        .eq("user_id", userId)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      setCustomFields(data || []);
+    } catch (error) {
+      console.error("Error fetching custom fields:", error);
     }
   };
 
@@ -596,6 +616,7 @@ const LeadProfile = () => {
         {layoutVariant === "two-column" && (
           <TwoColumnLayout
             leadData={leadData}
+            customFields={customFields}
             handleCall={handleCall}
             handleSendMessage={handleSendMessage}
             handleAddNote={handleAddNote}
@@ -613,6 +634,7 @@ const LeadProfile = () => {
         {layoutVariant === "single-column" && (
           <SingleColumnLayout
             leadData={leadData}
+            customFields={customFields}
             handleCall={handleCall}
             handleSendMessage={handleSendMessage}
             handleAddNote={handleAddNote}
@@ -630,6 +652,7 @@ const LeadProfile = () => {
         {layoutVariant === "table" && (
           <TableLayout
             leadData={leadData}
+            customFields={customFields}
             handleCall={handleCall}
             handleSendMessage={handleSendMessage}
             handleAddNote={handleAddNote}
