@@ -47,11 +47,9 @@ import { useToast } from "@/hooks/use-toast";
 interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string | null;
+  first_name: string;
+  last_name: string;
   role: "admin" | "agent" | "marketing_manager";
-  created_at: string;
 }
 
 const roleColors = {
@@ -89,37 +87,21 @@ const Settings = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('id, user_id, role, created_at')
-        .order('created_at', { ascending: false });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call the admin edge function to get users
+      const { data, error } = await supabase.functions.invoke('admin-get-users', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
       if (error) throw error;
 
-      const usersWithDetails = await Promise.all(
-        (data || []).map(async (userRole) => {
-          const { data: { user } } = await supabase.auth.admin.getUserById(userRole.user_id);
-          
-          // Fetch profile data
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('first_name, last_name, phone_number')
-            .eq('user_id', userRole.user_id)
-            .single();
-
-          return {
-            id: userRole.id,
-            email: user?.email || 'Unknown',
-            firstName: profile?.first_name || '',
-            lastName: profile?.last_name || '',
-            phoneNumber: profile?.phone_number || null,
-            role: userRole.role as "admin" | "agent" | "marketing_manager",
-            created_at: userRole.created_at
-          };
-        })
-      );
-
-      setUsers(usersWithDetails);
+      setUsers(data.data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -152,23 +134,23 @@ const Settings = () => {
     }
 
     try {
-      // Send invitation email - Supabase will send the email automatically
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(inviteEmail, {
-        data: {
-          invited_role: inviteRole, // Store the intended role in user metadata
-        },
-        redirectTo: `${window.location.origin}/complete-profile`,
-      });
-      
-      if (error) throw error;
-
-      // Pre-assign the role so admin can see it immediately
-      if (data.user) {
-        await supabase.from('user_roles').insert({
-          user_id: data.user.id,
-          role: inviteRole
-        });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
       }
+
+      // Call the admin edge function to invite user
+      const { data, error } = await supabase.functions.invoke('admin-invite-user', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          email: inviteEmail,
+          role: inviteRole,
+        },
+      });
+
+      if (error) throw error;
 
       toast({
         title: "Invitation Sent",
@@ -389,11 +371,11 @@ const Settings = () => {
                   {users.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
-                        {user.firstName} {user.lastName}
+                        {user.first_name} {user.last_name}
                       </TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {user.phoneNumber || '-'}
+                        -
                       </TableCell>
                       <TableCell>
                         <Select
@@ -412,7 +394,7 @@ const Settings = () => {
                         </Select>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(user.created_at).toLocaleDateString()}
+                        -
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
