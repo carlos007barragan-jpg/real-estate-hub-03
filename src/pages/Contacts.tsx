@@ -223,19 +223,13 @@ const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<ContactCategory | "all">("all");
   const [vendorFilter, setVendorFilter] = useState<VendorSubcategory | "all">("all");
-  const [contacts, setContacts] = useState<Contact[]>(() => mockContacts.map(c => ({ ...c, isDemoData: true })));
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [calling, setCalling] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = () => setContacts(prev => prev.filter(c => !c.isDemoData));
     window.addEventListener('demoDataCleared', handler);
     return () => window.removeEventListener('demoDataCleared', handler);
-  }, []);
-
-  // Load deleted contacts from localStorage
-  useEffect(() => {
-    const deletedIds = JSON.parse(localStorage.getItem('deletedContactIds') || '[]');
-    setContacts(prev => prev.filter(c => !deletedIds.includes(c.id)));
   }, []);
 
   const getCategoryCount = (category: ContactCategory) => {
