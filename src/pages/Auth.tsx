@@ -26,20 +26,30 @@ const Auth = () => {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isInvited, setIsInvited] = useState(false);
 
   useEffect(() => {
-    // Check if this is a password reset link
+    // Check if this is an invitation link or password reset link
     const isPasswordReset = searchParams.get("reset") === "true";
+    const isInvitation = searchParams.get("invited") === "true";
     
-    if (isPasswordReset) {
+    if (isPasswordReset || isInvitation) {
       setIsResettingPassword(true);
+      setIsInvited(isInvitation);
       return;
     }
 
     // Check if user is already logged in (only if not resetting password)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate("/dashboard");
+        // Check if user needs to change password
+        const mustChangePassword = session.user?.user_metadata?.must_change_password;
+        if (mustChangePassword) {
+          setIsResettingPassword(true);
+          setIsInvited(true);
+        } else {
+          navigate("/dashboard");
+        }
       }
     });
   }, [navigate, searchParams]);
@@ -258,6 +268,9 @@ const Auth = () => {
     try {
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
+        data: {
+          must_change_password: false,
+        },
       });
 
       if (error) {
@@ -268,8 +281,10 @@ const Auth = () => {
         });
       } else {
         toast({
-          title: "Password updated!",
-          description: "Your password has been successfully reset.",
+          title: isInvited ? "Password created!" : "Password updated!",
+          description: isInvited 
+            ? "Your account is ready. Welcome to RealEstate CRM!" 
+            : "Your password has been successfully reset.",
         });
         navigate("/dashboard");
       }
@@ -296,8 +311,12 @@ const Auth = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Reset Your Password</CardTitle>
-              <CardDescription>Enter your new password below</CardDescription>
+              <CardTitle>{isInvited ? "Set Your Password" : "Reset Your Password"}</CardTitle>
+              <CardDescription>
+                {isInvited 
+                  ? "Welcome! Please create a password to access your account" 
+                  : "Enter your new password below"}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePasswordReset} className="space-y-4">

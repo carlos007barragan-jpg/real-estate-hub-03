@@ -64,36 +64,64 @@ Deno.serve(async (req) => {
 
     console.log('Inviting user:', email, 'with role:', role);
 
-    // Invite user
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${req.headers.get('origin') || 'http://localhost:8080'}/auth`,
+    // Generate a temporary password (user will be required to change it)
+    const tempPassword = crypto.randomUUID();
+
+    // Create the user with a temporary password
+    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true, // Auto-confirm email
+      user_metadata: {
+        invited: true,
+        must_change_password: true,
+      },
     });
 
-    if (inviteError) {
-      console.error('Invite error:', inviteError);
+    if (createError) {
+      console.error('User creation error:', createError);
       return new Response(
-        JSON.stringify({ error: inviteError.message }),
+        JSON.stringify({ error: createError.message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Create user role entry
-    if (inviteData.user) {
+    if (userData.user) {
       const { error: roleInsertError } = await supabaseAdmin
         .from('user_roles')
         .insert({
-          user_id: inviteData.user.id,
+          user_id: userData.user.id,
           role: role,
         });
 
       if (roleInsertError) {
         console.error('Role insert error:', roleInsertError);
-        // Note: User is invited but role assignment failed
+      }
+
+      // Send password reset email so user can set their own password
+      const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: {
+          redirectTo: `${req.headers.get('origin') || 'http://localhost:8080'}/auth?invited=true`,
+        },
+      });
+
+      if (resetError) {
+        console.error('Password reset email error:', resetError);
+        return new Response(
+          JSON.stringify({ error: 'User created but failed to send invitation email' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
 
     return new Response(
-      JSON.stringify({ data: inviteData }),
+      JSON.stringify({ 
+        data: userData,
+        message: 'User invited successfully. They will receive an email to set their password.' 
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
