@@ -434,12 +434,10 @@ const Pipelines = () => {
         // Update pipelines with real data
         const updatedPipelines = mockPipelines.map((pipeline) => {
           const pipelineDeals = pipelineMap.get(pipeline.id);
-          
-          if (!pipelineDeals) return pipeline;
 
           const updatedStages = pipeline.stages.map((stage) => ({
             ...stage,
-            deals: (pipelineDeals.get(stage.name) || []),
+            deals: (pipelineDeals?.get(stage.name) || []),
           }));
 
           // Filter out locally deleted deals
@@ -654,15 +652,20 @@ const Pipelines = () => {
       // Update pipelines with real data
       const updatedPipelines = mockPipelines.map((pipeline) => {
         const pipelineDeals = pipelineMap.get(pipeline.id);
-        
-        if (!pipelineDeals) return pipeline;
 
         const updatedStages = pipeline.stages.map((stage) => ({
           ...stage,
-          deals: (pipelineDeals.get(stage.name) || []),
+          deals: (pipelineDeals?.get(stage.name) || []),
         }));
 
-        return { ...pipeline, stages: updatedStages };
+        // Filter out locally deleted deals
+        const deletedIds: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
+        const filteredStages = updatedStages.map((stage) => ({
+          ...stage,
+          deals: stage.deals.filter((d) => !deletedIds.includes(d.id)),
+        }));
+
+        return { ...pipeline, stages: filteredStages };
       });
 
       setPipelines(updatedPipelines);
