@@ -716,39 +716,40 @@ const Pipelines = () => {
 
   const handleDeleteDeal = async (dealId: string, leadId?: string) => {
     try {
-      // The dealId IS the leadId (they're the same)
+      // In our UI, some deals may be mock/local-only (no lead in DB)
       const idToDelete = leadId || dealId;
-      
-      console.log("Attempting to delete deal:", { dealId, leadId, idToDelete });
 
-      // First verify the lead exists and get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error("User not authenticated");
+      // Helper to detect UUIDs (leads use UUIDs). Non-UUID => local-only deal
+      const isUuid = (v: string) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+
+      // If it's not a UUID, treat as a local/mock deal and just remove from UI
+      if (!isUuid(idToDelete)) {
+        setPipelines((prevPipelines) =>
+          prevPipelines.map((pipeline) => ({
+            ...pipeline,
+            stages: pipeline.stages.map((stage) => ({
+              ...stage,
+              deals: stage.deals.filter((deal) => deal.id !== dealId),
+            })),
+          }))
+        );
+
+        // Persist local deletion so it doesn't reappear on refresh
+        const deletedIds: string[] = JSON.parse(localStorage.getItem("deletedDealIds") || "[]");
+        localStorage.setItem(
+          "deletedDealIds",
+          JSON.stringify(Array.from(new Set([...deletedIds, dealId])))
+        );
+
+        toast({
+          title: "Deal Deleted",
+          description: "The deal has been removed from the pipeline",
+        });
+        return;
       }
 
-      console.log("Current user:", user.id);
-
-      // Check if the lead exists and belongs to the user
-      const { data: existingLead, error: fetchError } = await supabase
-        .from("leads")
-        .select("id, user_id")
-        .eq("id", idToDelete)
-        .single();
-
-      if (fetchError) {
-        console.error("Error fetching lead:", fetchError);
-        throw new Error("Could not find the lead to delete");
-      }
-
-      console.log("Existing lead:", existingLead);
-
-      if (existingLead.user_id !== user.id) {
-        throw new Error("You don't have permission to delete this lead");
-      }
-
-      // Now delete
+      // UUID => attempt DB deletion (these are real leads moved into pipeline)
       const { error } = await supabase
         .from("leads")
         .delete()
@@ -758,8 +759,6 @@ const Pipelines = () => {
         console.error("Database deletion error:", error);
         throw error;
       }
-
-      console.log("Successfully deleted from database");
 
       // Remove from local state immediately
       setPipelines((prevPipelines) =>
@@ -780,7 +779,7 @@ const Pipelines = () => {
       console.error("Error deleting deal:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete the deal. Please try again.",
+        description: error?.message || "Failed to delete the deal. Please try again.",
         variant: "destructive",
       });
     }
