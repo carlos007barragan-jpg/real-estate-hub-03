@@ -722,23 +722,32 @@ const Pipelines = () => {
   };
 
   const handleDeleteDeal = async (dealId: string, leadId?: string) => {
-    if (!leadId) return;
-
     try {
-      const { error } = await supabase
-        .from("leads")
-        .delete()
-        .eq("id", leadId);
+      // If there's a leadId, delete from database
+      if (leadId) {
+        const { error } = await supabase
+          .from("leads")
+          .delete()
+          .eq("id", leadId);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
+
+      // Remove from local state
+      setPipelines((prevPipelines) =>
+        prevPipelines.map((pipeline) => ({
+          ...pipeline,
+          stages: pipeline.stages.map((stage) => ({
+            ...stage,
+            deals: stage.deals.filter((deal) => deal.id !== dealId),
+          })),
+        }))
+      );
 
       toast({
         title: "Deal Deleted",
-        description: "The deal has been removed from your CRM",
+        description: "The deal has been removed from your pipeline",
       });
-
-      // Refresh the deals
-      fetchDeals();
     } catch (error) {
       console.error("Error deleting deal:", error);
       toast({
