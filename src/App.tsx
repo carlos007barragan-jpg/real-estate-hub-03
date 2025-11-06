@@ -19,6 +19,7 @@ import Inbox from "./pages/Inbox";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import CompleteProfile from "./pages/CompleteProfile";
+import CalendarPage from "./pages/CalendarPage";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => {
           <Route path="/auth" element={<Auth />} />
           <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
+          <Route path="/calendar" element={<ProtectedRoute><Layout><CalendarPage /></Layout></ProtectedRoute>} />
           <Route path="/leads" element={<ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute>} />
           <Route path="/new-leads" element={<ProtectedRoute><Layout><NewLeads /></Layout></ProtectedRoute>} />
           <Route path="/leads/:id" element={<ProtectedRoute><Layout><LeadProfile /></Layout></ProtectedRoute>} />

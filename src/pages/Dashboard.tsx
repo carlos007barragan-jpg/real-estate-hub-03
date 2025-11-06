@@ -66,6 +66,7 @@ const Dashboard = () => {
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [dealsData, setDealsData] = useState<DealsData[]>([]);
   const [chartView, setChartView] = useState<'daily' | 'monthly' | 'ytd'>('monthly');
+  const [totalAppointments, setTotalAppointments] = useState(0);
 
   useEffect(() => {
     fetchDashboardData();
@@ -193,6 +194,16 @@ const Dashboard = () => {
 
       if (leadsError) throw leadsError;
       setTotalNewLeads(leads?.length || 0);
+
+      // Fetch appointments (tasks with due dates this week)
+      const { data: appointments, error: appointmentsError } = await supabase
+        .from("tasks")
+        .select("*")
+        .gte("due_date", weekStart.toISOString())
+        .lte("due_date", weekEnd.toISOString());
+
+      if (appointmentsError) throw appointmentsError;
+      setTotalAppointments(appointments?.length || 0);
 
       // Fetch all users with agent role
       const { data: agentRoles, error: agentRolesError } = await supabase
@@ -394,7 +405,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -435,6 +446,19 @@ const Dashboard = () => {
         </Card>
 
         <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Appointments</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{totalAppointments}</p>
+              <p className="text-sm text-muted-foreground mt-1">This week</p>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-accent/10 flex items-center justify-center">
+              <CalendarIcon className="h-6 w-6 text-accent-foreground" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Active Users</p>
@@ -469,18 +493,6 @@ const Dashboard = () => {
       <div className="mb-8">
         <Card className="p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <CalendarIcon className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold text-foreground">Calendar</h2>
-              </div>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-md border"
-              />
-            </div>
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -525,6 +537,18 @@ const Dashboard = () => {
                   ))}
                 </div>
               )}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <CalendarIcon className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold text-foreground">Calendar</h2>
+              </div>
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                className="rounded-md border"
+              />
             </div>
           </div>
         </Card>

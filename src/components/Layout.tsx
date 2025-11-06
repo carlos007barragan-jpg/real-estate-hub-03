@@ -1,4 +1,4 @@
-import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming } from "lucide-react";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming, CalendarDays } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Leads", url: "/leads", icon: Users },
   { title: "New Leads", url: "/new-leads", icon: PhoneIncoming },
   { title: "Pipelines", url: "/pipelines", icon: Layers },
