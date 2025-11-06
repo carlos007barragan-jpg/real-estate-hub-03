@@ -132,6 +132,9 @@ const Dashboard = () => {
     setLiveUsers(users);
   };
 
+  useEffect(() => {
+    setActiveAgents(liveUsers.length);
+  }, [liveUsers]);
   const fetchDashboardData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
