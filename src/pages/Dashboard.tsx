@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AgentStats {
@@ -465,73 +465,75 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Calendar */}
-      <div className="max-w-md mb-8">
+      {/* Calendar with Today's Tasks */}
+      <div className="mb-8">
         <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CalendarIcon className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold text-foreground">Calendar</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <CalendarIcon className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold text-foreground">Calendar</h2>
+              </div>
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                className="rounded-md border"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <CheckCircle2 className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold text-foreground">Today's Tasks</h2>
+              </div>
+              {todayTasks.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No tasks due today</p>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {todayTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                    >
+                      <Checkbox
+                        checked={task.status === "completed"}
+                        onCheckedChange={() => handleToggleTask(task.id, task.status)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`font-medium text-sm ${
+                            task.status === "completed"
+                              ? "line-through text-muted-foreground"
+                              : "text-foreground"
+                          }`}
+                        >
+                          {task.title}
+                        </p>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {task.description}
+                          </p>
+                        )}
+                        {task.due_date && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Due: {format(new Date(task.due_date), "h:mm a")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            className="rounded-md border"
-          />
         </Card>
       </div>
 
-      {/* Charts and Tasks Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Today's Tasks */}
-        <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold text-foreground">Today's Tasks</h2>
-          </div>
-          {todayTasks.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No tasks due today</p>
-          ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {todayTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
-                >
-                  <Checkbox
-                    checked={task.status === "completed"}
-                    onCheckedChange={() => handleToggleTask(task.id, task.status)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`font-medium text-sm ${
-                        task.status === "completed"
-                          ? "line-through text-muted-foreground"
-                          : "text-foreground"
-                      }`}
-                    >
-                      {task.title}
-                    </p>
-                    {task.description && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {task.description}
-                      </p>
-                    )}
-                    {task.due_date && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Due: {format(new Date(task.due_date), "h:mm a")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Revenue Chart */}
-        <Card className="p-6 lg:col-span-2">
+        <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
@@ -546,36 +548,44 @@ const Dashboard = () => {
             </Tabs>
           </div>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={revenueData}>
+            <LineChart data={revenueData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip 
                 formatter={(value) => `$${Number(value).toLocaleString()}`}
               />
-              <Bar dataKey="amount" fill="hsl(var(--primary))" />
-            </BarChart>
+              <Line 
+                type="monotone" 
+                dataKey="amount" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={2}
+                dot={{ fill: "hsl(var(--primary))", r: 4 }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </Card>
-      </div>
 
-      {/* Deals Chart */}
-      <div className="mb-8">
+        {/* Deals Chart */}
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-success" />
-              <h2 className="text-xl font-semibold text-foreground">Deals Closed</h2>
-            </div>
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircle2 className="h-5 w-5 text-success" />
+            <h2 className="text-xl font-semibold text-foreground">Deals Closed</h2>
           </div>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={dealsData}>
+            <LineChart data={dealsData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="deals" fill="hsl(var(--success))" />
-            </BarChart>
+              <Line 
+                type="monotone" 
+                dataKey="deals" 
+                stroke="hsl(var(--success))" 
+                strokeWidth={2}
+                dot={{ fill: "hsl(var(--success))", r: 4 }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </Card>
       </div>
