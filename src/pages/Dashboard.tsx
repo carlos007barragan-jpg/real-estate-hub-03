@@ -492,7 +492,7 @@ const Dashboard = () => {
       {/* Calendar with Today's Tasks */}
       <div className="mb-8">
         <Card className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6">
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -538,17 +538,24 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <CalendarIcon className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold text-foreground">Calendar</h2>
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl font-semibold text-foreground">Calendar</h2>
+                </div>
+                <a href="/calendar" className="text-sm text-primary hover:underline">
+                  View full calendar →
+                </a>
               </div>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-md border"
-              />
+              <div className="flex-1 flex items-center justify-center">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  className="rounded-md border scale-125"
+                />
+              </div>
             </div>
           </div>
         </Card>
