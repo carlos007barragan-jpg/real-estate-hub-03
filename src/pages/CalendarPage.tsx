@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer, View } from "react-big-calendar";
+import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +16,7 @@ import { AddAppointmentDialog } from "@/components/AddAppointmentDialog";
 import { CalendarFilters } from "@/components/CalendarFilters";
 import { UpcomingAppointments } from "@/components/UpcomingAppointments";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 
 const locales = {
   'en-US': enUS,
@@ -27,6 +29,8 @@ const localizer = dateFnsLocalizer({
   getDay,
   locales,
 });
+
+const DnDCalendar = withDragAndDrop<CalendarEvent, object>(BigCalendar);
 
 interface CalendarEvent {
   id: string;
@@ -394,7 +398,7 @@ const CalendarPage = () => {
         {/* Calendar */}
         <div className="p-4 md:p-6">
           <div style={{ height: '650px' }} className="calendar-wrapper">
-            <BigCalendar
+            <DnDCalendar
               localizer={localizer}
               events={filteredEvents}
               startAccessor="start"

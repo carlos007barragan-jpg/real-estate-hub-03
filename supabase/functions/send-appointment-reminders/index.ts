@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     const smsPromises: any[] = [];
 
     for (const task of tasks) {
-      const lead = task.leads;
+      const lead = task.leads as any; // Type assertion for nested join
       const appointmentDate = new Date(task.due_date);
       const formattedDate = appointmentDate.toLocaleDateString('en-US', {
         weekday: 'long',
