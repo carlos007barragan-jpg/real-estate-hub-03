@@ -46,14 +46,15 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase.from("tasks").insert({
+      const { error } = await supabase.from("appointments").insert({
         title: formData.title,
         description: formData.description,
         lead_id: formData.leadId,
         user_id: user.id,
-        due_date: formData.dueDate.toISOString(),
-        status: "pending",
+        appointment_date: formData.dueDate.toISOString(),
         appointment_type: formData.appointmentType || null,
+        status: "pending",
+        duration: 60, // Default 1 hour
       });
 
       if (error) throw error;

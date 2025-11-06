@@ -38,6 +38,48 @@ export type Database = {
         }
         Relationships: []
       }
+      appointments: {
+        Row: {
+          appointment_date: string
+          appointment_type: string | null
+          created_at: string
+          description: string | null
+          duration: number | null
+          id: string
+          lead_id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_date: string
+          appointment_type?: string | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          id?: string
+          lead_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_date?: string
+          appointment_type?: string | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          id?: string
+          lead_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       call_logs: {
         Row: {
           answered_by: string | null

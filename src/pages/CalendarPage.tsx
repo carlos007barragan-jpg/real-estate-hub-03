@@ -73,25 +73,24 @@ const CalendarPage = () => {
       if (!user) return;
 
       let query = supabase
-        .from("tasks")
+        .from("appointments")
         .select(`
           *,
           lead:leads(name)
         `)
-        .not("due_date", "is", null)
-        .order("due_date", { ascending: true });
+        .order("appointment_date", { ascending: true });
 
       // If not admin or viewing individual calendar, filter by user
       if (!isAdmin || view === 'individual') {
         query = query.eq("user_id", user.id);
       }
 
-      const { data: tasks, error } = await query;
+      const { data: appointments, error } = await query;
 
       if (error) throw error;
 
       // Fetch user profiles for agent names
-      const userIds = [...new Set(tasks?.map(t => t.user_id) || [])];
+      const userIds = [...new Set(appointments?.map(a => a.user_id) || [])];
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, first_name, last_name")
@@ -101,19 +100,20 @@ const CalendarPage = () => {
         (profiles || []).map(p => [p.user_id, `${p.first_name} ${p.last_name}`.trim()])
       );
 
-      const calendarEvents: CalendarEvent[] = (tasks || []).map(task => {
-        const dueDate = new Date(task.due_date);
+      const calendarEvents: CalendarEvent[] = (appointments || []).map(appointment => {
+        const appointmentDate = new Date(appointment.appointment_date);
+        const duration = appointment.duration || 60;
         return {
-          id: task.id,
-          title: task.title,
-          start: dueDate,
-          end: new Date(dueDate.getTime() + 60 * 60 * 1000), // 1 hour duration
+          id: appointment.id,
+          title: appointment.title,
+          start: appointmentDate,
+          end: new Date(appointmentDate.getTime() + duration * 60 * 1000),
           resource: {
-            leadId: task.lead_id,
-            userId: task.user_id,
-            agentName: profileMap.get(task.user_id) || "Unknown Agent",
-            description: task.description,
-            status: task.status,
+            leadId: appointment.lead_id,
+            userId: appointment.user_id,
+            agentName: profileMap.get(appointment.user_id) || "Unknown Agent",
+            description: appointment.description,
+            status: appointment.status,
           },
         };
       });
@@ -195,8 +195,8 @@ const CalendarPage = () => {
   const handleEventDrop = async ({ event, start, end }: any) => {
     try {
       const { error } = await supabase
-        .from('tasks')
-        .update({ due_date: start.toISOString() })
+        .from('appointments')
+        .update({ appointment_date: start.toISOString() })
         .eq('id', event.id);
 
       if (error) throw error;
@@ -211,9 +211,13 @@ const CalendarPage = () => {
 
   const handleEventResize = async ({ event, start, end }: any) => {
     try {
+      const durationMinutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
       const { error } = await supabase
-        .from('tasks')
-        .update({ due_date: start.toISOString() })
+        .from('appointments')
+        .update({ 
+          appointment_date: start.toISOString(),
+          duration: durationMinutes 
+        })
         .eq('id', event.id);
 
       if (error) throw error;
