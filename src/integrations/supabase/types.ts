@@ -385,6 +385,50 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          link: string | null
+          read: boolean
+          task_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          link?: string | null
+          read?: boolean
+          task_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          link?: string | null
+          read?: boolean
+          task_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -453,6 +497,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          appointment_type: string | null
           completed_at: string | null
           created_at: string
           description: string | null
@@ -466,6 +511,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          appointment_type?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null
@@ -479,6 +525,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          appointment_type?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null

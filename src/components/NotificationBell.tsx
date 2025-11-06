@@ -12,6 +12,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Notification {
   id: string;
@@ -25,55 +27,99 @@ interface Notification {
 
 export function NotificationBell() {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "pipeline",
-      title: "New Lead Added",
-      description: "Sarah Johnson moved to Viewing Scheduled",
-      timestamp: new Date(Date.now() - 1000 * 60 * 15),
-      read: false,
-      link: "/pipelines",
-    },
-    {
-      id: "2",
-      type: "task",
-      title: "Task Due Soon",
-      description: "Follow up with David Kim - Due in 2 hours",
-      timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      read: false,
-      link: "/leads",
-    },
-    {
-      id: "3",
-      type: "call",
-      title: "Missed Call",
-      description: "Missed call from +1 (555) 123-4567",
-      timestamp: new Date(Date.now() - 1000 * 60 * 45),
-      read: false,
-      link: "/contacts",
-    },
-    {
-      id: "4",
-      type: "message",
-      title: "New Message",
-      description: "Emily Rodriguez: When can we schedule a viewing?",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60),
-      read: false,
-      link: "/leads",
-    },
-  ]);
+  const { toast } = useToast();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    fetchNotifications();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('notifications-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+        },
+        () => {
+          fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      setNotifications(
+        data.map((n) => ({
+          id: n.id,
+          type: n.type as Notification['type'],
+          title: n.title,
+          description: n.description,
+          timestamp: new Date(n.created_at),
+          read: n.read,
+          link: n.link,
+        }))
+      );
+    } catch (error: any) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  const markAsRead = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+    } catch (error: any) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', session.user.id)
+        .eq('read', false);
+
+      if (error) throw error;
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch (error: any) {
+      console.error('Error marking all as read:', error);
+    }
   };
 
   const handleNotificationClick = (notification: Notification) => {

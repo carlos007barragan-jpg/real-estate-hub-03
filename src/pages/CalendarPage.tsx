@@ -188,6 +188,40 @@ const CalendarPage = () => {
     setCurrentDate(newDate);
   };
 
+  const handleEventDrop = async ({ event, start, end }: any) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ due_date: start.toISOString() })
+        .eq('id', event.id);
+
+      if (error) throw error;
+
+      toast.success('Appointment rescheduled');
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error rescheduling appointment:', error);
+      toast.error('Failed to reschedule appointment');
+    }
+  };
+
+  const handleEventResize = async ({ event, start, end }: any) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ due_date: start.toISOString() })
+        .eq('id', event.id);
+
+      if (error) throw error;
+
+      toast.success('Appointment updated');
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error updating appointment:', error);
+      toast.error('Failed to update appointment');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -370,6 +404,10 @@ const CalendarPage = () => {
               onNavigate={setCurrentDate}
               onView={setCalendarView}
               onSelectEvent={handleEventClick}
+              onEventDrop={handleEventDrop}
+              onEventResize={handleEventResize}
+              draggableAccessor={() => true}
+              resizable
               views={['month', 'week', 'day', 'agenda']}
               toolbar={false}
               eventPropGetter={(event) => {

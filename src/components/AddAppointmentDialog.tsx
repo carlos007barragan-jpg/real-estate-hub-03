@@ -26,6 +26,7 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
     description: "",
     leadId: "",
     dueDate: new Date(),
+    appointmentType: "",
   });
 
   const handleOpen = async (isOpen: boolean) => {
@@ -52,13 +53,14 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
         user_id: user.id,
         due_date: formData.dueDate.toISOString(),
         status: "pending",
+        appointment_type: formData.appointmentType || null,
       });
 
       if (error) throw error;
 
       toast.success("Appointment created successfully");
       setOpen(false);
-      setFormData({ title: "", description: "", leadId: "", dueDate: new Date() });
+      setFormData({ title: "", description: "", leadId: "", dueDate: new Date(), appointmentType: "" });
       onSuccess();
     } catch (error) {
       console.error("Error creating appointment:", error);
@@ -107,6 +109,26 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
                     {lead.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="appointmentType">Appointment Type</Label>
+            <Select
+              value={formData.appointmentType}
+              onValueChange={(value) => setFormData({ ...formData, appointmentType: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select type (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="buyer_consult">Buyer Consultation</SelectItem>
+                <SelectItem value="showing">Showing</SelectItem>
+                <SelectItem value="listing_appointment">Listing Appointment</SelectItem>
+                <SelectItem value="follow_up">Follow Up</SelectItem>
+                <SelectItem value="closing">Closing</SelectItem>
+                <SelectItem value="general">General Meeting</SelectItem>
               </SelectContent>
             </Select>
           </div>
