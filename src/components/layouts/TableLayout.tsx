@@ -16,6 +16,7 @@ import {
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { CallHistory } from "@/components/CallHistory";
 import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
+import { AppointmentsSection } from "@/components/AppointmentsSection";
 
 export const TableLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -214,7 +215,7 @@ export const TableLayout = ({ leadData, customFields = [], handleCall, handleSen
       </Card>
 
       {/* Compact Tabs */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
         <Card className="border">
           <CardContent className="p-3">
             <h3 className="text-xs font-semibold mb-2 flex items-center gap-1">
@@ -223,6 +224,18 @@ export const TableLayout = ({ leadData, customFields = [], handleCall, handleSen
             </h3>
             <ScrollArea className="h-[400px]">
               <CallHistory leadId={id!} />
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <Card className="border">
+          <CardContent className="p-3">
+            <h3 className="text-xs font-semibold mb-2 flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              Appointments
+            </h3>
+            <ScrollArea className="h-[400px]">
+              <AppointmentsSection leadId={id!} leadName={leadData.name} />
             </ScrollArea>
           </CardContent>
         </Card>

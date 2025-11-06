@@ -13,6 +13,7 @@ import {
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
 import { TasksSection } from "@/components/TasksSection";
+import { AppointmentsSection } from "@/components/AppointmentsSection";
 import { DocumentsSection } from "@/components/DocumentsSection";
 import { MessagingSection } from "@/components/MessagingSection";
 import { ActivitySection } from "@/components/ActivitySection";
@@ -264,7 +265,10 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         {/* 1. Tasks Section */}
         <TasksSection leadId={id} />
 
-        {/* 2. Messaging Section */}
+        {/* 2. Appointments Section */}
+        <AppointmentsSection leadId={id} leadName={leadData.name} />
+
+        {/* 3. Messaging Section */}
         <MessagingSection 
           messages={messages}
           newMessage={newMessage}
@@ -272,7 +276,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
           handleSendMessage={handleSendMessage}
         />
 
-        {/* 3. Activity Section (Calls + Notes combined) */}
+        {/* 4. Activity Section (Calls + Notes combined) */}
         <ActivitySection 
           leadId={id}
           notes={notes}

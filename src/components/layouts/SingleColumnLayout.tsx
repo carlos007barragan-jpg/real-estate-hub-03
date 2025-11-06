@@ -16,6 +16,7 @@ import {
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { CallHistory } from "@/components/CallHistory";
 import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
+import { AppointmentsSection } from "@/components/AppointmentsSection";
 
 export const SingleColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -258,6 +259,11 @@ export const SingleColumnLayout = ({ leadData, customFields = [], handleCall, ha
           </ScrollArea>
         </CardContent>
       </Card>
+
+      <Separator />
+
+      {/* Appointments Section */}
+      <AppointmentsSection leadId={id!} leadName={leadData.name} />
 
       <Separator />
 
