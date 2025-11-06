@@ -78,7 +78,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "appointments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       call_logs: {
         Row: {
@@ -434,7 +442,6 @@ export type Database = {
           id: string
           link: string | null
           read: boolean
-          task_id: string | null
           title: string
           type: string
           user_id: string
@@ -445,7 +452,6 @@ export type Database = {
           id?: string
           link?: string | null
           read?: boolean
-          task_id?: string | null
           title: string
           type: string
           user_id: string
@@ -456,20 +462,11 @@ export type Database = {
           id?: string
           link?: string | null
           read?: boolean
-          task_id?: string | null
           title?: string
           type?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
