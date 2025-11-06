@@ -7,9 +7,13 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { AddAppointmentDialog } from "@/components/AddAppointmentDialog";
+import { CalendarFilters } from "@/components/CalendarFilters";
+import { UpcomingAppointments } from "@/components/UpcomingAppointments";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
 const locales = {
@@ -41,14 +45,23 @@ interface CalendarEvent {
 const CalendarPage = () => {
   const { isAdmin } = useUserRole();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<CalendarEvent[]>([]);
   const [view, setView] = useState<'team' | 'individual'>('individual');
   const [calendarView, setCalendarView] = useState<View>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [agents, setAgents] = useState<Array<{ userId: string; agentName: string }>>([]);
 
   useEffect(() => {
     fetchAppointments();
   }, [view]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [events, searchQuery, selectedAgent, selectedStatus]);
 
   const fetchAppointments = async () => {
     try {
@@ -102,12 +115,46 @@ const CalendarPage = () => {
       });
 
       setEvents(calendarEvents);
+      
+      // Extract unique agents
+      const uniqueAgents = Array.from(
+        new Map(
+          calendarEvents.map((e) => [e.resource.userId, { userId: e.resource.userId, agentName: e.resource.agentName }])
+        ).values()
+      );
+      setAgents(uniqueAgents);
     } catch (error) {
       console.error("Error fetching appointments:", error);
       toast.error("Failed to load appointments");
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyFilters = () => {
+    let filtered = [...events];
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (e) =>
+          e.title.toLowerCase().includes(query) ||
+          e.resource.agentName.toLowerCase().includes(query)
+      );
+    }
+
+    // Agent filter
+    if (selectedAgent !== "all") {
+      filtered = filtered.filter((e) => e.resource.userId === selectedAgent);
+    }
+
+    // Status filter
+    if (selectedStatus !== "all") {
+      filtered = filtered.filter((e) => e.resource.status === selectedStatus);
+    }
+
+    setFilteredEvents(filtered);
   };
 
   const handleEventClick = (event: CalendarEvent) => {
@@ -166,14 +213,28 @@ const CalendarPage = () => {
           </p>
         </div>
         
-        {isAdmin && (
-          <Tabs value={view} onValueChange={(v) => setView(v as any)}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="individual">My Calendar</TabsTrigger>
-              <TabsTrigger value="team">Team Calendar</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Tabs value={view} onValueChange={(v) => setView(v as any)}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="individual">My Calendar</TabsTrigger>
+                <TabsTrigger value="team">Team Calendar</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          <AddAppointmentDialog onSuccess={fetchAppointments} />
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search appointments by title or agent..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {/* Stats Bar */}
@@ -184,7 +245,7 @@ const CalendarPage = () => {
               <CalendarIcon className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{events.length}</p>
+              <p className="text-2xl font-bold text-foreground">{filteredEvents.length}</p>
               <p className="text-xs text-muted-foreground">Total Appointments</p>
             </div>
           </div>
@@ -197,7 +258,7 @@ const CalendarPage = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">
-                {events.filter(e => e.resource.status === 'completed').length}
+                {filteredEvents.filter(e => e.resource.status === 'completed').length}
               </p>
               <p className="text-xs text-muted-foreground">Completed</p>
             </div>
@@ -211,7 +272,7 @@ const CalendarPage = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">
-                {events.filter(e => e.resource.status === 'pending').length}
+                {filteredEvents.filter(e => e.resource.status === 'pending').length}
               </p>
               <p className="text-xs text-muted-foreground">Pending</p>
             </div>
@@ -226,7 +287,7 @@ const CalendarPage = () => {
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">
-                  {new Set(events.map(e => e.resource.userId)).size}
+                  {new Set(filteredEvents.map(e => e.resource.userId)).size}
                 </p>
                 <p className="text-xs text-muted-foreground">Team Members</p>
               </div>
@@ -235,8 +296,22 @@ const CalendarPage = () => {
         )}
       </div>
 
-      {/* Calendar Card */}
-      <Card className="overflow-hidden">
+      {/* Main Calendar Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Filters Sidebar */}
+        <div className="lg:col-span-1 space-y-4">
+          <CalendarFilters
+            agents={agents}
+            selectedAgent={selectedAgent}
+            onAgentChange={setSelectedAgent}
+            selectedStatus={selectedStatus}
+            onStatusChange={setSelectedStatus}
+          />
+          <UpcomingAppointments events={filteredEvents} onEventClick={handleEventClick} />
+        </div>
+
+        {/* Calendar Card */}
+        <Card className="lg:col-span-3 overflow-hidden">
         {/* Calendar Controls */}
         <div className="p-4 md:p-6 border-b bg-muted/30">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -287,7 +362,7 @@ const CalendarPage = () => {
           <div style={{ height: '650px' }} className="calendar-wrapper">
             <BigCalendar
               localizer={localizer}
-              events={events}
+              events={filteredEvents}
               startAccessor="start"
               endAccessor="end"
               view={calendarView}
@@ -325,6 +400,7 @@ const CalendarPage = () => {
           </div>
         </div>
       </Card>
+      </div>
     </div>
   );
 };
