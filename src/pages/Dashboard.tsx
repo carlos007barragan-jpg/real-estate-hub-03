@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2 } from "lucide-react";
+import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -34,6 +34,13 @@ interface Task {
   lead_id: string;
 }
 
+interface LiveUser {
+  user_id: string;
+  name: string;
+  role: string;
+  last_seen: Date;
+}
+
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [totalCalls, setTotalCalls] = useState(0);
@@ -43,10 +50,87 @@ const Dashboard = () => {
   const [agentStats, setAgentStats] = useState<AgentStats[]>([]);
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [liveUsers, setLiveUsers] = useState<LiveUser[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
+    setupPresenceTracking();
   }, []);
+
+  const setupPresenceTracking = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Subscribe to presence channel
+    const channel = supabase.channel('dashboard-presence', {
+      config: {
+        presence: {
+          key: user.id,
+        },
+      },
+    });
+
+    // Track current user presence
+    channel.on('presence', { event: 'sync' }, () => {
+      const presenceState = channel.presenceState();
+      updateLiveUsers(presenceState);
+    });
+
+    channel.on('presence', { event: 'join' }, ({ newPresences }) => {
+      console.log('User joined:', newPresences);
+    });
+
+    channel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
+      console.log('User left:', leftPresences);
+    });
+
+    await channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        // Get current user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        await channel.track({
+          user_id: user.id,
+          name: profile ? `${profile.first_name} ${profile.last_name}`.trim() : 'Unknown User',
+          role: roleData?.role || 'agent',
+          online_at: new Date().toISOString(),
+        });
+      }
+    });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  };
+
+  const updateLiveUsers = async (presenceState: any) => {
+    const users: LiveUser[] = [];
+    
+    for (const userId in presenceState) {
+      const presences = presenceState[userId];
+      if (presences && presences.length > 0) {
+        const presence = presences[0];
+        users.push({
+          user_id: presence.user_id,
+          name: presence.name,
+          role: presence.role,
+          last_seen: new Date(presence.online_at),
+        });
+      }
+    }
+    
+    setLiveUsers(users);
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -284,48 +368,44 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Tasks and Calendar Grid */}
+      {/* Live Users and Calendar Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Today's Tasks */}
+        {/* Live Users */}
         <Card className="p-6 lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold text-foreground">Today's Tasks</h2>
+            <Users className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold text-foreground">Live Users</h2>
+            <Badge variant="secondary" className="ml-auto">
+              {liveUsers.length} online
+            </Badge>
           </div>
-          {todayTasks.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No tasks due today</p>
+          {liveUsers.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No users currently online</p>
           ) : (
             <div className="space-y-3">
-              {todayTasks.map((task) => (
+              {liveUsers.map((user) => (
                 <div
-                  key={task.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                  key={user.user_id}
+                  className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
                 >
-                  <Checkbox
-                    checked={task.status === "completed"}
-                    onCheckedChange={() => handleToggleTask(task.id, task.status)}
-                    className="mt-1"
-                  />
+                  <div className="relative">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    <Circle className="absolute -bottom-1 -right-1 h-4 w-4 fill-success text-success rounded-full border-2 border-background" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p
-                      className={`font-medium ${
-                        task.status === "completed"
-                          ? "line-through text-muted-foreground"
-                          : "text-foreground"
-                      }`}
-                    >
-                      {task.title}
+                    <p className="font-medium text-foreground">
+                      {user.name || 'Unknown User'}
                     </p>
-                    {task.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {task.description}
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {user.role}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground">
+                        Active now
                       </p>
-                    )}
-                    {task.due_date && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Due: {format(new Date(task.due_date), "h:mm a")}
-                      </p>
-                    )}
+                    </div>
                   </div>
                 </div>
               ))}
