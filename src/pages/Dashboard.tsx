@@ -357,17 +357,46 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Active Agents</p>
-              <p className="text-3xl font-bold text-foreground mt-2">{activeAgents}</p>
-              <p className="text-sm text-muted-foreground mt-1">Currently online</p>
-            </div>
-            <div className="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center">
-              <Users className="h-6 w-6 text-warning" />
-            </div>
+        <Card className="p-6 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Active Users</h2>
+            <Badge variant="secondary" className="ml-auto">
+              {liveUsers.length} online
+            </Badge>
           </div>
+          {liveUsers.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No users currently online</p>
+          ) : (
+            <div className="space-y-2">
+              {liveUsers.map((user) => (
+                <div
+                  key={user.user_id}
+                  className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                >
+                  <div className="relative">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Users className="h-4 w-4 text-primary" />
+                    </div>
+                    <Circle className="absolute -bottom-0.5 -right-0.5 h-3 w-3 fill-success text-success rounded-full border-2 border-background" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-foreground">
+                      {user.name || 'Unknown User'}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {user.role}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground">
+                        Active now
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
 
