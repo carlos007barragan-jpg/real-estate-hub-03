@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AgentStats {
   id: string;
@@ -41,6 +43,16 @@ interface LiveUser {
   last_seen: Date;
 }
 
+interface RevenueData {
+  name: string;
+  amount: number;
+}
+
+interface DealsData {
+  name: string;
+  deals: number;
+}
+
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [totalCalls, setTotalCalls] = useState(0);
@@ -51,11 +63,18 @@ const Dashboard = () => {
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [liveUsers, setLiveUsers] = useState<LiveUser[]>([]);
+  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
+  const [dealsData, setDealsData] = useState<DealsData[]>([]);
+  const [chartView, setChartView] = useState<'daily' | 'monthly' | 'ytd'>('monthly');
 
   useEffect(() => {
     fetchDashboardData();
     setupPresenceTracking();
   }, []);
+
+  useEffect(() => {
+    fetchChartsData();
+  }, [chartView]);
 
   const setupPresenceTracking = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -270,11 +289,69 @@ const Dashboard = () => {
 
       if (tasksError) throw tasksError;
       setTodayTasks(tasks || []);
+
+      // Fetch revenue and deals data
+      await fetchChartsData();
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchChartsData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const today = new Date();
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const last7Days = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Fetch closed deals (leads with status 'closed' or having close_date)
+    const { data: closedLeads } = await supabase
+      .from("leads")
+      .select("*")
+      .not("close_date", "is", null)
+      .gte("close_date", chartView === 'ytd' ? startOfYear.toISOString() : 
+           chartView === 'monthly' ? startOfMonth.toISOString() : 
+           last7Days.toISOString());
+
+    if (closedLeads) {
+      // Calculate revenue data
+      const revenueMap = new Map<string, number>();
+      const dealsMap = new Map<string, number>();
+
+      closedLeads.forEach(lead => {
+        const closeDate = new Date(lead.close_date);
+        let key: string;
+        
+        if (chartView === 'daily') {
+          key = closeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } else if (chartView === 'monthly') {
+          key = closeDate.toLocaleDateString('en-US', { month: 'short' });
+        } else {
+          key = closeDate.toLocaleDateString('en-US', { month: 'short' });
+        }
+
+        const commission = parseFloat(lead.commission || '0');
+        revenueMap.set(key, (revenueMap.get(key) || 0) + commission);
+        dealsMap.set(key, (dealsMap.get(key) || 0) + 1);
+      });
+
+      const revenueArray = Array.from(revenueMap.entries()).map(([name, amount]) => ({
+        name,
+        amount
+      }));
+
+      const dealsArray = Array.from(dealsMap.entries()).map(([name, deals]) => ({
+        name,
+        deals
+      }));
+
+      setRevenueData(revenueArray);
+      setDealsData(dealsArray);
     }
   };
 
@@ -401,6 +478,105 @@ const Dashboard = () => {
             onSelect={setSelectedDate}
             className="rounded-md border"
           />
+        </Card>
+      </div>
+
+      {/* Charts and Tasks Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Today's Tasks */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircle2 className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold text-foreground">Today's Tasks</h2>
+          </div>
+          {todayTasks.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No tasks due today</p>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {todayTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
+                >
+                  <Checkbox
+                    checked={task.status === "completed"}
+                    onCheckedChange={() => handleToggleTask(task.id, task.status)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`font-medium text-sm ${
+                        task.status === "completed"
+                          ? "line-through text-muted-foreground"
+                          : "text-foreground"
+                      }`}
+                    >
+                      {task.title}
+                    </p>
+                    {task.description && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {task.description}
+                      </p>
+                    )}
+                    {task.due_date && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Due: {format(new Date(task.due_date), "h:mm a")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Revenue Chart */}
+        <Card className="p-6 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-semibold text-foreground">Revenue</h2>
+            </div>
+            <Tabs value={chartView} onValueChange={(v) => setChartView(v as any)}>
+              <TabsList>
+                <TabsTrigger value="daily">Daily</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="ytd">YTD</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={revenueData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip 
+                formatter={(value) => `$${Number(value).toLocaleString()}`}
+              />
+              <Bar dataKey="amount" fill="hsl(var(--primary))" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
+
+      {/* Deals Chart */}
+      <div className="mb-8">
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-success" />
+              <h2 className="text-xl font-semibold text-foreground">Deals Closed</h2>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={dealsData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="deals" fill="hsl(var(--success))" />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
       </div>
 
