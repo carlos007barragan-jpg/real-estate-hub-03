@@ -88,14 +88,23 @@ const Dashboard = () => {
       if (leadsError) throw leadsError;
       setTotalNewLeads(leads?.length || 0);
 
-      // Fetch active agents
-      const { data: agents, error: agentsError } = await supabase
-        .from("agents")
-        .select("*")
-        .eq("is_active", true);
+      // Fetch all users with agent role
+      const { data: agentRoles, error: agentRolesError } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .eq("role", "agent");
 
-      if (agentsError) throw agentsError;
-      setActiveAgents(agents?.length || 0);
+      if (agentRolesError) throw agentRolesError;
+
+      // Fetch agents table to check phone setup status
+      const { data: agentPhones } = await supabase
+        .from("agents")
+        .select("*");
+
+      // Create map of agent phone setups
+      const agentPhoneMap = new Map(
+        (agentPhones || []).map((a) => [a.user_id, a])
+      );
 
       // Fetch all profiles for the agents
       const { data: profiles } = await supabase
@@ -107,43 +116,53 @@ const Dashboard = () => {
         (profiles || []).map((p) => [p.user_id, p])
       );
 
-      // Build agent stats
+      // Count active agents (those with phone setup and marked active)
+      const activeCount = (agentRoles || []).filter(role => {
+        const agentPhone = agentPhoneMap.get(role.user_id);
+        return agentPhone?.is_active === true;
+      }).length;
+      setActiveAgents(activeCount);
+
+      // Build agent stats for all agent users
       const agentStatsData = await Promise.all(
-        (agents || []).map(async (agent) => {
+        (agentRoles || []).map(async (agentRole) => {
           const { data: agentCalls } = await supabase
             .from("call_logs")
             .select("*")
-            .eq("user_id", agent.user_id)
+            .eq("user_id", agentRole.user_id)
             .gte("created_at", weekStart.toISOString())
             .lte("created_at", weekEnd.toISOString());
 
           const { data: agentMessages } = await supabase
             .from("sms_logs")
             .select("*")
-            .eq("user_id", agent.user_id)
+            .eq("user_id", agentRole.user_id)
             .gte("created_at", weekStart.toISOString())
             .lte("created_at", weekEnd.toISOString());
 
           const { data: agentLeads } = await supabase
             .from("leads")
             .select("*")
-            .eq("user_id", agent.user_id)
+            .eq("user_id", agentRole.user_id)
             .eq("status", "new")
             .gte("created_at", weekStart.toISOString())
             .lte("created_at", weekEnd.toISOString());
 
-          const profile = profileMap.get(agent.user_id);
+          const profile = profileMap.get(agentRole.user_id);
           const name = profile
             ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
             : "Unknown Agent";
 
+          const agentPhone = agentPhoneMap.get(agentRole.user_id);
+          const isActive = agentPhone?.is_active === true;
+
           return {
-            id: agent.id,
+            id: agentRole.user_id,
             name: name || "Unknown Agent",
             calls: agentCalls?.length || 0,
             messages: agentMessages?.length || 0,
             newLeads: agentLeads?.length || 0,
-            status: agent.is_active ? "active" : "offline",
+            status: isActive ? "active" : "offline",
           } as AgentStats;
         })
       );
