@@ -99,6 +99,20 @@ Deno.serve(async (req) => {
         console.error('Role insert error:', roleInsertError);
       }
 
+      // Create profile entry so the user shows up in the dashboard immediately
+      const { error: profileInsertError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          user_id: userData.user.id,
+          first_name: '',
+          last_name: '',
+          phone_number: null,
+        });
+
+      if (profileInsertError) {
+        console.error('Profile insert error:', profileInsertError);
+      }
+
       // Send password reset email so user can set their own password
       const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
