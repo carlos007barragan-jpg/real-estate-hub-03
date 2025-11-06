@@ -371,52 +371,8 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Live Users and Calendar Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Live Users */}
-        <Card className="p-6 lg:col-span-2">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold text-foreground">Live Users</h2>
-            <Badge variant="secondary" className="ml-auto">
-              {liveUsers.length} online
-            </Badge>
-          </div>
-          {liveUsers.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No users currently online</p>
-          ) : (
-            <div className="space-y-3">
-              {liveUsers.map((user) => (
-                <div
-                  key={user.user_id}
-                  className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/5 transition-colors"
-                >
-                  <div className="relative">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <Circle className="absolute -bottom-1 -right-1 h-4 w-4 fill-success text-success rounded-full border-2 border-background" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground">
-                      {user.name || 'Unknown User'}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {user.role}
-                      </Badge>
-                      <p className="text-xs text-muted-foreground">
-                        Active now
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        {/* Calendar */}
+      {/* Calendar */}
+      <div className="max-w-md mb-8">
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <CalendarIcon className="h-5 w-5 text-primary" />
