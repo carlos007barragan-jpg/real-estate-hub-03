@@ -269,14 +269,20 @@ export type Database = {
           category: string | null
           created_at: string
           description: string | null
+          finance_type: string | null
           google_sheet_row_id: string | null
           id: string
+          interest_rate: number | null
           is_demo_data: boolean | null
+          is_wholesale: boolean | null
+          market_status: string | null
           name: string
+          payment: number | null
           photo_url: string | null
           price: number | null
           quantity: number
           sku: string | null
+          transaction_type: string | null
           updated_at: string
           user_id: string
         }
@@ -284,14 +290,20 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          finance_type?: string | null
           google_sheet_row_id?: string | null
           id?: string
+          interest_rate?: number | null
           is_demo_data?: boolean | null
+          is_wholesale?: boolean | null
+          market_status?: string | null
           name: string
+          payment?: number | null
           photo_url?: string | null
           price?: number | null
           quantity?: number
           sku?: string | null
+          transaction_type?: string | null
           updated_at?: string
           user_id: string
         }
@@ -299,14 +311,20 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string | null
+          finance_type?: string | null
           google_sheet_row_id?: string | null
           id?: string
+          interest_rate?: number | null
           is_demo_data?: boolean | null
+          is_wholesale?: boolean | null
+          market_status?: string | null
           name?: string
+          payment?: number | null
           photo_url?: string | null
           price?: number | null
           quantity?: number
           sku?: string | null
+          transaction_type?: string | null
           updated_at?: string
           user_id?: string
         }

@@ -22,6 +22,12 @@ interface InventoryItem {
   sku: string | null;
   photo_url: string | null;
   google_sheet_row_id: string | null;
+  payment: number | null;
+  interest_rate: number | null;
+  market_status: string | null;
+  transaction_type: string | null;
+  finance_type: string | null;
+  is_wholesale: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +48,12 @@ export default function Inventory() {
     price: 0,
     category: "",
     sku: "",
+    payment: 0,
+    interest_rate: 0,
+    market_status: "",
+    transaction_type: "",
+    finance_type: "",
+    is_wholesale: false,
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
@@ -206,6 +218,12 @@ export default function Inventory() {
       price: item.price || 0,
       category: item.category || "",
       sku: item.sku || "",
+      payment: item.payment || 0,
+      interest_rate: item.interest_rate || 0,
+      market_status: item.market_status || "",
+      transaction_type: item.transaction_type || "",
+      finance_type: item.finance_type || "",
+      is_wholesale: item.is_wholesale || false,
     });
     setIsDialogOpen(true);
   };
@@ -277,6 +295,12 @@ export default function Inventory() {
       price: 0,
       category: "",
       sku: "",
+      payment: 0,
+      interest_rate: 0,
+      market_status: "",
+      transaction_type: "",
+      finance_type: "",
+      is_wholesale: false,
     });
     setPhotoFile(null);
     setEditingItem(null);
@@ -376,6 +400,78 @@ export default function Inventory() {
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="payment">Payment ($)</Label>
+                  <Input
+                    id="payment"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.payment}
+                    onChange={(e) => setFormData({ ...formData, payment: parseFloat(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="interest_rate">Interest Rate (%)</Label>
+                  <Input
+                    id="interest_rate"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.interest_rate}
+                    onChange={(e) => setFormData({ ...formData, interest_rate: parseFloat(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="market_status">Market Status</Label>
+                  <Select
+                    value={formData.market_status}
+                    onValueChange={(value) => setFormData({ ...formData, market_status: value })}
+                  >
+                    <SelectTrigger id="market_status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="on_market">On Market</SelectItem>
+                      <SelectItem value="off_market">Off Market</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="transaction_type">Transaction Type</Label>
+                  <Input
+                    id="transaction_type"
+                    value={formData.transaction_type}
+                    onChange={(e) => setFormData({ ...formData, transaction_type: e.target.value })}
+                    placeholder="e.g., Sale, Lease"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="finance_type">Finance Type</Label>
+                  <Input
+                    id="finance_type"
+                    value={formData.finance_type}
+                    onChange={(e) => setFormData({ ...formData, finance_type: e.target.value })}
+                    placeholder="e.g., Cash, Mortgage"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="is_wholesale"
+                  checked={formData.is_wholesale}
+                  onChange={(e) => setFormData({ ...formData, is_wholesale: e.target.checked })}
+                  className="h-4 w-4 rounded border-input"
+                />
+                <Label htmlFor="is_wholesale" className="cursor-pointer">Wholesale Property</Label>
               </div>
 
               <div className="space-y-2">
