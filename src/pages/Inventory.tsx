@@ -445,12 +445,21 @@ export default function Inventory() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="transaction_type">Transaction Type</Label>
-                  <Input
-                    id="transaction_type"
+                  <Select
                     value={formData.transaction_type}
-                    onChange={(e) => setFormData({ ...formData, transaction_type: e.target.value })}
-                    placeholder="e.g., Sale, Lease"
-                  />
+                    onValueChange={(value) => setFormData({ ...formData, transaction_type: value })}
+                  >
+                    <SelectTrigger id="transaction_type">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sale">Sale</SelectItem>
+                      <SelectItem value="lease">Lease</SelectItem>
+                      <SelectItem value="rent_to_own">Rent to Own</SelectItem>
+                      <SelectItem value="owner_finance">Owner Finance</SelectItem>
+                      <SelectItem value="cash">Cash</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="finance_type">Finance Type</Label>
