@@ -46,6 +46,31 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
     fetchAppointments();
   }, [leadId]);
 
+  // Real-time subscription for new appointments
+  useEffect(() => {
+    if (!leadId) return;
+
+    const channel = supabase
+      .channel('appointments-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'appointments',
+          filter: `lead_id=eq.${leadId}`
+        },
+        () => {
+          fetchAppointments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [leadId]);
+
   const fetchAppointments = async () => {
     try {
       const { data, error } = await supabase

@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Clock, User } from "lucide-react";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 
 interface CalendarEvent {
   id: string;
@@ -18,9 +20,33 @@ interface CalendarEvent {
 interface UpcomingAppointmentsProps {
   events: CalendarEvent[];
   onEventClick: (event: CalendarEvent) => void;
+  onRefresh?: () => void;
 }
 
-export const UpcomingAppointments = ({ events, onEventClick }: UpcomingAppointmentsProps) => {
+export const UpcomingAppointments = ({ events, onEventClick, onRefresh }: UpcomingAppointmentsProps) => {
+  // Real-time subscription for appointment changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('appointments-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments'
+        },
+        () => {
+          if (onRefresh) {
+            onRefresh();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [onRefresh]);
   const upcomingEvents = events
     .filter((e) => !isPast(e.start) || isToday(e.start))
     .sort((a, b) => a.start.getTime() - b.start.getTime())

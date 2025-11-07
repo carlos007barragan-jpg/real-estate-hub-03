@@ -349,7 +349,7 @@ const CalendarPage = () => {
             selectedStatus={selectedStatus}
             onStatusChange={setSelectedStatus}
           />
-          <UpcomingAppointments events={filteredEvents} onEventClick={handleEventClick} />
+          <UpcomingAppointments events={filteredEvents} onEventClick={handleEventClick} onRefresh={fetchAppointments} />
         </div>
 
         {/* Calendar Card */}
