@@ -264,6 +264,54 @@ export type Database = {
           },
         ]
       }
+      inventory: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          google_sheet_row_id: string | null
+          id: string
+          is_demo_data: boolean | null
+          name: string
+          photo_url: string | null
+          price: number | null
+          quantity: number
+          sku: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          google_sheet_row_id?: string | null
+          id?: string
+          is_demo_data?: boolean | null
+          name: string
+          photo_url?: string | null
+          price?: number | null
+          quantity?: number
+          sku?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          google_sheet_row_id?: string | null
+          id?: string
+          is_demo_data?: boolean | null
+          name?: string
+          photo_url?: string | null
+          price?: number | null
+          quantity?: number
+          sku?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           agent_phone: string | null

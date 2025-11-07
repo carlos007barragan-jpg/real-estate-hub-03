@@ -20,6 +20,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import CompleteProfile from "./pages/CompleteProfile";
 import CalendarPage from "./pages/CalendarPage";
+import Inventory from "./pages/Inventory";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,7 @@ const App = () => {
           <Route path="/contacts" element={<ProtectedRoute><Layout><Contacts /></Layout></ProtectedRoute>} />
           <Route path="/contacts/:id" element={<ProtectedRoute><Layout><ContactProfile /></Layout></ProtectedRoute>} />
           <Route path="/inbox" element={<ProtectedRoute><Layout><Inbox /></Layout></ProtectedRoute>} />
+          <Route path="/inventory" element={<ProtectedRoute><Layout><Inventory /></Layout></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
