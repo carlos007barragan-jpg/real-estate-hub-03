@@ -5,12 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Upload, RefreshCw, Trash2, Edit } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface InventoryItem {
   id: string;
@@ -21,30 +20,41 @@ interface InventoryItem {
   category: string | null;
   sku: string | null;
   photo_url: string | null;
-  google_sheet_row_id: string | null;
   payment: number | null;
   interest_rate: number | null;
   market_status: string | null;
   transaction_type: string | null;
   finance_type: string | null;
   is_wholesale: boolean;
+  arv: number | null;
+  status: string | null;
+  sqft: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  commission: number | null;
+  property_type: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export default function Inventory() {
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [googleSheetUrl, setGoogleSheetUrl] = useState("");
   const { toast } = useToast();
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    quantity: 0,
+    quantity: 1,
     price: 0,
     category: "",
     sku: "",
@@ -54,13 +64,50 @@ export default function Inventory() {
     transaction_type: "",
     finance_type: "",
     is_wholesale: false,
+    arv: 0,
+    status: "available",
+    sqft: 0,
+    bedrooms: 0,
+    bathrooms: 0,
+    commission: 0,
+    property_type: "",
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchInventory();
-    loadGoogleSheetUrl();
   }, []);
+
+  // Filter items whenever search or filters change
+  useEffect(() => {
+    let filtered = [...items];
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(item =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.sku?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Category filter
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter(item => item.category === categoryFilter);
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(item => item.status === statusFilter);
+    }
+
+    // Property type filter
+    if (propertyTypeFilter !== "all") {
+      filtered = filtered.filter(item => item.property_type === propertyTypeFilter);
+    }
+
+    setFilteredItems(filtered);
+  }, [items, searchQuery, categoryFilter, statusFilter, propertyTypeFilter]);
 
   // Real-time subscription
   useEffect(() => {
@@ -84,20 +131,6 @@ export default function Inventory() {
     };
   }, []);
 
-  const loadGoogleSheetUrl = () => {
-    const savedUrl = localStorage.getItem("googleSheetUrl");
-    if (savedUrl) {
-      setGoogleSheetUrl(savedUrl);
-    }
-  };
-
-  const saveGoogleSheetUrl = () => {
-    localStorage.setItem("googleSheetUrl", googleSheetUrl);
-    toast({
-      title: "Google Sheet URL saved",
-      description: "You can now sync inventory from this sheet",
-    });
-  };
 
   const fetchInventory = async () => {
     try {
@@ -224,6 +257,13 @@ export default function Inventory() {
       transaction_type: item.transaction_type || "",
       finance_type: item.finance_type || "",
       is_wholesale: item.is_wholesale || false,
+      arv: item.arv || 0,
+      status: item.status || "available",
+      sqft: item.sqft || 0,
+      bedrooms: item.bedrooms || 0,
+      bathrooms: item.bathrooms || 0,
+      commission: item.commission || 0,
+      property_type: item.property_type || "",
     });
     setIsDialogOpen(true);
   };
@@ -252,46 +292,57 @@ export default function Inventory() {
     }
   };
 
-  const syncFromGoogleSheets = async () => {
-    if (!googleSheetUrl) {
-      toast({
-        title: "Error",
-        description: "Please enter a Google Sheet URL first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSyncing(true);
+  const downloadPhoto = async (photoUrl: string, propertyName: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke("sync-google-sheets", {
-        body: { sheetUrl: googleSheetUrl },
-      });
-
-      if (error) throw error;
-
+      const response = await fetch(photoUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${propertyName.replace(/\s+/g, '_')}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       toast({
         title: "Success",
-        description: `Synced ${data.count} items from Google Sheets`,
+        description: "Photo downloaded successfully",
       });
-      fetchInventory();
     } catch (error) {
-      console.error("Error syncing from Google Sheets:", error);
+      console.error("Error downloading photo:", error);
       toast({
         title: "Error",
-        description: "Failed to sync from Google Sheets. Make sure the sheet is publicly accessible.",
+        description: "Failed to download photo",
         variant: "destructive",
       });
-    } finally {
-      setSyncing(false);
     }
+  };
+
+  const getStatusBadgeVariant = (status: string | null) => {
+    switch (status) {
+      case "available": return "default";
+      case "pending": return "secondary";
+      case "sold": return "destructive";
+      case "coming_soon": return "outline";
+      default: return "default";
+    }
+  };
+
+  const getUniqueCategories = () => {
+    const categories = items.map(item => item.category).filter(Boolean);
+    return Array.from(new Set(categories)) as string[];
+  };
+
+  const getUniquePropertyTypes = () => {
+    const types = items.map(item => item.property_type).filter(Boolean);
+    return Array.from(new Set(types)) as string[];
   };
 
   const resetForm = () => {
     setFormData({
       name: "",
       description: "",
-      quantity: 0,
+      quantity: 1,
       price: 0,
       category: "",
       sku: "",
@@ -301,6 +352,13 @@ export default function Inventory() {
       transaction_type: "",
       finance_type: "",
       is_wholesale: false,
+      arv: 0,
+      status: "available",
+      sqft: 0,
+      bedrooms: 0,
+      bathrooms: 0,
+      commission: 0,
+      property_type: "",
     });
     setPhotoFile(null);
     setEditingItem(null);
@@ -316,184 +374,303 @@ export default function Inventory() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Inventory Management</h1>
-          <p className="text-muted-foreground mt-1">Manage your property inventory with photo uploads and Google Sheets sync</p>
+          <h1 className="text-3xl font-bold">Property Inventory</h1>
+          <p className="text-muted-foreground mt-1">Track and manage your active property listings</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button size="lg">
               <Plus className="mr-2 h-4 w-4" />
-              Add Item
+              Add Property
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingItem ? "Edit" : "Add"} Inventory Item</DialogTitle>
+              <DialogTitle>{editingItem ? "Edit" : "Add"} Property</DialogTitle>
               <DialogDescription>
-                {editingItem ? "Update" : "Add"} inventory details and upload a photo
+                {editingItem ? "Update" : "Add"} property details, photos, and pricing information
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Property Name *</Label>
+                    <Input
+                      id="name"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g., 123 Main Street"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sku">Property ID / SKU</Label>
+                    <Input
+                      id="sku"
+                      value={formData.sku}
+                      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                      placeholder="e.g., PROP-001"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="name">Item Name *</Label>
-                  <Input
-                    id="name"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows={3}
+                    placeholder="Property description, features, location details..."
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sku">SKU</Label>
-                  <Input
-                    id="sku"
-                    value={formData.sku}
-                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                  />
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="property_type">Property Type *</Label>
+                    <Select
+                      value={formData.property_type}
+                      onValueChange={(value) => setFormData({ ...formData, property_type: value })}
+                    >
+                      <SelectTrigger id="property_type">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="residential">Residential</SelectItem>
+                        <SelectItem value="commercial">Commercial</SelectItem>
+                        <SelectItem value="investment">Investment</SelectItem>
+                        <SelectItem value="rental">Rental</SelectItem>
+                        <SelectItem value="land">Land</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Input
+                      id="category"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      placeholder="e.g., Single Family"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status *</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => setFormData({ ...formData, status: value })}
+                    >
+                      <SelectTrigger id="status">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="sold">Sold</SelectItem>
+                        <SelectItem value="coming_soon">Coming Soon</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Quantity *</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    required
-                    min="0"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="price">Price ($)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Input
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="payment">Payment ($)</Label>
-                  <Input
-                    id="payment"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.payment}
-                    onChange={(e) => setFormData({ ...formData, payment: parseFloat(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="interest_rate">Interest Rate (%)</Label>
-                  <Input
-                    id="interest_rate"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.interest_rate}
-                    onChange={(e) => setFormData({ ...formData, interest_rate: parseFloat(e.target.value) })}
-                  />
+              {/* Property Details */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Property Details</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="sqft">Square Feet</Label>
+                    <Input
+                      id="sqft"
+                      type="number"
+                      min="0"
+                      value={formData.sqft}
+                      onChange={(e) => setFormData({ ...formData, sqft: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bedrooms">Bedrooms</Label>
+                    <Input
+                      id="bedrooms"
+                      type="number"
+                      min="0"
+                      value={formData.bedrooms}
+                      onChange={(e) => setFormData({ ...formData, bedrooms: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bathrooms">Bathrooms</Label>
+                    <Input
+                      id="bathrooms"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={formData.bathrooms}
+                      onChange={(e) => setFormData({ ...formData, bathrooms: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity">Units Available</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="0"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="market_status">Market Status</Label>
-                  <Select
-                    value={formData.market_status}
-                    onValueChange={(value) => setFormData({ ...formData, market_status: value })}
-                  >
-                    <SelectTrigger id="market_status">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="on_market">On Market</SelectItem>
-                      <SelectItem value="off_market">Off Market</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {/* Pricing */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Pricing & Financial Details</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Listing Price ($)</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="arv">ARV ($)</Label>
+                    <Input
+                      id="arv"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.arv}
+                      onChange={(e) => setFormData({ ...formData, arv: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="commission">Commission ($)</Label>
+                    <Input
+                      id="commission"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.commission}
+                      onChange={(e) => setFormData({ ...formData, commission: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="transaction_type">Transaction Type</Label>
-                  <Select
-                    value={formData.transaction_type}
-                    onValueChange={(value) => setFormData({ ...formData, transaction_type: value })}
-                  >
-                    <SelectTrigger id="transaction_type">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sale">Sale</SelectItem>
-                      <SelectItem value="lease">Lease</SelectItem>
-                      <SelectItem value="rent_to_own">Rent to Own</SelectItem>
-                      <SelectItem value="owner_finance">Owner Finance</SelectItem>
-                      <SelectItem value="cash">Cash</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="payment">Monthly Payment ($)</Label>
+                    <Input
+                      id="payment"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.payment}
+                      onChange={(e) => setFormData({ ...formData, payment: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="interest_rate">Interest Rate (%)</Label>
+                    <Input
+                      id="interest_rate"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      max="100"
+                      value={formData.interest_rate}
+                      onChange={(e) => setFormData({ ...formData, interest_rate: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="finance_type">Finance Type</Label>
-                  <Input
-                    id="finance_type"
-                    value={formData.finance_type}
-                    onChange={(e) => setFormData({ ...formData, finance_type: e.target.value })}
-                    placeholder="e.g., Cash, Mortgage"
+              </div>
+
+              {/* Transaction Details */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Transaction Details</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="transaction_type">Transaction Type</Label>
+                    <Select
+                      value={formData.transaction_type}
+                      onValueChange={(value) => setFormData({ ...formData, transaction_type: value })}
+                    >
+                      <SelectTrigger id="transaction_type">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sale">Sale</SelectItem>
+                        <SelectItem value="lease">Lease</SelectItem>
+                        <SelectItem value="rent_to_own">Rent to Own</SelectItem>
+                        <SelectItem value="owner_finance">Owner Finance</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="finance_type">Finance Type</Label>
+                    <Input
+                      id="finance_type"
+                      value={formData.finance_type}
+                      onChange={(e) => setFormData({ ...formData, finance_type: e.target.value })}
+                      placeholder="e.g., Conventional, FHA"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="market_status">Market Status</Label>
+                    <Select
+                      value={formData.market_status}
+                      onValueChange={(value) => setFormData({ ...formData, market_status: value })}
+                    >
+                      <SelectTrigger id="market_status">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="on_market">On Market</SelectItem>
+                        <SelectItem value="off_market">Off Market</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="is_wholesale"
+                    checked={formData.is_wholesale}
+                    onChange={(e) => setFormData({ ...formData, is_wholesale: e.target.checked })}
+                    className="h-4 w-4 rounded border-input"
                   />
+                  <Label htmlFor="is_wholesale" className="cursor-pointer">Wholesale Property</Label>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="is_wholesale"
-                  checked={formData.is_wholesale}
-                  onChange={(e) => setFormData({ ...formData, is_wholesale: e.target.checked })}
-                  className="h-4 w-4 rounded border-input"
-                />
-                <Label htmlFor="is_wholesale" className="cursor-pointer">Wholesale Property</Label>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="photo">Photo</Label>
-                <Input
-                  id="photo"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-                />
-                {editingItem?.photo_url && !photoFile && (
-                  <img src={editingItem.photo_url} alt="Current" className="mt-2 h-20 w-20 object-cover rounded" />
-                )}
+              {/* Photo Upload */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Property Photo</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="photo">Upload Photo</Label>
+                  <Input
+                    id="photo"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                  />
+                  {editingItem?.photo_url && !photoFile && (
+                    <img src={editingItem.photo_url} alt="Current" className="mt-2 h-32 w-48 object-cover rounded-lg border" />
+                  )}
+                </div>
               </div>
 
               <DialogFooter>
@@ -501,7 +678,7 @@ export default function Inventory() {
                   Cancel
                 </Button>
                 <Button type="submit">
-                  {editingItem ? "Update" : "Add"} Item
+                  {editingItem ? "Update" : "Add"} Property
                 </Button>
               </DialogFooter>
             </form>
@@ -509,97 +686,235 @@ export default function Inventory() {
         </Dialog>
       </div>
 
+      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Google Sheets Integration</CardTitle>
-          <CardDescription>
-            Sync inventory data from a Google Sheet. The sheet must be publicly accessible.
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters & Search
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter Google Sheets URL"
-              value={googleSheetUrl}
-              onChange={(e) => setGoogleSheetUrl(e.target.value)}
-            />
-            <Button onClick={saveGoogleSheetUrl} variant="outline">
-              Save URL
-            </Button>
-            <Button onClick={syncFromGoogleSheets} disabled={syncing}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Syncing..." : "Sync Now"}
-            </Button>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label>Search</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search properties..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {getUniqueCategories().map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="sold">Sold</SelectItem>
+                  <SelectItem value="coming_soon">Coming Soon</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Property Type</Label>
+              <Select value={propertyTypeFilter} onValueChange={setPropertyTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {getUniquePropertyTypes().map(type => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Sheet should have columns: Name, Description, Quantity, Price, Category, SKU
-          </p>
+
+          {(searchQuery || categoryFilter !== "all" || statusFilter !== "all" || propertyTypeFilter !== "all") && (
+            <div className="mt-4 flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Showing {filteredItems.length} of {items.length} properties
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setCategoryFilter("all");
+                  setStatusFilter("all");
+                  setPropertyTypeFilter("all");
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Inventory Items ({items.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Photo</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No inventory items yet. Add your first item or sync from Google Sheets.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={item.photo_url || undefined} alt={item.name} />
-                        <AvatarFallback>{item.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                    </TableCell>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.sku || "-"}</TableCell>
-                    <TableCell>{item.category || "-"}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>${item.price?.toFixed(2) || "0.00"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Property Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredItems.length === 0 ? (
+          <Card className="col-span-full">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Home className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-medium text-muted-foreground">
+                {items.length === 0 ? "No properties yet" : "No properties match your filters"}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {items.length === 0 ? "Add your first property to get started" : "Try adjusting your search criteria"}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredItems.map((item) => (
+            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative h-48 bg-muted">
+                {item.photo_url ? (
+                  <img
+                    src={item.photo_url}
+                    alt={item.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Building2 className="h-16 w-16 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <Badge variant={getStatusBadgeVariant(item.status)}>
+                    {item.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
+                  </Badge>
+                  {item.is_wholesale && (
+                    <Badge variant="outline" className="bg-background">Wholesale</Badge>
+                  )}
+                </div>
+                {item.photo_url && (
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="absolute bottom-2 right-2"
+                    onClick={() => downloadPhoto(item.photo_url!, item.name)}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              <CardHeader>
+                <CardTitle className="flex items-start justify-between">
+                  <span className="line-clamp-1">{item.name}</span>
+                </CardTitle>
+                <CardDescription className="line-clamp-2">
+                  {item.description || "No description available"}
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                {/* Property Details */}
+                <div className="grid grid-cols-3 gap-2 text-sm">
+                  {item.bedrooms > 0 && (
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">Beds</span>
+                      <span className="font-medium">{item.bedrooms}</span>
+                    </div>
+                  )}
+                  {item.bathrooms > 0 && (
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">Baths</span>
+                      <span className="font-medium">{item.bathrooms}</span>
+                    </div>
+                  )}
+                  {item.sqft > 0 && (
+                    <div className="flex flex-col">
+                      <span className="text-muted-foreground">Sq Ft</span>
+                      <span className="font-medium">{item.sqft.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pricing */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Listing Price</span>
+                    <span className="text-xl font-bold text-primary">
+                      ${item.price?.toLocaleString() || '0'}
+                    </span>
+                  </div>
+                  {item.arv > 0 && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">ARV</span>
+                      <span className="font-medium">${item.arv.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {item.commission > 0 && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Commission</span>
+                      <span className="font-medium text-green-600">${item.commission.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional Info */}
+                <div className="flex flex-wrap gap-2">
+                  {item.property_type && (
+                    <Badge variant="outline">{item.property_type}</Badge>
+                  )}
+                  {item.category && (
+                    <Badge variant="secondary">{item.category}</Badge>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleEdit(item)}
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDelete(item.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 }

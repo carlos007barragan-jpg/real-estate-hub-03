@@ -266,11 +266,14 @@ export type Database = {
       }
       inventory: {
         Row: {
+          arv: number | null
+          bathrooms: number | null
+          bedrooms: number | null
           category: string | null
+          commission: number | null
           created_at: string
           description: string | null
           finance_type: string | null
-          google_sheet_row_id: string | null
           id: string
           interest_rate: number | null
           is_demo_data: boolean | null
@@ -280,18 +283,24 @@ export type Database = {
           payment: number | null
           photo_url: string | null
           price: number | null
+          property_type: string | null
           quantity: number
           sku: string | null
+          sqft: number | null
+          status: string | null
           transaction_type: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          arv?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           category?: string | null
+          commission?: number | null
           created_at?: string
           description?: string | null
           finance_type?: string | null
-          google_sheet_row_id?: string | null
           id?: string
           interest_rate?: number | null
           is_demo_data?: boolean | null
@@ -301,18 +310,24 @@ export type Database = {
           payment?: number | null
           photo_url?: string | null
           price?: number | null
+          property_type?: string | null
           quantity?: number
           sku?: string | null
+          sqft?: number | null
+          status?: string | null
           transaction_type?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          arv?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           category?: string | null
+          commission?: number | null
           created_at?: string
           description?: string | null
           finance_type?: string | null
-          google_sheet_row_id?: string | null
           id?: string
           interest_rate?: number | null
           is_demo_data?: boolean | null
@@ -322,8 +337,11 @@ export type Database = {
           payment?: number | null
           photo_url?: string | null
           price?: number | null
+          property_type?: string | null
           quantity?: number
           sku?: string | null
+          sqft?: number | null
+          status?: string | null
           transaction_type?: string | null
           updated_at?: string
           user_id?: string
