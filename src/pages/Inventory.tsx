@@ -33,16 +33,28 @@ interface InventoryItem {
   bathrooms: number | null;
   commission: number | null;
   property_type: string | null;
+  seller_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface Seller {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
 }
 
 export default function Inventory() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
+  const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSellerDialogOpen, setIsSellerDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const { toast } = useToast();
 
   // Filter states
@@ -71,11 +83,20 @@ export default function Inventory() {
     bathrooms: 0,
     commission: 0,
     property_type: "",
+    seller_id: "",
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
+  const [sellerFormData, setSellerFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+  });
+
   useEffect(() => {
     fetchInventory();
+    fetchSellers();
   }, []);
 
   // Filter items whenever search or filters change
@@ -140,7 +161,7 @@ export default function Inventory() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setItems(data || []);
+      setItems((data as any) || []);
     } catch (error) {
       console.error("Error fetching inventory:", error);
       toast({
@@ -150,6 +171,25 @@ export default function Inventory() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSellers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("sellers" as any)
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      setSellers((data as any) || []);
+    } catch (error) {
+      console.error("Error fetching sellers:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch sellers",
+        variant: "destructive",
+      });
     }
   };
 
@@ -264,6 +304,7 @@ export default function Inventory() {
       bathrooms: item.bathrooms || 0,
       commission: item.commission || 0,
       property_type: item.property_type || "",
+      seller_id: item.seller_id || "",
     });
     setIsDialogOpen(true);
   };
@@ -359,9 +400,102 @@ export default function Inventory() {
       bathrooms: 0,
       commission: 0,
       property_type: "",
+      seller_id: "",
     });
     setPhotoFile(null);
     setEditingItem(null);
+  };
+
+  const handleSellerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      if (editingSeller) {
+        const { error } = await supabase
+          .from("sellers" as any)
+          .update(sellerFormData)
+          .eq("id", editingSeller.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Seller updated successfully",
+        });
+      } else {
+        const { error } = await supabase
+          .from("sellers" as any)
+          .insert({
+            ...sellerFormData,
+            user_id: user.id,
+          });
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Seller added successfully",
+        });
+      }
+
+      setIsSellerDialogOpen(false);
+      resetSellerForm();
+      fetchSellers();
+    } catch (error) {
+      console.error("Error saving seller:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save seller",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditSeller = (seller: Seller) => {
+    setEditingSeller(seller);
+    setSellerFormData({
+      name: seller.name,
+      email: seller.email || "",
+      phone: seller.phone || "",
+      company: seller.company || "",
+    });
+    setIsSellerDialogOpen(true);
+  };
+
+  const handleDeleteSeller = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("sellers" as any)
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Seller deleted successfully",
+      });
+      fetchSellers();
+    } catch (error) {
+      console.error("Error deleting seller:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete seller",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const resetSellerForm = () => {
+    setSellerFormData({
+      name: "",
+      email: "",
+      phone: "",
+      company: "",
+    });
+    setEditingSeller(null);
   };
 
   if (loading) {
@@ -403,7 +537,7 @@ export default function Inventory() {
                 <h3 className="text-lg font-semibold">Basic Information</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Property Name *</Label>
+                    <Label htmlFor="name">Property Address *</Label>
                     <Input
                       id="name"
                       required
@@ -653,6 +787,30 @@ export default function Inventory() {
                     className="h-4 w-4 rounded border-input"
                   />
                   <Label htmlFor="is_wholesale" className="cursor-pointer">Wholesale Property</Label>
+                </div>
+              </div>
+
+              {/* Seller Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Seller Information</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="seller_id">Property Seller</Label>
+                  <Select
+                    value={formData.seller_id}
+                    onValueChange={(value) => setFormData({ ...formData, seller_id: value })}
+                  >
+                    <SelectTrigger id="seller_id">
+                      <SelectValue placeholder="Select seller (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No Seller</SelectItem>
+                      {sellers.map((seller) => (
+                        <SelectItem key={seller.id} value={seller.id}>
+                          {seller.name} {seller.company ? `(${seller.company})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -915,6 +1073,124 @@ export default function Inventory() {
           ))
         )}
       </div>
+
+      {/* Sellers Management Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>Property Sellers</CardTitle>
+              <CardDescription>Manage sellers for your property inventory</CardDescription>
+            </div>
+            <Dialog open={isSellerDialogOpen} onOpenChange={(open) => {
+              setIsSellerDialogOpen(open);
+              if (!open) resetSellerForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Seller
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingSeller ? "Edit" : "Add"} Seller</DialogTitle>
+                  <DialogDescription>
+                    {editingSeller ? "Update" : "Add"} seller contact information
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSellerSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="seller_name">Name *</Label>
+                    <Input
+                      id="seller_name"
+                      required
+                      value={sellerFormData.name}
+                      onChange={(e) => setSellerFormData({ ...sellerFormData, name: e.target.value })}
+                      placeholder="e.g., John Smith"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="seller_company">Company</Label>
+                    <Input
+                      id="seller_company"
+                      value={sellerFormData.company}
+                      onChange={(e) => setSellerFormData({ ...sellerFormData, company: e.target.value })}
+                      placeholder="e.g., ABC Realty"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="seller_email">Email</Label>
+                    <Input
+                      id="seller_email"
+                      type="email"
+                      value={sellerFormData.email}
+                      onChange={(e) => setSellerFormData({ ...sellerFormData, email: e.target.value })}
+                      placeholder="e.g., john@example.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="seller_phone">Phone</Label>
+                    <Input
+                      id="seller_phone"
+                      type="tel"
+                      value={sellerFormData.phone}
+                      onChange={(e) => setSellerFormData({ ...sellerFormData, phone: e.target.value })}
+                      placeholder="e.g., (555) 123-4567"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsSellerDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      {editingSeller ? "Update" : "Add"} Seller
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {sellers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No sellers added yet. Add your first seller to get started.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {sellers.map((seller) => (
+                <div key={seller.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
+                  <div className="flex-1">
+                    <div className="font-medium">{seller.name}</div>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      {seller.company && <div>Company: {seller.company}</div>}
+                      {seller.email && <div>Email: {seller.email}</div>}
+                      {seller.phone && <div>Phone: {seller.phone}</div>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditSeller(seller)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteSeller(seller.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
