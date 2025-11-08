@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -35,6 +36,7 @@ interface InventoryItem {
   commission: number | null;
   property_type: string | null;
   seller_id: string | null;
+  down_payment: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -49,6 +51,7 @@ interface Seller {
 
 export default function Inventory() {
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
@@ -86,6 +89,7 @@ export default function Inventory() {
     commission: 0,
     property_type: "",
     seller_id: "",
+    down_payment: 0,
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
 
@@ -307,6 +311,7 @@ export default function Inventory() {
       commission: item.commission || 0,
       property_type: item.property_type || "",
       seller_id: item.seller_id || "",
+      down_payment: item.down_payment || 0,
     });
     setIsDialogOpen(true);
   };
@@ -403,6 +408,7 @@ export default function Inventory() {
       commission: 0,
       property_type: "",
       seller_id: "",
+      down_payment: 0,
     });
     setPhotoFile(null);
     setEditingItem(null);
@@ -705,7 +711,7 @@ export default function Inventory() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="payment">Monthly Payment ($)</Label>
                     <Input
@@ -729,6 +735,19 @@ export default function Inventory() {
                       onChange={(e) => setFormData({ ...formData, interest_rate: parseFloat(e.target.value) || 0 })}
                     />
                   </div>
+                  {formData.transaction_type === 'owner_finance' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="down_payment">Down Payment ($)</Label>
+                      <Input
+                        id="down_payment"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.down_payment}
+                        onChange={(e) => setFormData({ ...formData, down_payment: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1039,7 +1058,7 @@ export default function Inventory() {
                       <span className="font-medium">${item.arv.toLocaleString()}</span>
                     </div>
                   )}
-                  {item.commission > 0 && (
+                  {isAdmin && item.commission > 0 && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-muted-foreground">Commission</span>
                       <span className="font-medium text-green-600">${item.commission.toLocaleString()}</span>

@@ -273,6 +273,7 @@ export type Database = {
           commission: number | null
           created_at: string
           description: string | null
+          down_payment: number | null
           finance_type: string | null
           id: string
           interest_rate: number | null
@@ -285,6 +286,7 @@ export type Database = {
           price: number | null
           property_type: string | null
           quantity: number
+          seller_id: string | null
           sku: string | null
           sqft: number | null
           status: string | null
@@ -300,6 +302,7 @@ export type Database = {
           commission?: number | null
           created_at?: string
           description?: string | null
+          down_payment?: number | null
           finance_type?: string | null
           id?: string
           interest_rate?: number | null
@@ -312,6 +315,7 @@ export type Database = {
           price?: number | null
           property_type?: string | null
           quantity?: number
+          seller_id?: string | null
           sku?: string | null
           sqft?: number | null
           status?: string | null
@@ -327,6 +331,7 @@ export type Database = {
           commission?: number | null
           created_at?: string
           description?: string | null
+          down_payment?: number | null
           finance_type?: string | null
           id?: string
           interest_rate?: number | null
@@ -339,6 +344,7 @@ export type Database = {
           price?: number | null
           property_type?: string | null
           quantity?: number
+          seller_id?: string | null
           sku?: string | null
           sqft?: number | null
           status?: string | null
@@ -346,7 +352,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inventory_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "sellers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leads: {
         Row: {
@@ -577,6 +591,39 @@ export type Database = {
           id?: string
           last_name?: string | null
           phone_number?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sellers: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
           updated_at?: string
           user_id?: string
         }

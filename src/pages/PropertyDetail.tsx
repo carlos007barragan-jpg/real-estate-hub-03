@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 import { ArrowLeft, MapPin, Home, DollarSign, TrendingUp, Calendar, Building2, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PropertyDetail {
@@ -31,6 +32,7 @@ interface PropertyDetail {
   commission: number | null;
   property_type: string | null;
   seller_id: string | null;
+  down_payment: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +49,7 @@ export default function PropertyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAdmin } = useUserRole();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [seller, setSeller] = useState<Seller | null>(null);
   const [loading, setLoading] = useState(true);
@@ -348,13 +351,25 @@ export default function PropertyDetail() {
                 </>
               )}
 
-              {property.commission > 0 && (
+              {isAdmin && property.commission > 0 && (
                 <>
                   <Separator />
                   <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Commission</div>
+                    <div className="text-sm text-muted-foreground">Commission (Admin Only)</div>
                     <div className="text-2xl font-bold text-green-600">
                       ${property.commission.toLocaleString()}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {property.transaction_type === 'owner_finance' && property.down_payment > 0 && (
+                <>
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="text-sm text-muted-foreground">Down Payment</div>
+                    <div className="text-2xl font-bold">
+                      ${property.down_payment.toLocaleString()}
                     </div>
                   </div>
                 </>
