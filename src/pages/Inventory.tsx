@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ interface Seller {
 }
 
 export default function Inventory() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
@@ -951,7 +953,11 @@ export default function Inventory() {
           </Card>
         ) : (
           filteredItems.map((item) => (
-            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <Card 
+              key={item.id} 
+              className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => navigate(`/inventory/${item.id}`)}
+            >
               <div className="relative h-48 bg-muted">
                 {item.photo_url ? (
                   <img
@@ -977,7 +983,10 @@ export default function Inventory() {
                     size="icon"
                     variant="secondary"
                     className="absolute bottom-2 right-2"
-                    onClick={() => downloadPhoto(item.photo_url!, item.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadPhoto(item.photo_url!, item.name);
+                    }}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
@@ -1054,7 +1063,10 @@ export default function Inventory() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => handleEdit(item)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(item);
+                    }}
                   >
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
@@ -1062,7 +1074,10 @@ export default function Inventory() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDelete(item.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(item.id);
+                    }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
