@@ -803,7 +803,6 @@ export default function Inventory() {
                       <SelectValue placeholder="Select seller (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No Seller</SelectItem>
                       {sellers.map((seller) => (
                         <SelectItem key={seller.id} value={seller.id}>
                           {seller.name} {seller.company ? `(${seller.company})` : ""}
