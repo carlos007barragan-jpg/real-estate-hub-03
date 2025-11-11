@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -10,6 +10,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
 import { TasksSection } from "@/components/TasksSection";
@@ -19,9 +28,79 @@ import { MessagingSection } from "@/components/MessagingSection";
 import { ActivitySection } from "@/components/ActivitySection";
 
 export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
+  const { toast } = useToast();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
+  const [agents, setAgents] = useState<Array<{ id: string; name: string; phone: string }>>([]);
+  const [createdByName, setCreatedByName] = useState<string>("");
+  const [assignedAgent, setAssignedAgent] = useState<string>(leadData.agent_phone || "");
+
+  useEffect(() => {
+    const fetchCreatorAndAgents = async () => {
+      // Fetch creator's name
+      if (leadData.user_id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", leadData.user_id)
+          .maybeSingle();
+        
+        if (profile) {
+          setCreatedByName(`${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown");
+        }
+      }
+
+      // Fetch active agents with their names
+      const { data: agentsData } = await supabase
+        .from("agents")
+        .select(`
+          id,
+          phone_number,
+          user_id,
+          profiles!inner(first_name, last_name)
+        `)
+        .eq("is_active", true);
+
+      if (agentsData) {
+        const formattedAgents = agentsData.map((agent: any) => ({
+          id: agent.id,
+          name: `${agent.profiles.first_name || ''} ${agent.profiles.last_name || ''}`.trim() || "Unknown Agent",
+          phone: agent.phone_number,
+        }));
+        setAgents(formattedAgents);
+      }
+    };
+
+    fetchCreatorAndAgents();
+  }, [leadData.user_id]);
+
+  const handleAssignmentChange = async (agentPhone: string) => {
+    const selectedAgent = agents.find(a => a.phone === agentPhone);
+    
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        agent_phone: agentPhone,
+        assigned_to: selectedAgent?.name || "Unassigned",
+      })
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update assignment",
+        variant: "destructive",
+      });
+    } else {
+      setAssignedAgent(agentPhone);
+      toast({
+        title: "Success",
+        description: "Lead assignment updated",
+      });
+      onLeadUpdate?.();
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
@@ -165,9 +244,31 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
               <Building2 className="h-3 w-3 text-muted-foreground" />
               <span>{leadData.source}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <User className="h-3 w-3 text-muted-foreground" />
-              <span>{leadData.assignedTo}</span>
+            {createdByName && (
+              <div className="flex items-center gap-2">
+                <User className="h-3 w-3 text-muted-foreground" />
+                <span className="text-muted-foreground">Created By:</span>
+                <span>{createdByName}</span>
+              </div>
+            )}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <User className="h-3 w-3" />
+                <span>Assigned To:</span>
+              </div>
+              <Select value={assignedAgent} onValueChange={handleAssignmentChange}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select agent..." />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-popover">
+                  <SelectItem value="">Unassigned</SelectItem>
+                  {agents.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.phone}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3 text-muted-foreground" />
