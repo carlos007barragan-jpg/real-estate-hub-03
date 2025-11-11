@@ -39,6 +39,25 @@ interface Task {
   lead_id: string;
 }
 
+interface Appointment {
+  id: string;
+  title: string;
+  description: string | null;
+  appointment_date: string;
+  appointment_type: string | null;
+  duration: number;
+  user_id: string;
+  lead_id: string;
+  status: string;
+  lead?: {
+    name: string;
+  };
+  user?: {
+    first_name: string;
+    last_name: string;
+  };
+}
+
 interface LiveUser {
   user_id: string;
   name: string;
@@ -64,6 +83,8 @@ const Dashboard = () => {
   const [activeAgents, setActiveAgents] = useState(0);
   const [agentStats, setAgentStats] = useState<AgentStats[]>([]);
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [liveUsers, setLiveUsers] = useState<LiveUser[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
@@ -74,7 +95,123 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
     setupPresenceTracking();
+    checkAdminStatus();
   }, []);
+
+  useEffect(() => {
+    if (isAdmin !== undefined) {
+      fetchUpcomingAppointments();
+    }
+  }, [isAdmin]);
+
+  const checkAdminStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    setIsAdmin(!!data);
+  };
+
+  const fetchUpcomingAppointments = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const now = new Date();
+    const fortyEightHoursLater = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    try {
+      // First, try to get appointments in the next 48 hours
+      let query = supabase
+        .from("appointments")
+        .select("*")
+        .gte("appointment_date", now.toISOString())
+        .lte("appointment_date", fortyEightHoursLater.toISOString())
+        .order("appointment_date", { ascending: true });
+
+      // If not admin, only show user's own appointments
+      if (!isAdmin) {
+        query = query.eq("user_id", user.id);
+      }
+
+      const { data: fortyEightHourData, error: fortyEightHourError } = await query;
+      
+      if (fortyEightHourError) throw fortyEightHourError;
+
+      // If no appointments in 48 hours, get appointments for the next week
+      let appointmentsData = fortyEightHourData;
+      
+      if (!fortyEightHourData || fortyEightHourData.length === 0) {
+        let weekQuery = supabase
+          .from("appointments")
+          .select("*")
+          .gte("appointment_date", now.toISOString())
+          .lte("appointment_date", oneWeekLater.toISOString())
+          .order("appointment_date", { ascending: true });
+
+        if (!isAdmin) {
+          weekQuery = weekQuery.eq("user_id", user.id);
+        }
+
+        const { data: weekData, error: weekError } = await weekQuery;
+        
+        if (weekError) throw weekError;
+        
+        appointmentsData = weekData;
+      }
+
+      // Fetch related leads and profiles
+      if (appointmentsData && appointmentsData.length > 0) {
+        const leadIds = [...new Set(appointmentsData.map(a => a.lead_id))];
+        const userIds = [...new Set(appointmentsData.map(a => a.user_id))];
+
+        const [leadsResult, profilesResult] = await Promise.all([
+          supabase.from("leads").select("id, name").in("id", leadIds),
+          supabase.from("profiles").select("user_id, first_name, last_name").in("user_id", userIds)
+        ]);
+
+        const leadsMap = new Map((leadsResult.data || []).map(l => [l.id, l]));
+        const profilesMap = new Map((profilesResult.data || []).map(p => [p.user_id, p]));
+
+        const enrichedAppointments = appointmentsData.map(apt => ({
+          ...apt,
+          lead: leadsMap.get(apt.lead_id),
+          user: profilesMap.get(apt.user_id)
+        }));
+
+        setUpcomingAppointments(enrichedAppointments as any);
+      } else {
+        setUpcomingAppointments([]);
+      }
+    } catch (error) {
+      console.error("Error fetching upcoming appointments:", error);
+    }
+  };
+
+  const getAppointmentHighlight = (appointment: Appointment) => {
+    const appointmentDate = new Date(appointment.appointment_date);
+    const now = new Date();
+    const hoursUntil = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    // Urgent appointments (within 2 hours)
+    if (hoursUntil <= 2 && hoursUntil > 0) {
+      return "border-l-4 border-l-destructive bg-destructive/5";
+    }
+    
+    // Team meetings (appointment_type contains 'team')
+    if (appointment.appointment_type?.toLowerCase().includes('team')) {
+      return "border-l-4 border-l-info bg-info/5";
+    }
+    
+    // Personal meetings (default)
+    return "border-l-4 border-l-primary bg-primary/5";
+  };
 
   useEffect(() => {
     fetchChartsData();
@@ -330,6 +467,9 @@ const Dashboard = () => {
       if (tasksError) throw tasksError;
       setTodayTasks(tasks || []);
 
+      // Fetch upcoming appointments
+      await fetchUpcomingAppointments();
+
       // Fetch revenue and deals data
       await fetchChartsData();
     } catch (error) {
@@ -571,19 +711,84 @@ const Dashboard = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="h-5 w-5 text-primary" />
-                  <h2 className="text-xl font-semibold text-foreground">Calendar</h2>
+                  <h2 className="text-xl font-semibold text-foreground">Upcoming Appointments</h2>
                 </div>
                 <a href="/calendar" className="text-sm text-primary hover:underline">
                   View full calendar →
                 </a>
               </div>
-              <div className="flex-1 flex items-center justify-center">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  className="rounded-md border scale-125"
-                />
+              <div className="flex-1 space-y-3 max-h-96 overflow-y-auto">
+                {upcomingAppointments.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No upcoming appointments</p>
+                ) : (
+                  <>
+                    <div className="flex gap-4 text-xs text-muted-foreground mb-2">
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 border-l-4 border-l-destructive bg-destructive/5"></div>
+                        <span>Urgent (within 2h)</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 border-l-4 border-l-info bg-info/5"></div>
+                        <span>Team Meeting</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-3 h-3 border-l-4 border-l-primary bg-primary/5"></div>
+                        <span>Personal</span>
+                      </div>
+                    </div>
+                    {upcomingAppointments.map((appointment) => {
+                      const appointmentDate = new Date(appointment.appointment_date);
+                      const lead = appointment.lead as any;
+                      const profile = appointment.user as any;
+                      const assignedTo = profile
+                        ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
+                        : "Unknown";
+
+                      return (
+                        <div
+                          key={appointment.id}
+                          className={`p-3 rounded-lg border transition-colors ${getAppointmentHighlight(appointment)}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-foreground">
+                                {appointment.title}
+                              </p>
+                              {lead && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  with {lead.name}
+                                </p>
+                              )}
+                              {isAdmin && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Agent: {assignedTo}
+                                </p>
+                              )}
+                              {appointment.description && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {appointment.description}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-medium text-foreground">
+                                {format(appointmentDate, "MMM d")}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(appointmentDate, "h:mm a")}
+                              </p>
+                              {appointment.duration && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {appointment.duration} min
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
             </div>
           </div>
