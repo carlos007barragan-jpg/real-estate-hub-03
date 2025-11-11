@@ -37,9 +37,9 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
   const [editPropertyDialogOpen, setEditPropertyDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
-  const [agents, setAgents] = useState<Array<{ id: string; name: string; phone: string }>>([]);
+  const [members, setMembers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
   const [createdByName, setCreatedByName] = useState<string>("Loading...");
-  const [assignedAgent, setAssignedAgent] = useState<string>(leadData.agent_phone || "");
+  const [assignedMemberId, setAssignedMemberId] = useState<string>("unassigned");
   const [transactionType, setTransactionType] = useState<string>(leadData.lead_temperature || "Unassigned");
 
   useEffect(() => {
@@ -65,46 +65,59 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         setCreatedByName("Unknown User");
       }
 
-      // Fetch active agents with their names
-      const { data: agentsData } = await supabase
-        .from("agents")
+      // Fetch members (all profiles) and optional agent phones
+      const { data: profilesData } = await supabase
+        .from("profiles")
         .select(`
-          id,
-          phone_number,
           user_id,
-          profiles!inner(first_name, last_name)
-        `)
-        .eq("is_active", true);
+          first_name,
+          last_name,
+          agents(phone_number)
+        `);
 
-      if (agentsData) {
-        const formattedAgents = agentsData.map((agent: any) => ({
-          id: agent.id,
-          name: `${agent.profiles.first_name || ''} ${agent.profiles.last_name || ''}`.trim() || "Unknown Agent",
-          phone: agent.phone_number,
+      if (profilesData) {
+        const formattedMembers = profilesData.map((p: any) => ({
+          id: p.user_id,
+          name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || "Unknown User",
+          phone: p.agents?.phone_number || null,
         }));
-        setAgents(formattedAgents);
+        setMembers(formattedMembers);
       }
     };
 
     fetchCreatorAndAgents();
   }, [leadData.user_id]);
 
-  // Sync assigned agent when leadData changes
+  // Sync assigned member selection when leadData or members change
   useEffect(() => {
-    setAssignedAgent(leadData.agent_phone || "");
-  }, [leadData.agent_phone]);
+    // Try match by phone first
+    const byPhone = members.find((m) => m.phone && m.phone === leadData.agent_phone);
+    if (byPhone) {
+      setAssignedMemberId(byPhone.id);
+      return;
+    }
+    // Fallback: match by assigned name
+    if ((leadData as any).assignedTo) {
+      const byName = members.find((m) => m.name === (leadData as any).assignedTo);
+      if (byName) {
+        setAssignedMemberId(byName.id);
+        return;
+      }
+    }
+    setAssignedMemberId("unassigned");
+  }, [leadData.agent_phone, (leadData as any).assignedTo, members]);
 
-  const handleAssignmentChange = async (agentPhone: string) => {
-    const selectedAgent = agents.find(a => a.phone === agentPhone);
-    const isUnassigned = agentPhone === "unassigned";
+  const handleAssignmentChange = async (memberId: string) => {
+    const isUnassigned = memberId === "unassigned";
+    const selectedMember = members.find((m) => m.id === memberId);
     
     const { data: { user } } = await supabase.auth.getUser();
     
     const { error } = await supabase
       .from("leads")
       .update({
-        agent_phone: isUnassigned ? null : agentPhone,
-        assigned_to: selectedAgent?.name || "Unassigned",
+        agent_phone: isUnassigned ? null : (selectedMember?.phone || null),
+        assigned_to: isUnassigned ? "Unassigned" : (selectedMember?.name || "Unassigned"),
         last_modified_by: user?.id,
       })
       .eq("id", id);
@@ -116,7 +129,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         variant: "destructive",
       });
     } else {
-      setAssignedAgent(agentPhone);
+      setAssignedMemberId(memberId);
       toast({
         title: "Success",
         description: "Lead assignment updated",
@@ -326,15 +339,15 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                 <User className="h-3 w-3" />
                 <span>Assigned To:</span>
               </div>
-              <Select value={assignedAgent || "unassigned"} onValueChange={handleAssignmentChange}>
+              <Select value={assignedMemberId} onValueChange={handleAssignmentChange}>
                 <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Select agent..." />
+                  <SelectValue placeholder="Select member..." />
                 </SelectTrigger>
                 <SelectContent className="z-50 bg-popover">
                   <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {agents.map((agent) => (
-                    <SelectItem key={agent.id} value={agent.phone}>
-                      {agent.name}
+                  {members.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
