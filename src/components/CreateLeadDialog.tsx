@@ -43,6 +43,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
+  const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -68,6 +69,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
   useEffect(() => {
     if (open) {
       fetchCustomFields();
+      fetchTransactionTypes();
     }
   }, [open]);
 
@@ -86,6 +88,31 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
       setCustomFields(data || []);
     } catch (error) {
       console.error("Error fetching custom fields:", error);
+    }
+  };
+
+  const fetchTransactionTypes = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("transaction_types")
+        .select("name")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setTransactionTypes(data.map(t => t.name));
+      } else {
+        // Fallback to defaults
+        setTransactionTypes(["Unassigned", "Funding", "Listing", "Buyer's", "Investor's", "Rental", "Multifamily", "Wholesale", "Commercial"]);
+      }
+    } catch (error) {
+      console.error("Error fetching transaction types:", error);
     }
   };
 
@@ -393,15 +420,11 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent className="z-50 bg-popover">
-                  <SelectItem value="Unassigned">Unassigned</SelectItem>
-                  <SelectItem value="Funding">Funding</SelectItem>
-                  <SelectItem value="Listing">Listing</SelectItem>
-                  <SelectItem value="Buyer's">Buyer's</SelectItem>
-                  <SelectItem value="Investor's">Investor's</SelectItem>
-                  <SelectItem value="Rental">Rental</SelectItem>
-                  <SelectItem value="Multifamily">Multifamily</SelectItem>
-                  <SelectItem value="Wholesale">Wholesale</SelectItem>
-                  <SelectItem value="Commercial">Commercial</SelectItem>
+                  {transactionTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

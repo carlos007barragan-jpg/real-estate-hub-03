@@ -74,6 +74,7 @@ const Leads = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
+  const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
 
   const fetchLeads = async () => {
     try {
@@ -115,10 +116,7 @@ const Leads = () => {
           pipelineStage: lead.pipeline_stage,
           createdBy: profilesMap.get(lead.user_id) || "Unknown User",
           leadTemperature: lead.lead_temperature,
-          transactionType: lead.lead_temperature && 
-            ["Funding", "Listing", "Buyer's", "Investor's", "Rental", "Multifamily", "Wholesale", "Commercial"].includes(lead.lead_temperature)
-            ? lead.lead_temperature 
-            : "Unassigned",
+          transactionType: lead.lead_temperature || "Unassigned",
         };
       });
 
@@ -135,8 +133,34 @@ const Leads = () => {
     }
   };
 
+  const fetchTransactionTypes = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("transaction_types")
+        .select("name")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setTransactionTypes(data.map(t => t.name));
+      } else {
+        // Fallback to defaults if no types exist yet
+        setTransactionTypes(["Unassigned", "Funding", "Listing", "Buyer's", "Investor's", "Rental", "Multifamily", "Wholesale", "Commercial"]);
+      }
+    } catch (error: any) {
+      console.error("Error fetching transaction types:", error);
+    }
+  };
+
   useEffect(() => {
     fetchLeads();
+    fetchTransactionTypes();
   }, []);
 
   const getLeadCategory = (lead: Lead): string => {
@@ -253,67 +277,29 @@ const Leads = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-10 mb-6">
+        <TabsList className="grid w-full mb-6" style={{ gridTemplateColumns: `repeat(${transactionTypes.length + 1}, minmax(0, 1fr))` }}>
           <TabsTrigger value="all" className="relative">
             All
             <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
               {getLeadCountByCategory("all")}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="new-leads" className="relative bg-info/10 data-[state=active]:bg-info data-[state=active]:text-info-foreground">
-            New Leads
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("new-leads")}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="funding" className="relative">
-            Funding
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("funding")}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="listing" className="relative">
-            Listing
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("listing")}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="buyer's" className="relative">
-            Buyer's
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("buyer's")}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="investor's" className="relative">
-            Investor's
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("investor's")}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="rental" className="relative">
-            Rental
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("rental")}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="multifamily" className="relative">
-            Multifamily
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("multifamily")}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="wholesale" className="relative">
-            Wholesale
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("wholesale")}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="commercial" className="relative">
-            Commercial
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("commercial")}
-            </Badge>
-          </TabsTrigger>
+          {transactionTypes.map((type) => {
+            const tabValue = type.toLowerCase();
+            const isNewLeads = type === "Unassigned";
+            return (
+              <TabsTrigger 
+                key={type} 
+                value={tabValue}
+                className={isNewLeads ? "relative bg-info/10 data-[state=active]:bg-info data-[state=active]:text-info-foreground" : "relative"}
+              >
+                {isNewLeads ? "New Leads" : type}
+                <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+                  {getLeadCountByCategory(tabValue)}
+                </Badge>
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-0">
