@@ -304,184 +304,108 @@ const Dashboard = () => {
       const today = new Date();
       const weekStart = startOfWeek(today);
       const weekEnd = endOfWeek(today);
+      const todayStart = startOfDay(today);
+      const todayEnd = endOfDay(today);
 
-      // Fetch calls for this week
-      const { data: calls, error: callsError } = await supabase
-        .from("call_logs")
-        .select("*")
-        .gte("created_at", weekStart.toISOString())
-        .lte("created_at", weekEnd.toISOString());
+      // Parallelize all initial queries
+      const [
+        callsResult,
+        messagesResult,
+        leadsResult,
+        appointmentsResult,
+        agentRolesResult,
+        agentPhonesResult,
+        profilesResult,
+        tasksResult,
+        allCallsResult,
+        allMessagesResult,
+        allLeadsResult,
+        allAppointmentsResult,
+        allCompletedAppointmentsResult,
+        allDealsResult,
+        allShowingsResult
+      ] = await Promise.all([
+        supabase.from("call_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        supabase.from("sms_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        supabase.from("leads").select("*").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        supabase.from("tasks").select("*").gte("due_date", weekStart.toISOString()).lte("due_date", weekEnd.toISOString()),
+        supabase.from("user_roles").select("user_id, role").in("role", ["agent", "marketing_manager"]),
+        supabase.from("agents").select("*"),
+        supabase.from("profiles").select("*"),
+        supabase.from("tasks").select("*").eq("user_id", user.id).gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
+        // Fetch all agent data at once
+        supabase.from("call_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        supabase.from("sms_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        supabase.from("leads").select("user_id").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        supabase.from("appointments").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        supabase.from("appointments").select("user_id").eq("status", "completed").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        supabase.from("leads").select("user_id").not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        supabase.from("appointments").select("user_id").ilike("appointment_type", "%showing%").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+      ]);
 
-      if (callsError) throw callsError;
-      setTotalCalls(calls?.length || 0);
+      // Set totals
+      setTotalCalls(callsResult.data?.length || 0);
+      setTotalMessages(messagesResult.data?.length || 0);
+      setTotalNewLeads(leadsResult.data?.length || 0);
+      setTotalAppointments(appointmentsResult.data?.length || 0);
+      setTodayTasks(tasksResult.data || []);
 
-      // Fetch messages for this week
-      const { data: messages, error: messagesError } = await supabase
-        .from("sms_logs")
-        .select("*")
-        .gte("created_at", weekStart.toISOString())
-        .lte("created_at", weekEnd.toISOString());
+      // Create maps
+      const agentPhoneMap = new Map((agentPhonesResult.data || []).map((a) => [a.user_id, a]));
+      const profileMap = new Map((profilesResult.data || []).map((p) => [p.user_id, p]));
+      
+      // Count occurrences for each agent
+      const countByUserId = (data: any[]) => {
+        const counts = new Map<string, number>();
+        data.forEach(item => {
+          counts.set(item.user_id, (counts.get(item.user_id) || 0) + 1);
+        });
+        return counts;
+      };
 
-      if (messagesError) throw messagesError;
-      setTotalMessages(messages?.length || 0);
+      const callsCounts = countByUserId(allCallsResult.data || []);
+      const messagesCounts = countByUserId(allMessagesResult.data || []);
+      const leadsCounts = countByUserId(allLeadsResult.data || []);
+      const appointmentsCounts = countByUserId(allAppointmentsResult.data || []);
+      const completedAppointmentsCounts = countByUserId(allCompletedAppointmentsResult.data || []);
+      const dealsCounts = countByUserId(allDealsResult.data || []);
+      const showingsCounts = countByUserId(allShowingsResult.data || []);
 
-      // Fetch new leads for this week
-      const { data: leads, error: leadsError } = await supabase
-        .from("leads")
-        .select("*")
-        .eq("status", "new")
-        .gte("created_at", weekStart.toISOString())
-        .lte("created_at", weekEnd.toISOString());
-
-      if (leadsError) throw leadsError;
-      setTotalNewLeads(leads?.length || 0);
-
-      // Fetch appointments (tasks with due dates this week)
-      const { data: appointments, error: appointmentsError } = await supabase
-        .from("tasks")
-        .select("*")
-        .gte("due_date", weekStart.toISOString())
-        .lte("due_date", weekEnd.toISOString());
-
-      if (appointmentsError) throw appointmentsError;
-      setTotalAppointments(appointments?.length || 0);
-
-      // Fetch all users with agent or marketing_manager role
-      const { data: agentRoles, error: agentRolesError } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .in("role", ["agent", "marketing_manager"]);
-
-      if (agentRolesError) throw agentRolesError;
-
-      // Fetch agents table to check phone setup status
-      const { data: agentPhones } = await supabase
-        .from("agents")
-        .select("*");
-
-      // Create map of agent phone setups
-      const agentPhoneMap = new Map(
-        (agentPhones || []).map((a) => [a.user_id, a])
-      );
-
-      // Fetch all profiles for the agents
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("*");
-
-      // Create a map of user_id to profile for quick lookup
-      const profileMap = new Map(
-        (profiles || []).map((p) => [p.user_id, p])
-      );
-
-      // Count active agents (those with phone setup and marked active)
-      const activeCount = (agentRoles || []).filter(role => {
+      // Count active agents
+      const activeCount = (agentRolesResult.data || []).filter(role => {
         const agentPhone = agentPhoneMap.get(role.user_id);
         return agentPhone?.is_active === true;
       }).length;
       setActiveAgents(activeCount);
 
-      // Build agent stats for all agent users
-      const agentStatsData = await Promise.all(
-        (agentRoles || []).map(async (agentRole) => {
-          const { data: agentCalls } = await supabase
-            .from("call_logs")
-            .select("*")
-            .eq("user_id", agentRole.user_id)
-            .gte("created_at", weekStart.toISOString())
-            .lte("created_at", weekEnd.toISOString());
+      // Build agent stats without additional queries
+      const agentStatsData = (agentRolesResult.data || []).map((agentRole) => {
+        const profile = profileMap.get(agentRole.user_id);
+        const name = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown Agent";
+        const agentPhone = agentPhoneMap.get(agentRole.user_id);
+        const isActive = agentPhone?.is_active === true;
 
-          const { data: agentMessages } = await supabase
-            .from("sms_logs")
-            .select("*")
-            .eq("user_id", agentRole.user_id)
-            .gte("created_at", weekStart.toISOString())
-            .lte("created_at", weekEnd.toISOString());
-
-          const { data: agentLeads } = await supabase
-            .from("leads")
-            .select("*")
-            .eq("user_id", agentRole.user_id)
-            .eq("status", "new")
-            .gte("created_at", weekStart.toISOString())
-            .lte("created_at", weekEnd.toISOString());
-
-          const { data: agentAppointments } = await supabase
-            .from("appointments")
-            .select("*")
-            .eq("user_id", agentRole.user_id)
-            .gte("created_at", weekStart.toISOString())
-            .lte("created_at", weekEnd.toISOString());
-
-          const { data: agentCompletedAppointments } = await supabase
-            .from("appointments")
-            .select("*")
-            .eq("user_id", agentRole.user_id)
-            .eq("status", "completed")
-            .gte("created_at", weekStart.toISOString())
-            .lte("created_at", weekEnd.toISOString());
-
-          const { data: agentDeals } = await supabase
-            .from("leads")
-            .select("*")
-            .eq("user_id", agentRole.user_id)
-            .not("close_date", "is", null)
-            .gte("created_at", weekStart.toISOString())
-            .lte("created_at", weekEnd.toISOString());
-
-          const { data: agentPropertyShowings } = await supabase
-            .from("appointments")
-            .select("*")
-            .eq("user_id", agentRole.user_id)
-            .ilike("appointment_type", "%showing%")
-            .gte("created_at", weekStart.toISOString())
-            .lte("created_at", weekEnd.toISOString());
-
-          const profile = profileMap.get(agentRole.user_id);
-          const name = profile
-            ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
-            : "Unknown Agent";
-
-          const agentPhone = agentPhoneMap.get(agentRole.user_id);
-          const isActive = agentPhone?.is_active === true;
-
-          return {
-            id: agentRole.user_id,
-            name: name || "Unknown Agent",
-            calls: agentCalls?.length || 0,
-            messages: agentMessages?.length || 0,
-            newLeads: agentLeads?.length || 0,
-            appointments: agentAppointments?.length || 0,
-            appointmentsCompleted: agentCompletedAppointments?.length || 0,
-            propertyShowings: agentPropertyShowings?.length || 0,
-            deals: agentDeals?.length || 0,
-            status: isActive ? "active" : "offline",
-          } as AgentStats;
-        })
-      );
+        return {
+          id: agentRole.user_id,
+          name: name || "Unknown Agent",
+          calls: callsCounts.get(agentRole.user_id) || 0,
+          messages: messagesCounts.get(agentRole.user_id) || 0,
+          newLeads: leadsCounts.get(agentRole.user_id) || 0,
+          appointments: appointmentsCounts.get(agentRole.user_id) || 0,
+          appointmentsCompleted: completedAppointmentsCounts.get(agentRole.user_id) || 0,
+          propertyShowings: showingsCounts.get(agentRole.user_id) || 0,
+          deals: dealsCounts.get(agentRole.user_id) || 0,
+          status: isActive ? "active" : "offline",
+        } as AgentStats;
+      });
 
       setAgentStats(agentStatsData);
 
-      // Fetch today's tasks for the current user
-      const todayStart = startOfDay(today);
-      const todayEnd = endOfDay(today);
-
-      const { data: tasks, error: tasksError } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("user_id", user.id)
-        .gte("due_date", todayStart.toISOString())
-        .lte("due_date", todayEnd.toISOString())
-        .order("due_date", { ascending: true });
-
-      if (tasksError) throw tasksError;
-      setTodayTasks(tasks || []);
-
-      // Fetch upcoming appointments
-      await fetchUpcomingAppointments();
-
-      // Fetch revenue and deals data
-      await fetchChartsData();
+      // Fetch upcoming appointments and charts data in parallel
+      await Promise.all([
+        fetchUpcomingAppointments(),
+        fetchChartsData()
+      ]);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       toast.error("Failed to load dashboard data");
