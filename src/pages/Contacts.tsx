@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, Phone, Mail, MapPin, MoreVertical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -21,216 +21,97 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-type ContactCategory = "clients" | "leads" | "vendors" | "business-owners" | "title-offices" | "wholesalers" | "hard-money-lenders";
-
-type VendorSubcategory = "framers" | "flooring" | "roofing" | "plumbers" | "general-contractors" | "electricians" | "hvac" | "painters" | "landscaping";
+type ContactCategory = "client" | "lead" | "vendor" | "partner" | "other";
+type VendorSubcategory = "title_company" | "inspector" | "contractor" | "photographer" | "stager" | "attorney" | "lender" | "insurance" | "other";
 
 interface Contact {
   id: string;
   name: string;
-  email: string;
-  phone: string;
-  address: string;
-  avatar: string;
-  properties: number;
-  lastContact: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
   category: ContactCategory;
-  vendorSubcategory?: VendorSubcategory;
-  company?: string;
-  isDemoData?: boolean;
+  vendor_subcategory: VendorSubcategory | null;
+  notes: string | null;
+  tags: string[] | null;
+  created_at: string;
+  updated_at: string;
 }
 
-const mockContacts: Contact[] = [
-  // Clients
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.j@email.com",
-    phone: "(555) 123-4567",
-    address: "123 Main St, Downtown",
-    avatar: "SJ",
-    properties: 2,
-    lastContact: "2 days ago",
-    category: "clients",
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    email: "m.chen@email.com",
-    phone: "(555) 234-5678",
-    address: "456 Oak Ave, Uptown",
-    avatar: "MC",
-    properties: 3,
-    lastContact: "5 days ago",
-    category: "clients",
-  },
-  // Leads
-  {
-    id: "3",
-    name: "Emily Rodriguez",
-    email: "emily.r@email.com",
-    phone: "(555) 345-6789",
-    address: "789 Pine Rd, Suburbs",
-    avatar: "ER",
-    properties: 0,
-    lastContact: "1 week ago",
-    category: "leads",
-  },
-  {
-    id: "4",
-    name: "David Kim",
-    email: "david.kim@email.com",
-    phone: "(555) 456-7890",
-    address: "321 Elm St, Westside",
-    avatar: "DK",
-    properties: 0,
-    lastContact: "3 days ago",
-    category: "leads",
-  },
-  // Vendors
-  {
-    id: "5",
-    name: "Tom's Framing Co.",
-    email: "tom@framingco.com",
-    phone: "(555) 567-8901",
-    address: "654 Maple Dr, Eastside",
-    avatar: "TF",
-    properties: 0,
-    lastContact: "1 day ago",
-    category: "vendors",
-    vendorSubcategory: "framers",
-    company: "Tom's Framing Co.",
-  },
-  {
-    id: "6",
-    name: "Elite Flooring Services",
-    email: "contact@eliteflooring.com",
-    phone: "(555) 678-9012",
-    address: "987 Cedar Ln, Southside",
-    avatar: "EF",
-    properties: 0,
-    lastContact: "4 days ago",
-    category: "vendors",
-    vendorSubcategory: "flooring",
-    company: "Elite Flooring Services",
-  },
-  {
-    id: "7",
-    name: "AAA Plumbing",
-    email: "service@aaaplumbing.com",
-    phone: "(555) 789-0123",
-    address: "321 Water St, Northside",
-    avatar: "AP",
-    properties: 0,
-    lastContact: "2 days ago",
-    category: "vendors",
-    vendorSubcategory: "plumbers",
-    company: "AAA Plumbing",
-  },
-  {
-    id: "8",
-    name: "ProRoof Solutions",
-    email: "info@proroof.com",
-    phone: "(555) 890-1234",
-    address: "456 High St, Hillside",
-    avatar: "PR",
-    properties: 0,
-    lastContact: "1 week ago",
-    category: "vendors",
-    vendorSubcategory: "roofing",
-    company: "ProRoof Solutions",
-  },
-  // Business Owners
-  {
-    id: "9",
-    name: "James Patterson",
-    email: "james@bigbusiness.com",
-    phone: "(555) 901-2345",
-    address: "789 Corporate Blvd, Business District",
-    avatar: "JP",
-    properties: 15,
-    lastContact: "3 days ago",
-    category: "business-owners",
-    company: "Patterson Investments LLC",
-  },
-  // Title Offices
-  {
-    id: "10",
-    name: "Premier Title Company",
-    email: "contact@premiertitle.com",
-    phone: "(555) 012-3456",
-    address: "123 Legal Ave, Downtown",
-    avatar: "PT",
-    properties: 0,
-    lastContact: "5 days ago",
-    category: "title-offices",
-    company: "Premier Title Company",
-  },
-  // Wholesalers
-  {
-    id: "11",
-    name: "Quick Flip Wholesale",
-    email: "deals@quickflip.com",
-    phone: "(555) 123-4560",
-    address: "654 Trade St, Market District",
-    avatar: "QF",
-    properties: 8,
-    lastContact: "1 day ago",
-    category: "wholesalers",
-    company: "Quick Flip Wholesale",
-  },
-  // Hard Money Lenders
-  {
-    id: "12",
-    name: "Fast Capital Lending",
-    email: "loans@fastcapital.com",
-    phone: "(555) 234-5601",
-    address: "987 Finance Rd, Banking District",
-    avatar: "FC",
-    properties: 0,
-    lastContact: "2 days ago",
-    category: "hard-money-lenders",
-    company: "Fast Capital Lending",
-  },
-];
-
 const categoryLabels: Record<ContactCategory, string> = {
-  "clients": "Clients",
-  "leads": "Leads",
-  "vendors": "Vendors",
-  "business-owners": "Business Owners",
-  "title-offices": "Title Offices",
-  "wholesalers": "Wholesalers",
-  "hard-money-lenders": "Hard Money Lenders",
+  "client": "Clients",
+  "lead": "Leads",
+  "vendor": "Vendors",
+  "partner": "Partners",
+  "other": "Other",
 };
 
 const vendorSubcategoryLabels: Record<VendorSubcategory, string> = {
-  "framers": "Framers",
-  "flooring": "Flooring",
-  "roofing": "Roofing",
-  "plumbers": "Plumbers",
-  "general-contractors": "General Contractors",
-  "electricians": "Electricians",
-  "hvac": "HVAC",
-  "painters": "Painters",
-  "landscaping": "Landscaping",
+  "title_company": "Title Company",
+  "inspector": "Inspector",
+  "contractor": "Contractor",
+  "photographer": "Photographer",
+  "stager": "Stager",
+  "attorney": "Attorney",
+  "lender": "Lender",
+  "insurance": "Insurance",
+  "other": "Other",
 };
 
 const Contacts = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<ContactCategory | "all">("all");
   const [vendorFilter, setVendorFilter] = useState<VendorSubcategory | "all">("all");
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [calling, setCalling] = useState<string | null>(null);
 
-  useEffect(() => {
-    const handler = () => setContacts(prev => prev.filter(c => !c.isDemoData));
-    window.addEventListener('demoDataCleared', handler);
-    return () => window.removeEventListener('demoDataCleared', handler);
-  }, []);
+  // Fetch contacts from database
+  const { data: contacts = [], isLoading } = useQuery({
+    queryKey: ['contacts'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as Contact[];
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (contactId: string) => {
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', contactId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+      toast({
+        title: "Contact Deleted",
+        description: "Contact has been removed",
+      });
+    },
+    onError: (error) => {
+      console.error('Error deleting contact:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete contact",
+        variant: "destructive",
+      });
+    },
+  });
 
   const getCategoryCount = (category: ContactCategory) => {
     return contacts.filter(c => c.category === category).length;
@@ -239,35 +120,34 @@ const Contacts = () => {
   const filteredContacts = contacts.filter((contact) => {
     const matchesSearch = 
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contact.company?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesCategory = selectedCategory === "all" || contact.category === selectedCategory;
     
     const matchesVendorSubcategory = 
-      selectedCategory !== "vendors" || 
+      selectedCategory !== "vendor" || 
       vendorFilter === "all" || 
-      contact.vendorSubcategory === vendorFilter;
+      contact.vendor_subcategory === vendorFilter;
 
     return matchesSearch && matchesCategory && matchesVendorSubcategory;
   });
 
   const handleDeleteContact = (id: string) => {
-    setContacts(prev => prev.filter(c => c.id !== id));
-    
-    // Persist deletion to localStorage
-    const deletedIds = JSON.parse(localStorage.getItem('deletedContactIds') || '[]');
-    deletedIds.push(id);
-    localStorage.setItem('deletedContactIds', JSON.stringify(deletedIds));
-    
-    toast({
-      title: "Contact Deleted",
-      description: "Contact has been removed",
-    });
+    deleteMutation.mutate(id);
   };
 
-  const handleCall = async (contact: Contact, e: React.MouseEvent) => {
+  const handleCall = (contact: Contact, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    if (!contact.phone) {
+      toast({
+        title: "No phone number",
+        description: "This contact doesn't have a phone number",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Dispatch custom event to trigger GlobalCallManager
     window.dispatchEvent(new CustomEvent('initiateCall', {
@@ -277,6 +157,27 @@ const Contacts = () => {
       }
     }));
   };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="p-6 md:p-8 max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <p className="text-muted-foreground">Loading contacts...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -290,7 +191,10 @@ const Contacts = () => {
               </h1>
               <p className="text-muted-foreground">Manage and organize all your contacts in one place</p>
             </div>
-            <Button className="gap-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-primary hover:bg-primary/90">
+            <Button 
+              className="gap-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-primary hover:bg-primary/90"
+              onClick={() => toast({ title: "Add Contact", description: "Contact creation dialog coming soon" })}
+            >
               <Plus className="h-5 w-5" />
               <span className="font-semibold">Add New Contact</span>
             </Button>
@@ -308,13 +212,13 @@ const Contacts = () => {
               />
             </div>
             
-            {selectedCategory === "vendors" && (
+            {selectedCategory === "vendor" && (
               <Select value={vendorFilter} onValueChange={(value) => setVendorFilter(value as VendorSubcategory | "all")}>
                 <SelectTrigger className="w-full sm:w-[220px] h-11 bg-card shadow-sm">
-                  <SelectValue placeholder="Filter by trade" />
+                  <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
-                  <SelectItem value="all">All Trades</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   {Object.entries(vendorSubcategoryLabels).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
@@ -350,7 +254,9 @@ const Contacts = () => {
               <Search className="h-10 w-10 text-muted-foreground" />
             </div>
             <p className="text-xl font-medium text-foreground mb-2">No contacts found</p>
-            <p className="text-muted-foreground">Try adjusting your search or filters</p>
+            <p className="text-muted-foreground">
+              {contacts.length === 0 ? "Add your first contact to get started" : "Try adjusting your search or filters"}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
@@ -369,13 +275,12 @@ const Contacts = () => {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="h-14 w-14 rounded-full bg-gradient-to-br from-primary to-primary/60 text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg group-hover:scale-110 transition-transform duration-300">
-                        {contact.avatar}
+                        {getInitials(contact.name)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-foreground truncate text-lg group-hover:text-primary transition-colors">
                           {contact.name}
                         </h3>
-                        <p className="text-xs text-muted-foreground">{contact.lastContact}</p>
                         {contact.company && (
                           <p className="text-xs text-muted-foreground truncate font-medium mt-0.5">
                             {contact.company}
@@ -415,64 +320,58 @@ const Contacts = () => {
                   <div className="mb-4 flex items-center gap-2">
                     <Badge variant="outline" className="text-xs font-medium border-primary/20 bg-primary/5">
                       {categoryLabels[contact.category]}
-                      {contact.vendorSubcategory && ` • ${vendorSubcategoryLabels[contact.vendorSubcategory]}`}
+                      {contact.vendor_subcategory && ` • ${vendorSubcategoryLabels[contact.vendor_subcategory]}`}
                     </Badge>
-                    {contact.isDemoData && (
-                      <Badge variant="secondary" className="text-xs font-medium">Demo</Badge>
-                    )}
                   </div>
 
                   {/* Contact Info */}
                   <div className="space-y-3 mb-4">
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/item">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover/item:bg-primary/10 transition-colors">
-                        <Mail className="h-4 w-4" />
+                    {contact.email && (
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/item">
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover/item:bg-primary/10 transition-colors">
+                          <Mail className="h-4 w-4" />
+                        </div>
+                        <span className="truncate">{contact.email}</span>
                       </div>
-                      <span className="truncate">{contact.email}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/item">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover/item:bg-primary/10 transition-colors">
-                        <Phone className="h-4 w-4" />
+                    )}
+                    {contact.phone && (
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/item">
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover/item:bg-primary/10 transition-colors">
+                          <Phone className="h-4 w-4" />
+                        </div>
+                        <span>{contact.phone}</span>
                       </div>
-                      <span>{contact.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground transition-colors group/item">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 group-hover/item:bg-primary/10 transition-colors">
-                        <MapPin className="h-4 w-4" />
-                      </div>
-                      <span className="truncate">{contact.address}</span>
-                    </div>
+                    )}
                   </div>
 
                   {/* Footer Actions */}
                   <div className="pt-4 border-t border-border/50 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                      <span className="text-sm font-medium text-foreground">
-                        {contact.properties} {contact.properties === 1 ? 'property' : 'properties'}
-                      </span>
-                    </div>
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="hover:bg-primary hover:text-primary-foreground transition-colors"
-                        onClick={(e) => handleCall(contact, e)}
-                        disabled={calling === contact.id}
-                      >
-                        <Phone className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="hover:bg-primary hover:text-primary-foreground transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.location.href = `mailto:${contact.email}`;
-                        }}
-                      >
-                        <Mail className="h-4 w-4" />
-                      </Button>
+                      {contact.phone && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={(e) => handleCall(contact, e)}
+                          className="gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+                        >
+                          <Phone className="h-3 w-3" />
+                          Call
+                        </Button>
+                      )}
+                      {contact.email && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.location.href = `mailto:${contact.email}`;
+                          }}
+                          className="gap-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+                        >
+                          <Mail className="h-3 w-3" />
+                          Email
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

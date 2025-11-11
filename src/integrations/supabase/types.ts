@@ -148,6 +148,57 @@ export type Database = {
         }
         Relationships: []
       }
+      contacts: {
+        Row: {
+          category: Database["public"]["Enums"]["contact_category"]
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+          vendor_subcategory:
+            | Database["public"]["Enums"]["vendor_subcategory"]
+            | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["contact_category"]
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+          vendor_subcategory?:
+            | Database["public"]["Enums"]["vendor_subcategory"]
+            | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["contact_category"]
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+          vendor_subcategory?:
+            | Database["public"]["Enums"]["vendor_subcategory"]
+            | null
+        }
+        Relationships: []
+      }
       crm_settings: {
         Row: {
           auto_roundrobin_unanswered: boolean
@@ -801,6 +852,17 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "agent" | "marketing_manager" | "marketing"
+      contact_category: "client" | "lead" | "vendor" | "partner" | "other"
+      vendor_subcategory:
+        | "title_company"
+        | "inspector"
+        | "contractor"
+        | "photographer"
+        | "stager"
+        | "attorney"
+        | "lender"
+        | "insurance"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -929,6 +991,18 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "agent", "marketing_manager", "marketing"],
+      contact_category: ["client", "lead", "vendor", "partner", "other"],
+      vendor_subcategory: [
+        "title_company",
+        "inspector",
+        "contractor",
+        "photographer",
+        "stager",
+        "attorney",
+        "lender",
+        "insurance",
+        "other",
+      ],
     },
   },
 } as const
