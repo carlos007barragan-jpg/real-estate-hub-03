@@ -24,6 +24,9 @@ interface AgentStats {
   calls: number;
   messages: number;
   newLeads: number;
+  appointments: number;
+  appointmentsCompleted: number;
+  deals: number;
   status: "active" | "offline";
 }
 
@@ -205,11 +208,11 @@ const Dashboard = () => {
       if (appointmentsError) throw appointmentsError;
       setTotalAppointments(appointments?.length || 0);
 
-      // Fetch all users with agent role
+      // Fetch all users with agent or marketing_manager role
       const { data: agentRoles, error: agentRolesError } = await supabase
         .from("user_roles")
         .select("user_id, role")
-        .eq("role", "agent");
+        .in("role", ["agent", "marketing_manager"]);
 
       if (agentRolesError) throw agentRolesError;
 
@@ -265,6 +268,29 @@ const Dashboard = () => {
             .gte("created_at", weekStart.toISOString())
             .lte("created_at", weekEnd.toISOString());
 
+          const { data: agentAppointments } = await supabase
+            .from("appointments")
+            .select("*")
+            .eq("user_id", agentRole.user_id)
+            .gte("created_at", weekStart.toISOString())
+            .lte("created_at", weekEnd.toISOString());
+
+          const { data: agentCompletedAppointments } = await supabase
+            .from("appointments")
+            .select("*")
+            .eq("user_id", agentRole.user_id)
+            .eq("status", "completed")
+            .gte("created_at", weekStart.toISOString())
+            .lte("created_at", weekEnd.toISOString());
+
+          const { data: agentDeals } = await supabase
+            .from("leads")
+            .select("*")
+            .eq("user_id", agentRole.user_id)
+            .not("close_date", "is", null)
+            .gte("created_at", weekStart.toISOString())
+            .lte("created_at", weekEnd.toISOString());
+
           const profile = profileMap.get(agentRole.user_id);
           const name = profile
             ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
@@ -279,6 +305,9 @@ const Dashboard = () => {
             calls: agentCalls?.length || 0,
             messages: agentMessages?.length || 0,
             newLeads: agentLeads?.length || 0,
+            appointments: agentAppointments?.length || 0,
+            appointmentsCompleted: agentCompletedAppointments?.length || 0,
+            deals: agentDeals?.length || 0,
             status: isActive ? "active" : "offline",
           } as AgentStats;
         })
@@ -635,6 +664,9 @@ const Dashboard = () => {
                 <TableHead className="text-right">Calls</TableHead>
                 <TableHead className="text-right">Messages</TableHead>
                 <TableHead className="text-right">New Leads</TableHead>
+                <TableHead className="text-right">Appointments</TableHead>
+                <TableHead className="text-right">Appointments Completed</TableHead>
+                <TableHead className="text-right">Deals</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -656,6 +688,9 @@ const Dashboard = () => {
                   <TableCell className="text-right font-semibold">{agent.calls}</TableCell>
                   <TableCell className="text-right font-semibold">{agent.messages}</TableCell>
                   <TableCell className="text-right font-semibold">{agent.newLeads}</TableCell>
+                  <TableCell className="text-right font-semibold">{agent.appointments}</TableCell>
+                  <TableCell className="text-right font-semibold">{agent.appointmentsCompleted}</TableCell>
+                  <TableCell className="text-right font-semibold">{agent.deals}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
