@@ -5,8 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface FieldOption {
@@ -21,7 +20,6 @@ export default function InventoryFieldSettings() {
   const [options, setOptions] = useState<FieldOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [newValue, setNewValue] = useState("");
-  const [activeTab, setActiveTab] = useState("category");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -175,25 +173,23 @@ export default function InventoryFieldSettings() {
 
     return (
       <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between mb-3">
-            <Label className="text-sm font-medium">Active Options</Label>
-            <Badge variant="secondary">{fieldOptions.length} total</Badge>
-          </div>
-          <div className="space-y-2">
-            {fieldOptions.length === 0 ? (
-              <div className="text-center py-8 px-4 border-2 border-dashed rounded-lg">
-                <p className="text-sm text-muted-foreground">No options added yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Add your first option below</p>
-              </div>
-            ) : (
-              fieldOptions.map((option, index) => (
-                <div key={option.id} className="flex items-center gap-2 p-3 bg-card border rounded-lg hover:border-primary/50 transition-colors">
-                  <div className="flex flex-col gap-1">
+        {/* Current Custom Options */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Your Custom Options</Label>
+          {fieldOptions.length === 0 ? (
+            <div className="text-center py-6 px-4 border-2 border-dashed rounded-lg bg-muted/30">
+              <p className="text-sm text-muted-foreground">No custom options yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Add your first option below</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {fieldOptions.map((option, index) => (
+                <div key={option.id} className="flex items-center gap-3 p-3 bg-card border rounded-lg group hover:border-primary/50 transition-colors">
+                  <div className="flex flex-col gap-0.5">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0"
+                      className="h-5 w-5 p-0"
                       onClick={() => handleMoveOption(option.id, 'up', fieldType)}
                       disabled={index === 0}
                     >
@@ -202,37 +198,34 @@ export default function InventoryFieldSettings() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0"
+                      className="h-5 w-5 p-0"
                       onClick={() => handleMoveOption(option.id, 'down', fieldType)}
                       disabled={index === fieldOptions.length - 1}
                     >
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                   </div>
-                  <GripVertical className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium flex-1">{option.option_value}</span>
-                  <Badge variant="outline" className="text-xs">
-                    Order: {option.display_order}
-                  </Badge>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDeleteOption(option.id, option.option_value)}
-                    className="hover:bg-destructive/10"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Add New Option</Label>
+        {/* Add New Option */}
+        <div className="space-y-3 pt-2 border-t">
+          <Label className="text-sm font-medium">Add New {fieldType === 'category' ? 'Category' : 'Property Type'}</Label>
           <div className="flex gap-2">
             <Input
-              placeholder={`Enter new ${fieldType.replace('_', ' ')} option...`}
+              placeholder={`Enter ${fieldType === 'category' ? 'category' : 'property type'} name...`}
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
               onKeyPress={(e) => {
@@ -241,7 +234,7 @@ export default function InventoryFieldSettings() {
                 }
               }}
             />
-            <Button onClick={() => handleAddOption(fieldType)}>
+            <Button onClick={() => handleAddOption(fieldType)} className="shrink-0">
               <Plus className="h-4 w-4 mr-2" />
               Add
             </Button>
@@ -251,6 +244,12 @@ export default function InventoryFieldSettings() {
     );
   };
 
+  const getCustomOptions = (fieldType: string) => {
+    return options
+      .filter(opt => opt.field_type === fieldType && opt.is_active)
+      .map(opt => opt.option_value);
+  };
+
   if (loading) {
     return <div className="flex justify-center p-8">Loading...</div>;
   }
@@ -258,54 +257,71 @@ export default function InventoryFieldSettings() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Inventory Field Settings</CardTitle>
+        <CardTitle>Customize Property Fields</CardTitle>
         <CardDescription>
-          Customize the dropdown options for categories and property types
+          Manage your custom categories and property types. These will appear in the property form dropdowns.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* System Status Reference */}
-        <div className="p-4 bg-muted/50 rounded-lg border">
-          <h4 className="font-semibold mb-2 flex items-center gap-2">
-            <Badge variant="secondary">System Default</Badge>
-            Current Property Statuses
-          </h4>
-          <p className="text-sm text-muted-foreground mb-3">
-            These are the fixed status options available in your property filters and forms:
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">Available</Badge>
-            <Badge variant="outline">Pending</Badge>
-            <Badge variant="outline">Sold</Badge>
-            <Badge variant="outline">Coming Soon</Badge>
-            <Badge variant="outline">Under Contract</Badge>
+        {/* Categories Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Property Categories</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Organize properties by transaction type (Residential, Commercial, Wholesale, etc.)
+              </p>
+            </div>
+            <Badge variant="secondary" className="h-fit">
+              {getCustomOptions("category").length} custom
+            </Badge>
           </div>
+
+          {/* System Defaults Reference */}
+          <div className="p-3 bg-muted/50 rounded-lg border">
+            <p className="text-xs font-medium text-muted-foreground mb-2">System Defaults:</p>
+            <div className="flex flex-wrap gap-2">
+              {["Residential", "Commercial", "Wholesale", "Off-Market", "Investment", "Luxury"].map(cat => (
+                <Badge key={cat} variant="outline" className="text-xs">
+                  {cat}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          {renderFieldOptions("category")}
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="category">Categories</TabsTrigger>
-            <TabsTrigger value="property_type">Property Types</TabsTrigger>
-          </TabsList>
+        <div className="border-t pt-6" />
 
-          <TabsContent value="category" className="mt-4">
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>Categories</strong> help you organize properties by transaction type or market segment (e.g., Residential, Commercial, Wholesale, Off-Market).
+        {/* Property Types Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Property Types</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Define physical property characteristics (Single Family, Condo, Land, etc.)
               </p>
             </div>
-            {renderFieldOptions("category")}
-          </TabsContent>
+            <Badge variant="secondary" className="h-fit">
+              {getCustomOptions("property_type").length} custom
+            </Badge>
+          </div>
 
-          <TabsContent value="property_type" className="mt-4">
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm text-blue-900 dark:text-blue-100">
-                <strong>Property Types</strong> define the physical characteristics (e.g., Single Family, Multi Family, Condo, Land).
-              </p>
+          {/* System Defaults Reference */}
+          <div className="p-3 bg-muted/50 rounded-lg border">
+            <p className="text-xs font-medium text-muted-foreground mb-2">System Defaults:</p>
+            <div className="flex flex-wrap gap-2">
+              {["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"].map(type => (
+                <Badge key={type} variant="outline" className="text-xs">
+                  {type}
+                </Badge>
+              ))}
             </div>
-            {renderFieldOptions("property_type")}
-          </TabsContent>
-        </Tabs>
+          </div>
+
+          {renderFieldOptions("property_type")}
+        </div>
       </CardContent>
     </Card>
   );
