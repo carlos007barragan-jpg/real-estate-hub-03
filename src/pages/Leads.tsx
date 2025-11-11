@@ -70,6 +70,8 @@ const Leads = () => {
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
+  const [showMyLeadsOnly, setShowMyLeadsOnly] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -157,6 +159,16 @@ const Leads = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Check if admin
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      
+      setIsAdmin(!!roleData);
+
       const { data, error } = await supabase
         .from("agents")
         .select("phone_number")
@@ -165,6 +177,11 @@ const Leads = () => {
 
       if (error) throw error;
       setCurrentUserPhone(data?.phone_number || null);
+      
+      // Default to "My Leads" for non-admins
+      if (!roleData) {
+        setShowMyLeadsOnly(true);
+      }
     } catch (error: any) {
       console.error("Error fetching current user phone:", error);
     }
@@ -220,6 +237,15 @@ const Leads = () => {
         const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           lead.email.toLowerCase().includes(searchTerm.toLowerCase());
         
+        // Filter by "My Leads" if enabled
+        if (showMyLeadsOnly && currentUserPhone) {
+          const isMyLead = lead.agentPhone === currentUserPhone;
+          const isUnassigned = !lead.agentPhone;
+          
+          // Show only leads assigned to me OR unassigned leads
+          if (!isMyLead && !isUnassigned) return false;
+        }
+        
         if (activeTab === "all") return matchesSearch;
         
         const category = getLeadCategory(lead);
@@ -243,7 +269,7 @@ const Leads = () => {
         // Priority 3: Other leads (keep original order)
         return 0;
       });
-  }, [leads, searchTerm, activeTab, currentUserPhone, getLeadCategory]);
+  }, [leads, searchTerm, activeTab, currentUserPhone, getLeadCategory, showMyLeadsOnly]);
 
   const getLeadCountByCategory = useCallback((category: string) => {
     if (category === "all") return leads.length;
@@ -338,6 +364,19 @@ const Leads = () => {
               className="pl-10"
             />
           </div>
+          
+          <Select 
+            value={showMyLeadsOnly ? "my-leads" : "all-leads"} 
+            onValueChange={(value) => setShowMyLeadsOnly(value === "my-leads")}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="my-leads">My Leads</SelectItem>
+              <SelectItem value="all-leads">All Leads</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

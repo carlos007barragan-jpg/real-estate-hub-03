@@ -92,11 +92,13 @@ const Dashboard = () => {
   const [dealsData, setDealsData] = useState<DealsData[]>([]);
   const [chartView, setChartView] = useState<'daily' | 'monthly' | 'ytd'>('monthly');
   const [totalAppointments, setTotalAppointments] = useState(0);
+  const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
     setupPresenceTracking();
     checkAdminStatus();
+    fetchCurrentUserPhone();
   }, []);
 
   useEffect(() => {
@@ -117,6 +119,24 @@ const Dashboard = () => {
       .maybeSingle();
 
     setIsAdmin(!!data);
+  };
+
+  const fetchCurrentUserPhone = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("agents")
+        .select("phone_number")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setCurrentUserPhone(data?.phone_number || null);
+    } catch (error: any) {
+      console.error("Error fetching current user phone:", error);
+    }
   };
 
   const fetchUpcomingAppointments = async () => {
@@ -325,21 +345,36 @@ const Dashboard = () => {
         allDealsResult,
         allShowingsResult
       ] = await Promise.all([
-        supabase.from("call_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        supabase.from("sms_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        supabase.from("leads").select("*").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        // For non-admins, filter by assigned agent phone
+        !isAdmin && currentUserPhone 
+          ? supabase.from("call_logs").select("*").eq("to_number", currentUserPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+          : supabase.from("call_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        !isAdmin && currentUserPhone
+          ? supabase.from("sms_logs").select("*").eq("to_number", currentUserPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+          : supabase.from("sms_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        !isAdmin && currentUserPhone
+          ? supabase.from("leads").select("*").eq("status", "new").or(`agent_phone.eq.${currentUserPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+          : supabase.from("leads").select("*").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
         supabase.from("tasks").select("*").gte("due_date", weekStart.toISOString()).lte("due_date", weekEnd.toISOString()),
         supabase.from("user_roles").select("user_id, role").in("role", ["agent", "marketing_manager"]),
         supabase.from("agents").select("*"),
         supabase.from("profiles").select("*"),
         supabase.from("tasks").select("*").eq("user_id", user.id).gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
-        // Fetch all agent data at once
-        supabase.from("call_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        supabase.from("sms_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        supabase.from("leads").select("user_id").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        // Fetch all agent data at once (with filtering for non-admins)
+        !isAdmin && currentUserPhone
+          ? supabase.from("call_logs").select("user_id").eq("to_number", currentUserPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+          : supabase.from("call_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        !isAdmin && currentUserPhone
+          ? supabase.from("sms_logs").select("user_id").eq("to_number", currentUserPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+          : supabase.from("sms_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        !isAdmin && currentUserPhone
+          ? supabase.from("leads").select("user_id").eq("status", "new").or(`agent_phone.eq.${currentUserPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+          : supabase.from("leads").select("user_id").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
         supabase.from("appointments").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
         supabase.from("appointments").select("user_id").eq("status", "completed").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        supabase.from("leads").select("user_id").not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        !isAdmin && currentUserPhone
+          ? supabase.from("leads").select("user_id").or(`agent_phone.eq.${currentUserPhone},agent_phone.is.null`).not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+          : supabase.from("leads").select("user_id").not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
         supabase.from("appointments").select("user_id").ilike("appointment_type", "%showing%").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
       ]);
 
