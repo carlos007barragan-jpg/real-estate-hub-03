@@ -75,20 +75,26 @@ const Leads = () => {
     try {
       const { data, error } = await supabase
         .from("leads")
-        .select(`
-          *,
-          profiles!leads_user_id_fkey(first_name, last_name)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      const formattedLeads: Lead[] = (data || []).map((lead) => {
-        const profile = lead.profiles as any;
-        const creatorName = profile 
-          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User"
-          : "Unknown User";
+      // Fetch creator names separately
+      const userIds = [...new Set((data || []).map(lead => lead.user_id))];
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name")
+        .in("user_id", userIds);
 
+      const profilesMap = new Map(
+        (profilesData || []).map(p => [
+          p.user_id, 
+          `${p.first_name || ''} ${p.last_name || ''}`.trim() || "Unknown User"
+        ])
+      );
+
+      const formattedLeads: Lead[] = (data || []).map((lead) => {
         return {
           id: lead.id,
           name: lead.name,
@@ -103,7 +109,7 @@ const Leads = () => {
           isDemoData: lead.is_demo_data || false,
           leadLifecycle: lead.lead_lifecycle,
           pipelineStage: lead.pipeline_stage,
-          createdBy: creatorName,
+          createdBy: profilesMap.get(lead.user_id) || "Unknown User",
         };
       });
 
