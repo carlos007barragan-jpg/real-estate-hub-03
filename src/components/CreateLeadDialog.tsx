@@ -59,10 +59,11 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     area: "",
     marital_status: "",
     current_address: "",
-    lead_temperature: "warm",
+    lead_temperature: "",
     language_preference: "English",
     preferred_contact_method: "phone",
     social_status: "",
+    marketing_category: "",
   });
 
   useEffect(() => {
@@ -210,11 +211,14 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         area: formData.area || null,
         marital_status: formData.marital_status || null,
         current_address: formData.current_address || null,
-        lead_temperature: formData.lead_temperature,
+        lead_temperature: formData.lead_temperature || null,
         language_preference: formData.language_preference,
         preferred_contact_method: formData.preferred_contact_method,
         social_status: formData.social_status || null,
-        custom_data: customFieldValues,
+        custom_data: {
+          ...customFieldValues,
+          marketing_category: formData.marketing_category || null,
+        },
       });
 
       if (error) throw error;
@@ -240,10 +244,11 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         area: "",
         marital_status: "",
         current_address: "",
-        lead_temperature: "warm",
+        lead_temperature: "",
         language_preference: "English",
         preferred_contact_method: "phone",
         social_status: "",
+        marketing_category: "",
       });
       setCustomFieldValues({});
       setOpen(false);
@@ -384,18 +389,24 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="lead_temperature">Lead Status</Label>
+              <Label htmlFor="lead_temperature">Transaction Type</Label>
               <Select
                 value={formData.lead_temperature}
                 onValueChange={(value) => setFormData({ ...formData, lead_temperature: value })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select type" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hot">Hot</SelectItem>
-                  <SelectItem value="warm">Warm</SelectItem>
-                  <SelectItem value="cold">Cold</SelectItem>
+                <SelectContent className="z-50 bg-popover">
+                  <SelectItem value="Unassigned">Unassigned</SelectItem>
+                  <SelectItem value="Funding">Funding</SelectItem>
+                  <SelectItem value="Listing">Listing</SelectItem>
+                  <SelectItem value="Buyer's">Buyer's</SelectItem>
+                  <SelectItem value="Investor's">Investor's</SelectItem>
+                  <SelectItem value="Rental">Rental</SelectItem>
+                  <SelectItem value="Multifamily">Multifamily</SelectItem>
+                  <SelectItem value="Wholesale">Wholesale</SelectItem>
+                  <SelectItem value="Commercial">Commercial</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -535,6 +546,32 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
               onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
               placeholder="Agent name"
             />
+          </div>
+
+          {/* Marketing Agent Category Section */}
+          <div className="pt-4 border-t space-y-4">
+            <div>
+              <h3 className="font-semibold text-foreground mb-1">Only for Marketing Agents</h3>
+              <p className="text-xs text-muted-foreground">Optional - Used for lead categorization</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="marketing_category">Marketing Category</Label>
+              <Select
+                value={formData.marketing_category}
+                onValueChange={(value) => setFormData({ ...formData, marketing_category: value })}
+              >
+                <SelectTrigger className="bg-popover">
+                  <SelectValue placeholder="Select category (optional)" />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-popover">
+                  <SelectItem value="new-leads">New Leads</SelectItem>
+                  <SelectItem value="any-leads">Any Leads</SelectItem>
+                  <SelectItem value="sales">Sales</SelectItem>
+                  <SelectItem value="buyers">Buyers</SelectItem>
+                  <SelectItem value="investors">Investors</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Custom Fields Section */}
