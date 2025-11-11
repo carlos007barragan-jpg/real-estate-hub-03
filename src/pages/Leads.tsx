@@ -156,6 +156,9 @@ const Leads = () => {
       lead.email.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (activeTab === "all") return matchesSearch;
+    if (activeTab === "new-leads") {
+      return matchesSearch && lead.status === "new";
+    }
     
     const category = getLeadCategory(lead);
     return matchesSearch && category === activeTab;
@@ -163,6 +166,9 @@ const Leads = () => {
 
   const getLeadCountByCategory = (category: string) => {
     if (category === "all") return leads.length;
+    if (category === "new-leads") {
+      return leads.filter(lead => lead.status === "new").length;
+    }
     return leads.filter(lead => getLeadCategory(lead) === category).length;
   };
 
@@ -255,11 +261,17 @@ const Leads = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
+        <TabsList className="grid w-full grid-cols-6 mb-6">
           <TabsTrigger value="all" className="relative">
             All
             <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
               {getLeadCountByCategory("all")}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="new-leads" className="relative bg-info/10 data-[state=active]:bg-info data-[state=active]:text-info-foreground">
+            New Leads
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("new-leads")}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="funding" className="relative">
