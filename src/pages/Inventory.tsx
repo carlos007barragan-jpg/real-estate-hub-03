@@ -875,7 +875,7 @@ export default function Inventory() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Property Photo</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="photo">Upload Photo</Label>
+                  <Label htmlFor="photo">Upload Photo (Optional - can be added later)</Label>
                   <Input
                     id="photo"
                     type="file"
