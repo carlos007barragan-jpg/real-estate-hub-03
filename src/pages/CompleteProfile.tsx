@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { profileSchema } from "@/lib/validation";
 
 const CompleteProfile = () => {
   const navigate = useNavigate();
@@ -39,10 +40,19 @@ const CompleteProfile = () => {
     e.preventDefault();
     setLoading(true);
 
-    if (password !== confirmPassword) {
+    // Validate all inputs with zod
+    try {
+      profileSchema.parse({
+        firstName,
+        lastName,
+        phoneNumber,
+        password,
+        confirmPassword,
+      });
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Passwords do not match",
+        title: "Validation error",
+        description: error.errors?.[0]?.message || "Please check your inputs",
         variant: "destructive",
       });
       setLoading(false);
@@ -125,7 +135,7 @@ const CompleteProfile = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="firstName">First Name *</Label>
                   <Input
                     id="firstName"
                     type="text"
@@ -133,10 +143,12 @@ const CompleteProfile = () => {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     required
+                    minLength={1}
+                    maxLength={100}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
+                  <Label htmlFor="lastName">Last Name *</Label>
                   <Input
                     id="lastName"
                     type="text"
@@ -144,12 +156,14 @@ const CompleteProfile = () => {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     required
+                    minLength={1}
+                    maxLength={100}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Label htmlFor="phoneNumber">Phone Number *</Label>
                 <Input
                   id="phoneNumber"
                   type="tel"
@@ -158,6 +172,9 @@ const CompleteProfile = () => {
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   required
                 />
+                <p className="text-xs text-muted-foreground">
+                  Use international format (e.g., +12025551234)
+                </p>
               </div>
 
               <div className="space-y-2">

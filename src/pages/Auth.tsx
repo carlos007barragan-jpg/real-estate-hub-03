@@ -73,7 +73,7 @@ const Auth = () => {
         password,
         firstName,
         lastName,
-        phoneNumber: phoneNumber || undefined,
+        phoneNumber,
       });
     } catch (error: any) {
       toast({
@@ -443,7 +443,7 @@ const Auth = () => {
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="signup-firstname">First Name</Label>
+                      <Label htmlFor="signup-firstname">First Name *</Label>
                       <Input
                         id="signup-firstname"
                         type="text"
@@ -451,10 +451,12 @@ const Auth = () => {
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         required
+                        minLength={1}
+                        maxLength={100}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="signup-lastname">Last Name</Label>
+                      <Label htmlFor="signup-lastname">Last Name *</Label>
                       <Input
                         id="signup-lastname"
                         type="text"
@@ -462,11 +464,13 @@ const Auth = () => {
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         required
+                        minLength={1}
+                        maxLength={100}
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email">Email *</Label>
                     <Input
                       id="signup-email"
                       type="email"
@@ -474,18 +478,22 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      maxLength={255}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-phone">Phone Number</Label>
+                    <Label htmlFor="signup-phone">Phone Number *</Label>
                     <Input
                       id="signup-phone"
                       type="tel"
-                      placeholder="+1234567890"
+                      placeholder="+1234567890 (required)"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
                       required
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Use international format (e.g., +12025551234)
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>

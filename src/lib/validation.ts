@@ -43,13 +43,25 @@ export const leadSchema = z.object({
   timeframe: z.string().max(100).optional(),
 });
 
-// Auth schema
+// Auth schema - all fields required for signup
 export const authSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
-  firstName: z.string().trim().max(100).optional(),
-  lastName: z.string().trim().max(100).optional(),
-  phoneNumber: phoneSchema.optional(),
+  firstName: nameSchema,
+  lastName: nameSchema,
+  phoneNumber: phoneSchema,
+});
+
+// Profile completion schema - all fields required
+export const profileSchema = z.object({
+  firstName: nameSchema,
+  lastName: nameSchema,
+  phoneNumber: phoneSchema,
+  password: passwordSchema,
+  confirmPassword: passwordSchema,
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 // SMS schema for edge function
