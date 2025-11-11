@@ -427,6 +427,39 @@ export type Database = {
           },
         ]
       }
+      inventory_field_options: {
+        Row: {
+          created_at: string
+          display_order: number
+          field_type: string
+          id: string
+          is_active: boolean
+          option_value: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          field_type: string
+          id?: string
+          is_active?: boolean
+          option_value: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          field_type?: string
+          id?: string
+          is_active?: boolean
+          option_value?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           agent_phone: string | null

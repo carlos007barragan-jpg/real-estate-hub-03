@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse } from "lucide-react";
+import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 
 interface InventoryItem {
   id: string;
@@ -58,8 +59,10 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSellerDialogOpen, setIsSellerDialogOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
+  const [customFieldOptions, setCustomFieldOptions] = useState<any[]>([]);
   const { toast } = useToast();
 
   // Filter states
@@ -103,6 +106,7 @@ export default function Inventory() {
   useEffect(() => {
     fetchInventory();
     fetchSellers();
+    fetchCustomFieldOptions();
   }, []);
 
   // Filter items whenever search or filters change
@@ -196,6 +200,25 @@ export default function Inventory() {
         description: "Failed to fetch sellers",
         variant: "destructive",
       });
+    }
+  };
+
+  const fetchCustomFieldOptions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("inventory_field_options")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("display_order");
+
+      if (error) throw error;
+      setCustomFieldOptions(data || []);
+    } catch (error) {
+      console.error("Error fetching custom field options:", error);
     }
   };
 
@@ -429,12 +452,31 @@ export default function Inventory() {
     }
   };
 
+  const getCustomOptions = (fieldType: string) => {
+    return customFieldOptions
+      .filter(opt => opt.field_type === fieldType)
+      .map(opt => opt.option_value);
+  };
+
   const getUniqueCategories = () => {
+    const customCats = getCustomOptions("category");
+    if (customCats.length > 0) return customCats;
+    
     const categories = items.map(item => item.category).filter(Boolean);
     return Array.from(new Set(categories)) as string[];
   };
 
+  const getUniqueStatuses = () => {
+    const customStatuses = getCustomOptions("status");
+    if (customStatuses.length > 0) return customStatuses;
+    
+    return ["available", "pending", "sold", "coming_soon"];
+  };
+
   const getUniquePropertyTypes = () => {
+    const customTypes = getCustomOptions("property_type");
+    if (customTypes.length > 0) return customTypes;
+    
     const types = items.map(item => item.property_type).filter(Boolean);
     return Array.from(new Set(types)) as string[];
   };
@@ -575,10 +617,28 @@ export default function Inventory() {
           <h1 className="text-3xl font-bold">Property Inventory</h1>
           <p className="text-muted-foreground mt-1">Track and manage your active property listings</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
+        <div className="flex gap-2">
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="lg">
+                <Settings className="mr-2 h-4 w-4" />
+                Field Settings
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Customize Fields</DialogTitle>
+                <DialogDescription>
+                  Manage your custom categories, statuses, and property types
+                </DialogDescription>
+              </DialogHeader>
+              <InventoryFieldSettings />
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) resetForm();
+          }}>
           <DialogTrigger asChild>
             <Button size="lg">
               <Plus className="mr-2 h-4 w-4" />
@@ -640,22 +700,27 @@ export default function Inventory() {
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="residential">Residential</SelectItem>
-                        <SelectItem value="commercial">Commercial</SelectItem>
-                        <SelectItem value="investment">Investment</SelectItem>
-                        <SelectItem value="rental">Rental</SelectItem>
-                        <SelectItem value="land">Land</SelectItem>
+                        {getUniquePropertyTypes().map(type => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
-                    <Input
-                      id="category"
+                    <Select
                       value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      placeholder="e.g., Single Family"
-                    />
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    >
+                      <SelectTrigger id="category">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getUniqueCategories().map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="status">Status *</Label>
@@ -667,10 +732,11 @@ export default function Inventory() {
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="available">Available</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="sold">Sold</SelectItem>
-                        <SelectItem value="coming_soon">Coming Soon</SelectItem>
+                        {getUniqueStatuses().map(status => (
+                          <SelectItem key={status} value={status}>
+                            {status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -915,6 +981,7 @@ export default function Inventory() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Filters */}
@@ -963,10 +1030,11 @@ export default function Inventory() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="sold">Sold</SelectItem>
-                  <SelectItem value="coming_soon">Coming Soon</SelectItem>
+                  {getUniqueStatuses().map(status => (
+                    <SelectItem key={status} value={status}>
+                      {status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
