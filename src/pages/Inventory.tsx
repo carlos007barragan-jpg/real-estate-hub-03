@@ -294,7 +294,16 @@ export default function Inventory() {
     if (!formData.property_type) {
       toast({
         title: "Validation Error",
-        description: "Property type is required. Please add property types in Field Settings first.",
+        description: "Property type is required. Please select a property type.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.category) {
+      toast({
+        title: "Validation Error",
+        description: "Property category is required. Please select a category.",
         variant: "destructive",
       });
       return;
@@ -692,6 +701,51 @@ export default function Inventory() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Property Classification - Primary Search Fields */}
+              <div className="space-y-4 p-4 bg-primary/5 border-2 border-primary/20 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge className="bg-primary">Search Criteria</Badge>
+                  <h3 className="text-lg font-semibold">Property Classification</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  These fields are used for searching and filtering properties
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="property_type" className="font-semibold">Property Type *</Label>
+                    <Select
+                      value={formData.property_type}
+                      onValueChange={(value) => setFormData({ ...formData, property_type: value })}
+                    >
+                      <SelectTrigger id="property_type" className="border-2">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getUniquePropertyTypes().map(type => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="category" className="font-semibold">Property Category *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    >
+                      <SelectTrigger id="category" className="border-2">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getUniqueCategories().map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
               {/* Basic Info */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Basic Information</h3>
@@ -728,57 +782,23 @@ export default function Inventory() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="property_type">Property Type *</Label>
-                    <Select
-                      value={formData.property_type}
-                      onValueChange={(value) => setFormData({ ...formData, property_type: value })}
-                    >
-                      <SelectTrigger id="property_type">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getUniquePropertyTypes().map(type => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select
-                      value={formData.category}
-                      onValueChange={(value) => setFormData({ ...formData, category: value })}
-                    >
-                      <SelectTrigger id="category">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getUniqueCategories().map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status *</Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value) => setFormData({ ...formData, status: value })}
-                    >
-                      <SelectTrigger id="status">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getUniqueStatuses().map(status => (
-                          <SelectItem key={status} value={status}>
-                            {status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status *</Label>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => setFormData({ ...formData, status: value })}
+                  >
+                    <SelectTrigger id="status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getUniqueStatuses().map(status => (
+                        <SelectItem key={status} value={status}>
+                          {status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
