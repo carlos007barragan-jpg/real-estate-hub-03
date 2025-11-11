@@ -139,6 +139,7 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
         description: formData.description || null,
         lead_id: leadId,
         user_id: user.id,
+        created_by_user_id: user.id, // Track who created the appointment
         appointment_date: appointmentDateTime.toISOString(),
         duration: parseInt(formData.duration),
         appointment_type: formData.appointmentType,

@@ -43,6 +43,7 @@ export type Database = {
           appointment_date: string
           appointment_type: string | null
           created_at: string
+          created_by_user_id: string | null
           description: string | null
           duration: number | null
           id: string
@@ -56,6 +57,7 @@ export type Database = {
           appointment_date: string
           appointment_type?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           description?: string | null
           duration?: number | null
           id?: string
@@ -69,6 +71,7 @@ export type Database = {
           appointment_date?: string
           appointment_type?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           description?: string | null
           duration?: number | null
           id?: string

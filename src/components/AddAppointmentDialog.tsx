@@ -51,6 +51,7 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
         description: formData.description,
         lead_id: formData.leadId,
         user_id: user.id,
+        created_by_user_id: user.id, // Track who created the appointment
         appointment_date: formData.dueDate.toISOString(),
         appointment_type: formData.appointmentType || null,
         status: "pending",
