@@ -42,6 +42,8 @@ interface Lead {
   assignedTo?: string;
   isInboundCall?: boolean;
   isDemoData?: boolean;
+  leadLifecycle?: string;
+  pipelineStage?: string;
 }
 
 
@@ -89,6 +91,8 @@ const Leads = () => {
         assignedTo: lead.assigned_to || undefined,
         isInboundCall: lead.is_inbound_call || false,
         isDemoData: lead.is_demo_data || false,
+        leadLifecycle: lead.lead_lifecycle,
+        pipelineStage: lead.pipeline_stage,
       }));
 
       setLeads(formattedLeads);
@@ -282,8 +286,13 @@ const Leads = () => {
                   )}
                 </TableCell>
                 <TableCell>
-                  <Badge className={statusColors[lead.status]} variant="secondary">
-                    {lead.status}
+                  <Badge 
+                    className={statusColors[lead.status]} 
+                    variant="secondary"
+                  >
+                    {lead.leadLifecycle === "Moved to Pipeline" && lead.pipelineStage 
+                      ? lead.pipelineStage 
+                      : lead.leadLifecycle || lead.status}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{lead.source}</TableCell>
