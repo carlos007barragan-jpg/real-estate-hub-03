@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     if (roleError || !roleData) {
       console.error('Role check error:', roleError);
       return new Response(
-        JSON.stringify({ error: 'Forbidden - Admin access required' }),
+        JSON.stringify({ error: 'Forbidden' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -80,8 +80,11 @@ Deno.serve(async (req) => {
 
     if (createError) {
       console.error('User creation error:', createError);
+      const safeMessage = createError.message.includes('already registered') 
+        ? 'User already exists' 
+        : 'Failed to create user';
       return new Response(
-        JSON.stringify({ error: createError.message }),
+        JSON.stringify({ error: safeMessage }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -125,7 +128,7 @@ Deno.serve(async (req) => {
       if (resetError) {
         console.error('Password reset email error:', resetError);
         return new Response(
-          JSON.stringify({ error: 'User created but failed to send invitation email' }),
+          JSON.stringify({ error: 'Failed to send invitation email' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -140,8 +143,9 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error('Error in admin-invite-user:', error);
+    // Generic error response - details logged server-side only
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: 'An error occurred while inviting user' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

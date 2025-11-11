@@ -62,9 +62,23 @@ Deno.serve(async (req) => {
       return new Response('Unauthorized', { status: 401 });
     }
     
+    // Validate input parameters
     const callSid = params['CallSid'];
     const recordingUrl = params['RecordingUrl'];
     const recordingDuration = params['RecordingDuration'];
+    
+    if (!callSid || typeof callSid !== 'string' || callSid.length > 50) {
+      console.error('Invalid CallSid parameter');
+      return new Response('Invalid request', { status: 400, headers: corsHeaders });
+    }
+    if (!recordingUrl || typeof recordingUrl !== 'string' || recordingUrl.length > 500) {
+      console.error('Invalid RecordingUrl parameter');
+      return new Response('Invalid request', { status: 400, headers: corsHeaders });
+    }
+    if (!recordingDuration || isNaN(parseInt(recordingDuration))) {
+      console.error('Invalid RecordingDuration parameter');
+      return new Response('Invalid request', { status: 400, headers: corsHeaders });
+    }
     
     console.log('Recording callback received:', { callSid, recordingUrl, recordingDuration });
     
@@ -133,7 +147,8 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in recording callback:', error);
-    return new Response('Error', { 
+    // Generic error response - details logged server-side only
+    return new Response('An error occurred', { 
       headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
       status: 500,
     });

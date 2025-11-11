@@ -59,12 +59,22 @@ Deno.serve(async (req) => {
       console.error('Invalid Twilio signature');
       return new Response('Unauthorized', { status: 401 });
     }
+    // Validate input parameters
     const callSid = params['CallSid'];
     const callStatus = params['CallStatus'];
     const duration = params['CallDuration'];
     const answeredBy = params['AnsweredBy'];
     const calledNumber = params['Called'];
     const dialCallStatus = params['DialCallStatus'];
+    
+    if (!callSid || typeof callSid !== 'string' || callSid.length > 50) {
+      console.error('Invalid CallSid parameter');
+      return new Response('Invalid request', { status: 400, headers: corsHeaders });
+    }
+    if (!callStatus || typeof callStatus !== 'string' || callStatus.length > 50) {
+      console.error('Invalid CallStatus parameter');
+      return new Response('Invalid request', { status: 400, headers: corsHeaders });
+    }
     
     // Get leadId and userId from query params
     const url = new URL(req.url);
@@ -159,7 +169,8 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in call status callback:', error);
-    return new Response('Error', {
+    // Generic error response - details logged server-side only
+    return new Response('An error occurred', {
       headers: { ...corsHeaders, 'Content-Type': 'text/plain' },
       status: 500,
     });

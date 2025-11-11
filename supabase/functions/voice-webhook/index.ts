@@ -60,7 +60,15 @@ Deno.serve(async (req) => {
     // }
     console.log('Signature validation temporarily disabled - configure TwiML app with correct URL');
     
+    // Validate input parameters
     const to = params['To'];
+    if (!to || typeof to !== 'string' || to.length === 0 || to.length > 20) {
+      console.error('Invalid To parameter');
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
+        headers: { 'Content-Type': 'text/xml' },
+        status: 400,
+      });
+    }
     
     console.log('Voice webhook called with To:', to);
     
@@ -81,6 +89,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in voice webhook:', error);
+    // Generic error response - details logged server-side only
     const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say>An error occurred. Please try again.</Say>

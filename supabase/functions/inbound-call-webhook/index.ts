@@ -59,10 +59,33 @@ Deno.serve(async (req) => {
       console.error('Invalid Twilio signature');
       return new Response('Unauthorized', { status: 401 });
     }
+    // Validate input parameters
     const from = params['From'];
     const to = params['To'];
     const callSid = params['CallSid'];
     const answeredBy = params['AnsweredBy'] || 'CRM System';
+    
+    if (!from || typeof from !== 'string' || from.length === 0 || from.length > 20) {
+      console.error('Invalid From parameter');
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
+        headers: { 'Content-Type': 'text/xml' },
+        status: 400,
+      });
+    }
+    if (!to || typeof to !== 'string' || to.length === 0 || to.length > 20) {
+      console.error('Invalid To parameter');
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
+        headers: { 'Content-Type': 'text/xml' },
+        status: 400,
+      });
+    }
+    if (!callSid || typeof callSid !== 'string' || callSid.length > 50) {
+      console.error('Invalid CallSid parameter');
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
+        headers: { 'Content-Type': 'text/xml' },
+        status: 400,
+      });
+    }
     
     console.log('Inbound call received:', { from, to, callSid, answeredBy });
     
@@ -97,7 +120,8 @@ Deno.serve(async (req) => {
       }
       
       if (!userId) {
-        throw new Error('No users found in the system');
+        console.error('No users found in the system');
+        throw new Error('System configuration error');
       }
       
       const { data: newLead, error: leadError } = await supabase
@@ -239,6 +263,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in inbound call webhook:', error);
+    // Generic error response - details logged server-side only
     const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice">We're sorry, an error occurred. Please try again later.</Say>

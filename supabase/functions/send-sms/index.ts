@@ -119,7 +119,11 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error('Error sending SMS:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Generic error response - details logged server-side only
+    const errorMessage = error instanceof Error && 
+      (error.message.includes('Invalid') || error.message.includes('not authenticated') || error.message.includes('not configured'))
+      ? error.message 
+      : 'Failed to send SMS';
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { 
