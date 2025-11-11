@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer, View } from "react-big-calendar";
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay } from "date-fns";
@@ -49,7 +49,6 @@ interface CalendarEvent {
 const CalendarPage = () => {
   const { isAdmin } = useUserRole();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<CalendarEvent[]>([]);
   const [view, setView] = useState<'team' | 'individual'>('individual');
   const [calendarView, setCalendarView] = useState<View>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -63,11 +62,7 @@ const CalendarPage = () => {
     fetchAppointments();
   }, [view]);
 
-  useEffect(() => {
-    applyFilters();
-  }, [events, searchQuery, selectedAgent, selectedStatus]);
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -133,9 +128,9 @@ const CalendarPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [view, isAdmin]);
 
-  const applyFilters = () => {
+  const filteredEvents = useMemo(() => {
     let filtered = [...events];
 
     // Search filter
@@ -158,8 +153,8 @@ const CalendarPage = () => {
       filtered = filtered.filter((e) => e.resource.status === selectedStatus);
     }
 
-    setFilteredEvents(filtered);
-  };
+    return filtered;
+  }, [events, searchQuery, selectedAgent, selectedStatus]);
 
   const handleEventClick = (event: CalendarEvent) => {
     window.location.href = `/leads/${event.resource.leadId}`;
@@ -192,8 +187,17 @@ const CalendarPage = () => {
     setCurrentDate(newDate);
   };
 
-  const handleEventDrop = async ({ event, start, end }: any) => {
+  const handleEventDrop = useCallback(async ({ event, start, end }: any) => {
     try {
+      // Optimistically update UI
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === event.id 
+            ? { ...e, start, end }
+            : e
+        )
+      );
+
       const { error } = await supabase
         .from('appointments')
         .update({ appointment_date: start.toISOString() })
@@ -202,16 +206,26 @@ const CalendarPage = () => {
       if (error) throw error;
 
       toast.success('Appointment rescheduled');
-      fetchAppointments();
     } catch (error) {
       console.error('Error rescheduling appointment:', error);
       toast.error('Failed to reschedule appointment');
+      fetchAppointments(); // Refetch only on error
     }
-  };
+  }, []);
 
-  const handleEventResize = async ({ event, start, end }: any) => {
+  const handleEventResize = useCallback(async ({ event, start, end }: any) => {
     try {
       const durationMinutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+      
+      // Optimistically update UI
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === event.id 
+            ? { ...e, start, end }
+            : e
+        )
+      );
+
       const { error } = await supabase
         .from('appointments')
         .update({ 
@@ -223,12 +237,12 @@ const CalendarPage = () => {
       if (error) throw error;
 
       toast.success('Appointment updated');
-      fetchAppointments();
     } catch (error) {
       console.error('Error updating appointment:', error);
       toast.error('Failed to update appointment');
+      fetchAppointments(); // Refetch only on error
     }
-  };
+  }, []);
 
   if (loading) {
     return (

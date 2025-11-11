@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle } from "lucide-react";
@@ -71,30 +71,28 @@ const Leads = () => {
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
 
-  const fetchLeads = async () => {
+  const fetchLeads = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("leads")
-        .select("*")
+        .select(`
+          *,
+          profiles!leads_user_id_fkey (
+            user_id,
+            first_name,
+            last_name
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      // Fetch creator names separately
-      const userIds = [...new Set((data || []).map(lead => lead.user_id))];
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("user_id, first_name, last_name")
-        .in("user_id", userIds);
+      const formattedLeads: Lead[] = (data || []).map((lead: any) => {
+        const profile = lead.profiles;
+        const createdBy = profile 
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User"
+          : "Unknown User";
 
-      const profilesMap = new Map(
-        (profilesData || []).map(p => [
-          p.user_id, 
-          `${p.first_name || ''} ${p.last_name || ''}`.trim() || "Unknown User"
-        ])
-      );
-
-      const formattedLeads: Lead[] = (data || []).map((lead) => {
         return {
           id: lead.id,
           name: lead.name,
@@ -110,7 +108,7 @@ const Leads = () => {
           isDemoData: lead.is_demo_data || false,
           leadLifecycle: lead.lead_lifecycle,
           pipelineStage: lead.pipeline_stage,
-          createdBy: profilesMap.get(lead.user_id) || "Unknown User",
+          createdBy,
           leadTemperature: lead.lead_temperature,
           transactionType: lead.lead_temperature || "Unassigned",
         };
@@ -127,9 +125,9 @@ const Leads = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchTransactionTypes = async () => {
+  const fetchTransactionTypes = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -152,9 +150,9 @@ const Leads = () => {
     } catch (error: any) {
       console.error("Error fetching transaction types:", error);
     }
-  };
+  }, []);
 
-  const fetchCurrentUserPhone = async () => {
+  const fetchCurrentUserPhone = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -170,9 +168,9 @@ const Leads = () => {
     } catch (error: any) {
       console.error("Error fetching current user phone:", error);
     }
-  };
+  }, []);
 
-  const fetchAvailableUsers = async () => {
+  const fetchAvailableUsers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -195,16 +193,18 @@ const Leads = () => {
     } catch (error: any) {
       console.error("Error fetching available users:", error);
     }
-  };
-
-  useEffect(() => {
-    fetchLeads();
-    fetchTransactionTypes();
-    fetchCurrentUserPhone();
-    fetchAvailableUsers();
   }, []);
 
-  const getLeadCategory = (lead: Lead): string => {
+  useEffect(() => {
+    Promise.all([
+      fetchLeads(),
+      fetchTransactionTypes(),
+      fetchCurrentUserPhone(),
+      fetchAvailableUsers()
+    ]);
+  }, [fetchLeads, fetchTransactionTypes, fetchCurrentUserPhone, fetchAvailableUsers]);
+
+  const getLeadCategory = useCallback((lead: Lead): string => {
     const transactionType = lead.transactionType?.toLowerCase() || "";
     
     // If unassigned or empty, categorize as new-leads
@@ -212,43 +212,45 @@ const Leads = () => {
     
     // Return the transaction type as category
     return transactionType.toLowerCase();
-  };
+  }, []);
 
-  const filteredLeads = leads
-    .filter((lead) => {
-      const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      if (activeTab === "all") return matchesSearch;
-      
-      const category = getLeadCategory(lead);
-      return matchesSearch && category === activeTab;
-    })
-    .sort((a, b) => {
-      // Priority 1: Leads assigned to current user (agent_phone matches)
-      const aIsMyLead = currentUserPhone && a.agentPhone === currentUserPhone;
-      const bIsMyLead = currentUserPhone && b.agentPhone === currentUserPhone;
-      
-      if (aIsMyLead && !bIsMyLead) return -1;
-      if (!aIsMyLead && bIsMyLead) return 1;
-      
-      // Priority 2: Unassigned leads
-      const aIsUnassigned = !a.transactionType || a.transactionType === "Unassigned";
-      const bIsUnassigned = !b.transactionType || b.transactionType === "Unassigned";
-      
-      if (aIsUnassigned && !bIsUnassigned) return -1;
-      if (!aIsUnassigned && bIsUnassigned) return 1;
-      
-      // Priority 3: Other leads (keep original order)
-      return 0;
-    });
+  const filteredLeads = useMemo(() => {
+    return leads
+      .filter((lead) => {
+        const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        if (activeTab === "all") return matchesSearch;
+        
+        const category = getLeadCategory(lead);
+        return matchesSearch && category === activeTab;
+      })
+      .sort((a, b) => {
+        // Priority 1: Leads assigned to current user (agent_phone matches)
+        const aIsMyLead = currentUserPhone && a.agentPhone === currentUserPhone;
+        const bIsMyLead = currentUserPhone && b.agentPhone === currentUserPhone;
+        
+        if (aIsMyLead && !bIsMyLead) return -1;
+        if (!aIsMyLead && bIsMyLead) return 1;
+        
+        // Priority 2: Unassigned leads
+        const aIsUnassigned = !a.transactionType || a.transactionType === "Unassigned";
+        const bIsUnassigned = !b.transactionType || b.transactionType === "Unassigned";
+        
+        if (aIsUnassigned && !bIsUnassigned) return -1;
+        if (!aIsUnassigned && bIsUnassigned) return 1;
+        
+        // Priority 3: Other leads (keep original order)
+        return 0;
+      });
+  }, [leads, searchTerm, activeTab, currentUserPhone, getLeadCategory]);
 
-  const getLeadCountByCategory = (category: string) => {
+  const getLeadCountByCategory = useCallback((category: string) => {
     if (category === "all") return leads.length;
     return leads.filter(lead => getLeadCategory(lead) === category).length;
-  };
+  }, [leads, getLeadCategory]);
 
-  const handleAssignLead = async (leadId: string, userId: string, userName: string, userPhone: string | null) => {
+  const handleAssignLead = useCallback(async (leadId: string, userId: string, userName: string, userPhone: string | null) => {
     try {
       const { error } = await supabase
         .from("leads")
@@ -277,9 +279,9 @@ const Leads = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [leads, toast]);
 
-  const handleDeleteLead = async (leadId: string, leadName: string) => {
+  const handleDeleteLead = useCallback(async (leadId: string, leadName: string) => {
     if (!confirm(`Are you sure you want to delete ${leadName}? This action cannot be undone.`)) {
       return;
     }
@@ -305,7 +307,7 @@ const Leads = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [leads, toast]);
 
   if (loading) {
     return (
