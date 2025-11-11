@@ -3,14 +3,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Calendar, Clock, Trash2, MapPin, Plus } from "lucide-react";
+import { Calendar, Clock, Trash2, MapPin, Plus, CheckCircle, XCircle, CalendarClock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Appointment {
   id: string;
@@ -20,6 +26,7 @@ interface Appointment {
   duration: number;
   status: string;
   appointment_type?: string;
+  completion_notes?: string;
 }
 
 interface AppointmentsSectionProps {
@@ -41,6 +48,16 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
     duration: "60",
     appointmentType: "property_viewing",
   });
+
+  // Action dialogs
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [rescheduleData, setRescheduleData] = useState({
+    appointmentDate: "",
+    appointmentTime: "09:00",
+  });
+  const [completionNotes, setCompletionNotes] = useState("");
 
   useEffect(() => {
     fetchAppointments();
@@ -139,7 +156,7 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
         description: formData.description || null,
         lead_id: leadId,
         user_id: user.id,
-        created_by_user_id: user.id, // Track who created the appointment
+        created_by_user_id: user.id,
         appointment_date: appointmentDateTime.toISOString(),
         duration: parseInt(formData.duration),
         appointment_type: formData.appointmentType,
@@ -173,6 +190,119 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMarkNoShow = async (appointmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status: "no_show" })
+        .eq("id", appointmentId);
+
+      if (error) throw error;
+
+      fetchAppointments();
+      toast({
+        title: "Marked as no show",
+      });
+    } catch (error: any) {
+      console.error("Error updating appointment:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!selectedAppointment) return;
+    setLoading(true);
+
+    try {
+      const appointmentDateTime = new Date(`${rescheduleData.appointmentDate}T${rescheduleData.appointmentTime}`);
+
+      const { error } = await supabase
+        .from("appointments")
+        .update({ 
+          appointment_date: appointmentDateTime.toISOString(),
+          status: "rescheduled"
+        })
+        .eq("id", selectedAppointment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Appointment rescheduled",
+        description: "The appointment has been rescheduled successfully",
+      });
+
+      setRescheduleDialogOpen(false);
+      setSelectedAppointment(null);
+      setRescheduleData({ appointmentDate: "", appointmentTime: "09:00" });
+      fetchAppointments();
+    } catch (error: any) {
+      console.error("Error rescheduling appointment:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!selectedAppointment) return;
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ 
+          status: "completed",
+          completion_notes: completionNotes
+        })
+        .eq("id", selectedAppointment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Appointment completed",
+        description: "The appointment has been marked as completed",
+      });
+
+      setCompleteDialogOpen(false);
+      setSelectedAppointment(null);
+      setCompletionNotes("");
+      fetchAppointments();
+    } catch (error: any) {
+      console.error("Error completing appointment:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openRescheduleDialog = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    const date = new Date(appointment.appointment_date);
+    setRescheduleData({
+      appointmentDate: date.toISOString().split('T')[0],
+      appointmentTime: date.toTimeString().slice(0, 5),
+    });
+    setRescheduleDialogOpen(true);
+  };
+
+  const openCompleteDialog = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setCompletionNotes(appointment.completion_notes || "");
+    setCompleteDialogOpen(true);
   };
 
   return (
@@ -312,9 +442,33 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
                       )}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Badge variant="secondary" className={getStatusColor(appointment.status)}>
-                        {appointment.status}
-                      </Badge>
+                      {appointment.status === "pending" ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-7 text-xs">
+                              Pending
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openCompleteDialog(appointment)}>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Mark Complete
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleMarkNoShow(appointment.id)}>
+                              <XCircle className="h-4 w-4 mr-2" />
+                              Mark No Show
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openRescheduleDialog(appointment)}>
+                              <CalendarClock className="h-4 w-4 mr-2" />
+                              Reschedule
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <Badge variant="secondary" className={getStatusColor(appointment.status)}>
+                          {appointment.status.replace('_', ' ')}
+                        </Badge>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -361,6 +515,84 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
           </div>
         </ScrollArea>
       </div>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+            <DialogDescription>
+              Choose a new date and time for this appointment
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-date">Date</Label>
+                <Input
+                  id="reschedule-date"
+                  type="date"
+                  value={rescheduleData.appointmentDate}
+                  onChange={(e) => setRescheduleData({ ...rescheduleData, appointmentDate: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-time">Time</Label>
+                <Input
+                  id="reschedule-time"
+                  type="time"
+                  value={rescheduleData.appointmentTime}
+                  onChange={(e) => setRescheduleData({ ...rescheduleData, appointmentTime: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setRescheduleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleReschedule} disabled={loading}>
+              {loading ? "Rescheduling..." : "Reschedule"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Complete Dialog */}
+      <Dialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete Appointment</DialogTitle>
+            <DialogDescription>
+              Add any notes about information collected during this appointment
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="completion-notes">Notes</Label>
+              <Textarea
+                id="completion-notes"
+                value={completionNotes}
+                onChange={(e) => setCompletionNotes(e.target.value)}
+                placeholder="What information was collected? Any follow-up needed?"
+                className="resize-none"
+                rows={5}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCompleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleComplete} disabled={loading}>
+              {loading ? "Marking..." : "Mark Complete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
