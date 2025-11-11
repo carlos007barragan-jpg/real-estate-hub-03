@@ -41,6 +41,7 @@ interface Lead {
   value: string;
   date: string;
   assignedTo?: string;
+  agentPhone?: string;
   isInboundCall?: boolean;
   isDemoData?: boolean;
   leadLifecycle?: string;
@@ -75,6 +76,7 @@ const Leads = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
+  const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
 
   const fetchLeads = async () => {
     try {
@@ -110,6 +112,7 @@ const Leads = () => {
           value: lead.value || "",
           date: new Date(lead.created_at).toLocaleDateString(),
           assignedTo: lead.assigned_to || undefined,
+          agentPhone: lead.agent_phone || undefined,
           isInboundCall: lead.is_inbound_call || false,
           isDemoData: lead.is_demo_data || false,
           leadLifecycle: lead.lead_lifecycle,
@@ -158,9 +161,28 @@ const Leads = () => {
     }
   };
 
+  const fetchCurrentUserPhone = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("agents")
+        .select("phone_number")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      setCurrentUserPhone(data?.phone_number || null);
+    } catch (error: any) {
+      console.error("Error fetching current user phone:", error);
+    }
+  };
+
   useEffect(() => {
     fetchLeads();
     fetchTransactionTypes();
+    fetchCurrentUserPhone();
   }, []);
 
   const getLeadCategory = (lead: Lead): string => {
@@ -173,15 +195,34 @@ const Leads = () => {
     return transactionType.toLowerCase();
   };
 
-  const filteredLeads = leads.filter((lead) => {
-    const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (activeTab === "all") return matchesSearch;
-    
-    const category = getLeadCategory(lead);
-    return matchesSearch && category === activeTab;
-  });
+  const filteredLeads = leads
+    .filter((lead) => {
+      const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      if (activeTab === "all") return matchesSearch;
+      
+      const category = getLeadCategory(lead);
+      return matchesSearch && category === activeTab;
+    })
+    .sort((a, b) => {
+      // Priority 1: Leads assigned to current user (agent_phone matches)
+      const aIsMyLead = currentUserPhone && a.agentPhone === currentUserPhone;
+      const bIsMyLead = currentUserPhone && b.agentPhone === currentUserPhone;
+      
+      if (aIsMyLead && !bIsMyLead) return -1;
+      if (!aIsMyLead && bIsMyLead) return 1;
+      
+      // Priority 2: Unassigned leads
+      const aIsUnassigned = !a.transactionType || a.transactionType === "Unassigned";
+      const bIsUnassigned = !b.transactionType || b.transactionType === "Unassigned";
+      
+      if (aIsUnassigned && !bIsUnassigned) return -1;
+      if (!aIsUnassigned && bIsUnassigned) return 1;
+      
+      // Priority 3: Other leads (keep original order)
+      return 0;
+    });
 
   const getLeadCountByCategory = (category: string) => {
     if (category === "all") return leads.length;
