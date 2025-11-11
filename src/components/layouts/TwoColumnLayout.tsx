@@ -44,11 +44,11 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                     <MoreVertical className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
-                    Edit Information
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+                 <DropdownMenuContent align="end" className="z-50 bg-popover">
+                   <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+                     Edit Information
+                   </DropdownMenuItem>
+                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </CardHeader>
@@ -127,12 +127,18 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                           </div>
                         </div>
                       )}
-                      {leadData.pipeline && (
-                        <div>
-                          <span className="text-muted-foreground">Lead Pipeline Status:</span> 
-                          <span className="ml-1">{leadData.pipeline}</span>
-                        </div>
-                      )}
+                       {leadData.pipeline && (
+                         <div>
+                           <span className="text-muted-foreground">Pipeline:</span> 
+                           <span className="ml-1">{leadData.pipeline}</span>
+                           {leadData.pipelineStage && (
+                             <>
+                               <span className="ml-2 text-muted-foreground">• Stage:</span>
+                               <span className="ml-1">{leadData.pipelineStage}</span>
+                             </>
+                           )}
+                         </div>
+                       )}
                       {/* Custom Fields */}
                       {customFields.map((field: any) => {
                         const value = leadData.customData?.[field.field_name];

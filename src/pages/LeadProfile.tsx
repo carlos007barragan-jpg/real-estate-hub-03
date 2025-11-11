@@ -541,7 +541,7 @@ const LeadProfile = () => {
             <Badge className="bg-primary/10 text-primary px-4 py-1.5 text-sm font-medium border border-primary/20">
               {leadData.leadLifecycle || "Contact"}
             </Badge>
-            {leadData.leadLifecycle === "Moved to Pipeline" && leadData.pipeline && (
+            {leadData.pipeline && (
               <>
                 <span className="text-muted-foreground">→</span>
                 <Badge className="bg-secondary/10 text-secondary-foreground px-4 py-1.5 text-sm font-medium border border-secondary/20">
@@ -570,15 +570,15 @@ const LeadProfile = () => {
             <SelectTrigger className="w-[140px] h-7 text-xs">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              {leadLifecycleStages.map((stage) => (
-                <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-              ))}
-            </SelectContent>
+             <SelectContent className="z-50 bg-popover">
+               {leadLifecycleStages.map((stage) => (
+                 <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+               ))}
+             </SelectContent>
           </Select>
         </div>
 
-        {currentLifecycle === "Moved to Pipeline" && (
+        {(currentPipeline || leadData?.pipeline) && (
           <>
             <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
               <Building2 className="h-4 w-4 text-primary" />
@@ -593,11 +593,11 @@ const LeadProfile = () => {
                 <SelectTrigger className="w-[140px] h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {pipelineStages.map((stage) => (
-                    <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                  ))}
-                </SelectContent>
+                 <SelectContent className="z-50 bg-popover">
+                   {pipelineStages.map((stage) => (
+                     <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                   ))}
+                 </SelectContent>
               </Select>
             </div>
           </>

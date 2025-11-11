@@ -108,13 +108,13 @@ export function PipelineAssignmentDialog({
               <SelectTrigger id="pipeline">
                 <SelectValue placeholder="Select a pipeline..." />
               </SelectTrigger>
-              <SelectContent>
-                {availablePipelines.map((pipeline) => (
-                  <SelectItem key={pipeline.id} value={pipeline.id}>
-                    {pipeline.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+               <SelectContent className="z-50 bg-popover">
+                 {availablePipelines.map((pipeline) => (
+                   <SelectItem key={pipeline.id} value={pipeline.id}>
+                     {pipeline.name}
+                   </SelectItem>
+                 ))}
+               </SelectContent>
             </Select>
           </div>
 
@@ -127,13 +127,13 @@ export function PipelineAssignmentDialog({
               <SelectTrigger id="stage">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                {pipelineStages.map((stage) => (
-                  <SelectItem key={stage} value={stage}>
-                    {stage}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+               <SelectContent className="z-50 bg-popover">
+                 {pipelineStages.map((stage) => (
+                   <SelectItem key={stage} value={stage}>
+                     {stage}
+                   </SelectItem>
+                 ))}
+               </SelectContent>
             </Select>
           </div>
         </div>
