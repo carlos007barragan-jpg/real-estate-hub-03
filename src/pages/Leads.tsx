@@ -115,7 +115,10 @@ const Leads = () => {
           pipelineStage: lead.pipeline_stage,
           createdBy: profilesMap.get(lead.user_id) || "Unknown User",
           leadTemperature: lead.lead_temperature,
-          transactionType: lead.lead_temperature || "Unassigned",
+          transactionType: lead.lead_temperature && 
+            ["Funding", "Listing", "Buyer's", "Investor's", "Rental", "Multifamily", "Wholesale", "Commercial"].includes(lead.lead_temperature)
+            ? lead.lead_temperature 
+            : "Unassigned",
         };
       });
 
