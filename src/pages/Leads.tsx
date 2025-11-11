@@ -47,6 +47,7 @@ interface Lead {
   pipelineStage?: string;
   createdBy?: string;
   leadTemperature?: string;
+  transactionType?: string;
 }
 
 
@@ -114,6 +115,7 @@ const Leads = () => {
           pipelineStage: lead.pipeline_stage,
           createdBy: profilesMap.get(lead.user_id) || "Unknown User",
           leadTemperature: lead.lead_temperature,
+          transactionType: lead.lead_temperature || "Unassigned",
         };
       });
 
@@ -292,6 +294,7 @@ const Leads = () => {
               <TableHead>Contact</TableHead>
               <TableHead>Assigned To</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Value</TableHead>
               <TableHead>Date</TableHead>
@@ -373,6 +376,11 @@ const Leads = () => {
                     {lead.leadLifecycle === "Moved to Pipeline" && lead.pipelineStage 
                       ? lead.pipelineStage 
                       : lead.leadLifecycle || lead.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="capitalize">
+                    {lead.transactionType}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{lead.source}</TableCell>
