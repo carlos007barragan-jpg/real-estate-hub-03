@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Phone, Mail, MapPin, Calendar, User, Building2, MoreVertical, ChevronDown } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, User, Building2, MoreVertical, ChevronDown, Edit, ExternalLink, Package } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,10 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
+import { EditPropertyDialog } from "@/components/EditPropertyDialog";
 import { TasksSection } from "@/components/TasksSection";
 import { AppointmentsSection } from "@/components/AppointmentsSection";
 import { DocumentsSection } from "@/components/DocumentsSection";
@@ -29,7 +32,9 @@ import { ActivitySection } from "@/components/ActivitySection";
 
 export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editPropertyDialogOpen, setEditPropertyDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
   const [agents, setAgents] = useState<Array<{ id: string; name: string; phone: string }>>([]);
@@ -356,10 +361,41 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         </Card>
 
         <Card className="border">
-          <CardHeader className="p-3 pb-2">
+          <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold">Property</CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setEditPropertyDialogOpen(true)}
+            >
+              <Edit className="h-3 w-3" />
+            </Button>
           </CardHeader>
           <CardContent className="p-3 pt-0 space-y-2 text-xs">
+            {/* Inventory Status Badge */}
+            {leadData.inventory_id ? (
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary">
+                  <Package className="h-3 w-3" />
+                  In Inventory
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs gap-1"
+                  onClick={() => navigate(`/inventory#${leadData.inventory_id}`)}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  View Property
+                </Button>
+              </div>
+            ) : (
+              <Badge variant="outline" className="gap-1 text-xs mb-2">
+                Not in Inventory
+              </Badge>
+            )}
+
             {leadData.propertyOfInterest && (
               <div className="flex items-start gap-2">
                 <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
@@ -458,6 +494,26 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         onOpenChange={setEditDialogOpen}
         leadData={leadData}
         onUpdate={onLeadUpdate}
+      />
+
+      <EditPropertyDialog
+        open={editPropertyDialogOpen}
+        onOpenChange={setEditPropertyDialogOpen}
+        leadId={id}
+        currentData={{
+          propertyAddress: leadData.property_address,
+          propertyType: leadData.property_type,
+          bedrooms: leadData.bedrooms,
+          bathrooms: leadData.bathrooms,
+          sqft: leadData.sqft,
+          budget: leadData.budget,
+          area: leadData.area,
+          downPayment: leadData.downPayment,
+          financingType: leadData.financingType,
+          propertyOfInterest: leadData.propertyOfInterest,
+          inventoryId: leadData.inventory_id,
+        }}
+        onSaved={onLeadUpdate}
       />
     </div>
   );

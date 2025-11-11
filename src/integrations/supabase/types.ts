@@ -382,6 +382,7 @@ export type Database = {
           email: string
           financing_type: string | null
           id: string
+          inventory_id: string | null
           is_demo_data: boolean | null
           is_inbound_call: boolean | null
           language_preference: string | null
@@ -427,6 +428,7 @@ export type Database = {
           email: string
           financing_type?: string | null
           id?: string
+          inventory_id?: string | null
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
@@ -472,6 +474,7 @@ export type Database = {
           email?: string
           financing_type?: string | null
           id?: string
+          inventory_id?: string | null
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
@@ -501,7 +504,15 @@ export type Database = {
           user_id?: string
           value?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notes: {
         Row: {
