@@ -7,6 +7,7 @@ import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -45,6 +46,7 @@ interface Lead {
   leadLifecycle?: string;
   pipelineStage?: string;
   createdBy?: string;
+  leadTemperature?: string;
 }
 
 
@@ -70,6 +72,7 @@ const Leads = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("all");
 
   const fetchLeads = async () => {
     try {
@@ -110,6 +113,7 @@ const Leads = () => {
           leadLifecycle: lead.lead_lifecycle,
           pipelineStage: lead.pipeline_stage,
           createdBy: profilesMap.get(lead.user_id) || "Unknown User",
+          leadTemperature: lead.lead_temperature,
         };
       });
 
@@ -130,10 +134,32 @@ const Leads = () => {
     fetchLeads();
   }, []);
 
-  const filteredLeads = leads.filter((lead) =>
-    lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getLeadCategory = (lead: Lead): string => {
+    const temp = lead.leadTemperature?.toLowerCase() || "";
+    
+    // Categorize based on lead_temperature field
+    if (temp.includes("funding") || temp === "funding") return "funding";
+    if (temp.includes("sale") || temp === "seller") return "sale";
+    if (temp.includes("buyer") || temp === "buying") return "buyers";
+    if (temp.includes("investor") || temp === "investment") return "investors";
+    
+    return "uncategorized";
+  };
+
+  const filteredLeads = leads.filter((lead) => {
+    const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (activeTab === "all") return matchesSearch;
+    
+    const category = getLeadCategory(lead);
+    return matchesSearch && category === activeTab;
+  });
+
+  const getLeadCountByCategory = (category: string) => {
+    if (category === "all") return leads.length;
+    return leads.filter(lead => getLeadCategory(lead) === category).length;
+  };
 
   const handleAssignLead = async (leadId: string, agentName: string) => {
     try {
@@ -205,7 +231,7 @@ const Leads = () => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Leads</h1>
-            <p className="text-muted-foreground mt-1">Manage and track your potential clients</p>
+            <p className="text-muted-foreground mt-1">Organize by transaction type</p>
           </div>
           <CreateLeadDialog onLeadCreated={fetchLeads} />
         </div>
@@ -223,8 +249,43 @@ const Leads = () => {
         </div>
       </div>
 
-      <div className="bg-card rounded-lg border shadow-sm">
-        <Table>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsTrigger value="all" className="relative">
+            All
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("all")}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="funding" className="relative">
+            Funding
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("funding")}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="sale" className="relative">
+            Sale
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("sale")}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="buyers" className="relative">
+            Buyers
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("buyers")}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="investors" className="relative">
+            Investors
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("investors")}
+            </Badge>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={activeTab} className="mt-0">
+          <div className="bg-card rounded-lg border shadow-sm">
+            <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
@@ -359,7 +420,9 @@ const Leads = () => {
             ))}
           </TableBody>
         </Table>
-      </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
