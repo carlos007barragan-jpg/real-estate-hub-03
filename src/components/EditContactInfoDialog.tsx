@@ -59,6 +59,8 @@ export const EditContactInfoDialog = ({
   const handleSave = async () => {
     setSaving(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from("leads")
         .update({
@@ -81,6 +83,7 @@ export const EditContactInfoDialog = ({
           property_of_interest: formData.propertyOfInterest || null,
           title_office: formData.titleOffice || null,
           is_inbound_call: leadData.isInboundCall || leadData.is_inbound_call || false,
+          last_modified_by: user?.id,
         })
         .eq("id", leadData.id);
 

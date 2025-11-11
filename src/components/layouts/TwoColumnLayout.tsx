@@ -87,11 +87,14 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
     const selectedAgent = agents.find(a => a.phone === agentPhone);
     const isUnassigned = agentPhone === "unassigned";
     
+    const { data: { user } } = await supabase.auth.getUser();
+    
     const { error } = await supabase
       .from("leads")
       .update({
         agent_phone: isUnassigned ? null : agentPhone,
         assigned_to: selectedAgent?.name || "Unassigned",
+        last_modified_by: user?.id,
       })
       .eq("id", id);
 

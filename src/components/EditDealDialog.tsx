@@ -69,6 +69,8 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
 
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from("leads")
         .update({
@@ -79,6 +81,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
           commission,
           property_of_interest: propertyOfInterest,
           title_office: titleOffice,
+          last_modified_by: user?.id,
         })
         .eq("id", leadId);
 

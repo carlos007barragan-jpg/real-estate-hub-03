@@ -385,6 +385,7 @@ export type Database = {
           is_demo_data: boolean | null
           is_inbound_call: boolean | null
           language_preference: string | null
+          last_modified_by: string | null
           lead_lifecycle: string
           lead_temperature: string | null
           marital_status: string | null
@@ -429,6 +430,7 @@ export type Database = {
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
+          last_modified_by?: string | null
           lead_lifecycle?: string
           lead_temperature?: string | null
           marital_status?: string | null
@@ -473,6 +475,7 @@ export type Database = {
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
+          last_modified_by?: string | null
           lead_lifecycle?: string
           lead_temperature?: string | null
           marital_status?: string | null
