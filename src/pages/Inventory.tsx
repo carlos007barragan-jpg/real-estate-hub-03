@@ -353,25 +353,41 @@ export default function Inventory() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, name: string) => {
+    // Confirm deletion
+    if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+      return;
+    }
+
     try {
+      console.log("Attempting to delete inventory item:", id);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("You must be logged in to delete properties");
+      }
+
       const { error } = await supabase
         .from("inventory")
         .delete()
         .eq("id", id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase delete error:", error);
+        throw error;
+      }
 
+      console.log("Delete successful");
       toast({
         title: "Success",
-        description: "Inventory item deleted successfully",
+        description: "Property deleted successfully",
       });
       fetchInventory();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting inventory:", error);
       toast({
         title: "Error",
-        description: "Failed to delete inventory item",
+        description: error.message || "Failed to delete property",
         variant: "destructive",
       });
     }
@@ -1132,7 +1148,7 @@ export default function Inventory() {
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete(item.id);
+                      handleDelete(item.id, item.name);
                     }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
