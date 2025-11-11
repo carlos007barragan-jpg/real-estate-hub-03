@@ -556,29 +556,27 @@ const LeadProfile = () => {
           </div>
         </div>
 
-        {/* Lifecycle Progress Bar - Only show when not in pipeline */}
-        {currentLifecycle !== "Moved to Pipeline" && (
-          <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
-            <MoveRight className="h-4 w-4 text-primary" />
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium">Lead Lifecycle</span>
-                <span className="text-xs text-muted-foreground">{Math.round(getLifecycleProgress())}%</span>
-              </div>
-              <Progress value={getLifecycleProgress()} className="h-1.5" />
+        {/* Lifecycle Progress Bar */}
+        <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
+          <MoveRight className="h-4 w-4 text-primary" />
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium">Lead Lifecycle</span>
+              <span className="text-xs text-muted-foreground">{Math.round(getLifecycleProgress())}%</span>
             </div>
-            <Select value={currentLifecycle} onValueChange={handleLifecycleChange}>
-              <SelectTrigger className="w-[140px] h-7 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {leadLifecycleStages.map((stage) => (
-                  <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Progress value={getLifecycleProgress()} className="h-1.5" />
           </div>
-        )}
+          <Select value={currentLifecycle} onValueChange={handleLifecycleChange}>
+            <SelectTrigger className="w-[140px] h-7 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {leadLifecycleStages.map((stage) => (
+                <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {currentLifecycle === "Moved to Pipeline" && (
           <>

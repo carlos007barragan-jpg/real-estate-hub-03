@@ -60,6 +60,7 @@ export function PipelineAssignmentDialog({
         .update({
           pipeline: selectedPipeline,
           pipeline_stage: selectedStage,
+          lead_lifecycle: "Moved to Pipeline",
         })
         .eq("id", leadId);
 
