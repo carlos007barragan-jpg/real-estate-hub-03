@@ -110,7 +110,7 @@ const Leads = () => {
           pipelineStage: lead.pipeline_stage,
           createdBy,
           leadTemperature: lead.lead_temperature,
-          transactionType: lead.lead_temperature || "Unassigned",
+          transactionType: lead.transaction_type || "Unassigned",
         };
       });
 
