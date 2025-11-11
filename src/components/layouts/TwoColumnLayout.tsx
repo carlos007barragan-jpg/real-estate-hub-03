@@ -377,29 +377,29 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         </Card>
       </div>
 
-      {/* Right: Tasks, Messaging, and Activity sections */}
+      {/* Right: Activity, Tasks, Appointments, and Messaging sections */}
       <div className="space-y-4">
-        {/* 1. Tasks Section */}
-        <TasksSection leadId={id} />
-
-        {/* 2. Appointments Section */}
-        <AppointmentsSection leadId={id} leadName={leadData.name} />
-
-        {/* 3. Messaging Section */}
-        <MessagingSection 
-          messages={messages}
-          newMessage={newMessage}
-          setNewMessage={setNewMessage}
-          handleSendMessage={handleSendMessage}
-        />
-
-        {/* 4. Activity Section (Calls + Notes combined) */}
+        {/* 1. Activity & History Section (at top) */}
         <ActivitySection 
           leadId={id}
           notes={notes}
           newNote={newNote}
           setNewNote={setNewNote}
           handleAddNote={handleAddNote}
+        />
+
+        {/* 2. Tasks Section */}
+        <TasksSection leadId={id} />
+
+        {/* 3. Appointments Section */}
+        <AppointmentsSection leadId={id} leadName={leadData.name} />
+
+        {/* 4. Messaging Section */}
+        <MessagingSection 
+          messages={messages}
+          newMessage={newMessage}
+          setNewMessage={setNewMessage}
+          handleSendMessage={handleSendMessage}
         />
       </div>
 
