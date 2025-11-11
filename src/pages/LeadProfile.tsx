@@ -561,9 +561,23 @@ const LeadProfile = () => {
               onSuccess={fetchLead}
             />
           </div>
-          <Badge className={`${statusColors[leadData.status as keyof typeof statusColors]} px-4 py-1.5 text-sm font-medium`}>
-            {leadData.status}
-          </Badge>
+          <div className="flex gap-2 items-center">
+            <Badge className="bg-primary/10 text-primary px-4 py-1.5 text-sm font-medium border border-primary/20">
+              {leadData.leadLifecycle || "Contact"}
+            </Badge>
+            {leadData.leadLifecycle === "Moved to Pipeline" && leadData.pipeline && (
+              <>
+                <span className="text-muted-foreground">→</span>
+                <Badge className="bg-secondary/10 text-secondary-foreground px-4 py-1.5 text-sm font-medium border border-secondary/20">
+                  {leadData.pipeline}
+                </Badge>
+                <span className="text-muted-foreground">→</span>
+                <Badge className={`${statusColors[leadData.pipelineStage as keyof typeof statusColors]} px-4 py-1.5 text-sm font-medium`}>
+                  {leadData.pipelineStage}
+                </Badge>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Lifecycle Progress Bar */}
