@@ -307,6 +307,7 @@ export default function Inventory() {
           .from("inventory")
           .update({
             ...formData,
+            seller_id: formData.seller_id || null,
             photo_url: photoUrl,
           })
           .eq("id", editingItem.id);
@@ -323,6 +324,7 @@ export default function Inventory() {
           .from("inventory")
           .insert({
             ...formData,
+            seller_id: formData.seller_id || null,
             user_id: user.id,
           })
           .select()
