@@ -816,9 +816,9 @@ export default function Inventory() {
                 </div>
               </div>
 
-              {/* Pricing */}
+              {/* Listing Details */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Pricing & Financial Details</h3>
+                <h3 className="text-lg font-semibold">Listing</h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="price">Listing Price ($)</Label>
@@ -895,10 +895,10 @@ export default function Inventory() {
                 </div>
               </div>
 
-              {/* Transaction Details */}
+              {/* Transaction Type */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Transaction Details</h3>
-                <div className="grid grid-cols-3 gap-4">
+                <h3 className="text-lg font-semibold">Transaction Type</h3>
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="transaction_type">Transaction Type</Label>
                     <Select
@@ -917,6 +917,13 @@ export default function Inventory() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+              </div>
+
+              {/* Transaction Details */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Transaction Details</h3>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="finance_type">Finance Type</Label>
                     <Input
