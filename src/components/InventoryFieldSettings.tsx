@@ -244,17 +244,14 @@ export default function InventoryFieldSettings() {
       <div className="space-y-4">
         {/* System Defaults */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Label className="text-sm font-medium">System Defaults</Label>
-            <Badge variant="secondary" className="text-xs">Always available</Badge>
-          </div>
+          <Label className="text-sm font-medium">System Defaults</Label>
           <div className="space-y-2">
             {systemDefaults.map(defaultValue => {
               const isHidden = hiddenDefaults.some(opt => opt.option_value === defaultValue);
               const hiddenOption = hiddenDefaults.find(opt => opt.option_value === defaultValue);
               
               return (
-                <div key={defaultValue} className={`flex items-center gap-3 p-3 border rounded-lg ${isHidden ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
+                <div key={defaultValue} className={`flex items-center gap-3 p-3 border rounded-lg group hover:border-primary/50 transition-colors ${isHidden ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
                   <Badge variant="outline" className="text-xs shrink-0">System</Badge>
                   <span className="text-sm font-medium flex-1">{defaultValue}</span>
                   {isHidden ? (
