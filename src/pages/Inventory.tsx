@@ -200,31 +200,68 @@ export default function Inventory() {
   };
 
   const uploadPhoto = async (file: File, itemId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}/${itemId}.${fileExt}`;
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}/${itemId}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("inventory-photos")
-      .upload(fileName, file, { upsert: true });
+      console.log("Uploading photo:", fileName);
 
-    if (uploadError) throw uploadError;
+      const { error: uploadError } = await supabase.storage
+        .from("inventory-photos")
+        .upload(fileName, file, { upsert: true });
 
-    const { data } = supabase.storage
-      .from("inventory-photos")
-      .getPublicUrl(fileName);
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw uploadError;
+      }
 
-    return data.publicUrl;
+      const { data } = supabase.storage
+        .from("inventory-photos")
+        .getPublicUrl(fileName);
+
+      console.log("Photo uploaded successfully:", data.publicUrl);
+      return data.publicUrl;
+    } catch (error) {
+      console.error("Error in uploadPhoto:", error);
+      throw error;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!formData.name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Property name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.status) {
+      toast({
+        title: "Validation Error",
+        description: "Status is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) {
+        toast({
+          title: "Authentication Error",
+          description: "You must be logged in to add properties",
+          variant: "destructive",
+        });
+        return;
+      }
 
       let photoUrl = editingItem?.photo_url || null;
 
@@ -278,11 +315,11 @@ export default function Inventory() {
       setIsDialogOpen(false);
       resetForm();
       fetchInventory();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving inventory:", error);
       toast({
         title: "Error",
-        description: "Failed to save inventory item",
+        description: error.message || "Failed to save inventory item",
         variant: "destructive",
       });
     }
