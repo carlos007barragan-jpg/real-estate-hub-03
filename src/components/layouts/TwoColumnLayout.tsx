@@ -35,6 +35,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
   const [agents, setAgents] = useState<Array<{ id: string; name: string; phone: string }>>([]);
   const [createdByName, setCreatedByName] = useState<string>("Loading...");
   const [assignedAgent, setAssignedAgent] = useState<string>(leadData.agent_phone || "");
+  const [transactionType, setTransactionType] = useState<string>(leadData.lead_temperature || "Unassigned");
 
   useEffect(() => {
     const fetchCreatorAndAgents = async () => {
@@ -109,6 +110,33 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
       toast({
         title: "Success",
         description: "Lead assignment updated",
+      });
+      onLeadUpdate?.();
+    }
+  };
+
+  const handleTransactionTypeChange = async (type: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { error } = await supabase
+      .from("leads")
+      .update({
+        lead_temperature: type === "Unassigned" ? null : type,
+        last_modified_by: user?.id,
+      })
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update transaction type",
+        variant: "destructive",
+      });
+    } else {
+      setTransactionType(type);
+      toast({
+        title: "Success",
+        description: "Transaction type updated",
       });
       onLeadUpdate?.();
     }
@@ -260,6 +288,28 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
               <User className="h-3 w-3 text-muted-foreground" />
               <span className="text-muted-foreground">Created By:</span>
               <span>{createdByName}</span>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Building2 className="h-3 w-3" />
+                <span>Transaction Type:</span>
+              </div>
+              <Select value={transactionType || "Unassigned"} onValueChange={handleTransactionTypeChange}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select type..." />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-popover">
+                  <SelectItem value="Unassigned">Unassigned</SelectItem>
+                  <SelectItem value="Funding">Funding</SelectItem>
+                  <SelectItem value="Listing">Listing</SelectItem>
+                  <SelectItem value="Buyer's">Buyer's</SelectItem>
+                  <SelectItem value="Investor's">Investor's</SelectItem>
+                  <SelectItem value="Rental">Rental</SelectItem>
+                  <SelectItem value="Multifamily">Multifamily</SelectItem>
+                  <SelectItem value="Wholesale">Wholesale</SelectItem>
+                  <SelectItem value="Commercial">Commercial</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-muted-foreground">
