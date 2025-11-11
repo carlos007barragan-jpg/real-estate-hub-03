@@ -146,6 +146,7 @@ const LeadProfile = () => {
         });
         setCurrentLifecycle(data.lead_lifecycle as LeadLifecycle);
         setCurrentStage(data.pipeline_stage as PipelineStage);
+        setCurrentPipeline(data.pipeline || "");
         
         // Fetch custom fields for this user
         await fetchCustomFields(data.user_id);
@@ -314,6 +315,7 @@ const LeadProfile = () => {
 
         setCurrentLifecycle(newLifecycle);
         setPipelineDialogOpen(true);
+        await fetchLead(); // Refresh lead data
       } catch (error: any) {
         toast({
           title: "Error",
@@ -333,6 +335,7 @@ const LeadProfile = () => {
       if (error) throw error;
 
       setCurrentLifecycle(newLifecycle);
+      await fetchLead(); // Refresh lead data
       toast({
         title: "Lead Lifecycle Updated",
         description: `Lead moved to ${newLifecycle}`,
@@ -358,6 +361,7 @@ const LeadProfile = () => {
       if (error) throw error;
 
       setCurrentStage(newStage);
+      await fetchLead(); // Refresh lead data
       toast({
         title: "Pipeline Stage Updated",
         description: `Lead moved to ${newStage}`,
@@ -383,6 +387,7 @@ const LeadProfile = () => {
       if (error) throw error;
 
       setCurrentPipeline(newPipeline);
+      await fetchLead(); // Refresh lead data
       toast({
         title: "Pipeline Updated",
         description: `Lead assigned to ${availablePipelines.find(p => p.id === newPipeline)?.name}`,
