@@ -142,7 +142,7 @@ export default function Inventory() {
 
   // Real-time subscription
   useEffect(() => {
-    const channel = supabase
+    const inventoryChannel = supabase
       .channel('inventory-changes')
       .on(
         'postgres_changes',
@@ -157,8 +157,24 @@ export default function Inventory() {
       )
       .subscribe();
 
+    const fieldOptionsChannel = supabase
+      .channel('field-options-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inventory_field_options'
+        },
+        () => {
+          fetchCustomFieldOptions();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(inventoryChannel);
+      supabase.removeChannel(fieldOptionsChannel);
     };
   }, []);
 
