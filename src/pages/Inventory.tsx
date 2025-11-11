@@ -494,16 +494,14 @@ export default function Inventory() {
     
     // Provide default options if none exist
     if (uniqueCategories.length === 0) {
-      return ["Residential", "Commercial", "Investment", "Luxury", "Vacation"];
+      return ["Residential", "Commercial", "Wholesale", "Off-Market", "Investment", "Luxury"];
     }
     
     return uniqueCategories;
   };
 
   const getUniqueStatuses = () => {
-    const customStatuses = getCustomOptions("status");
-    if (customStatuses.length > 0) return customStatuses;
-    
+    // Statuses are now system-defined, not customizable
     return ["available", "pending", "sold", "coming_soon", "under_contract"];
   };
 

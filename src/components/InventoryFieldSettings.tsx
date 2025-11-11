@@ -260,26 +260,49 @@ export default function InventoryFieldSettings() {
       <CardHeader>
         <CardTitle>Inventory Field Settings</CardTitle>
         <CardDescription>
-          Customize the dropdown options for categories, statuses, and property types
+          Customize the dropdown options for categories and property types
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        {/* System Status Reference */}
+        <div className="p-4 bg-muted/50 rounded-lg border">
+          <h4 className="font-semibold mb-2 flex items-center gap-2">
+            <Badge variant="secondary">System Default</Badge>
+            Current Property Statuses
+          </h4>
+          <p className="text-sm text-muted-foreground mb-3">
+            These are the fixed status options available in your property filters and forms:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">Available</Badge>
+            <Badge variant="outline">Pending</Badge>
+            <Badge variant="outline">Sold</Badge>
+            <Badge variant="outline">Coming Soon</Badge>
+            <Badge variant="outline">Under Contract</Badge>
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="category">Categories</TabsTrigger>
-            <TabsTrigger value="status">Statuses</TabsTrigger>
             <TabsTrigger value="property_type">Property Types</TabsTrigger>
           </TabsList>
 
           <TabsContent value="category" className="mt-4">
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-900 dark:text-blue-100">
+                <strong>Categories</strong> help you organize properties by transaction type or market segment (e.g., Residential, Commercial, Wholesale, Off-Market).
+              </p>
+            </div>
             {renderFieldOptions("category")}
           </TabsContent>
 
-          <TabsContent value="status" className="mt-4">
-            {renderFieldOptions("status")}
-          </TabsContent>
-
           <TabsContent value="property_type" className="mt-4">
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p className="text-sm text-blue-900 dark:text-blue-100">
+                <strong>Property Types</strong> define the physical characteristics (e.g., Single Family, Multi Family, Condo, Land).
+              </p>
+            </div>
             {renderFieldOptions("property_type")}
           </TabsContent>
         </Tabs>
