@@ -26,6 +26,7 @@ interface AgentStats {
   newLeads: number;
   appointments: number;
   appointmentsCompleted: number;
+  propertyShowings: number;
   deals: number;
   status: "active" | "offline";
 }
@@ -428,6 +429,14 @@ const Dashboard = () => {
             .gte("created_at", weekStart.toISOString())
             .lte("created_at", weekEnd.toISOString());
 
+          const { data: agentPropertyShowings } = await supabase
+            .from("appointments")
+            .select("*")
+            .eq("user_id", agentRole.user_id)
+            .ilike("appointment_type", "%showing%")
+            .gte("created_at", weekStart.toISOString())
+            .lte("created_at", weekEnd.toISOString());
+
           const profile = profileMap.get(agentRole.user_id);
           const name = profile
             ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
@@ -444,6 +453,7 @@ const Dashboard = () => {
             newLeads: agentLeads?.length || 0,
             appointments: agentAppointments?.length || 0,
             appointmentsCompleted: agentCompletedAppointments?.length || 0,
+            propertyShowings: agentPropertyShowings?.length || 0,
             deals: agentDeals?.length || 0,
             status: isActive ? "active" : "offline",
           } as AgentStats;
@@ -871,6 +881,7 @@ const Dashboard = () => {
                 <TableHead className="text-right">New Leads</TableHead>
                 <TableHead className="text-right">Appointments</TableHead>
                 <TableHead className="text-right">Appointments Completed</TableHead>
+                <TableHead className="text-right">Property Showings</TableHead>
                 <TableHead className="text-right">Deals</TableHead>
               </TableRow>
             </TableHeader>
@@ -895,6 +906,7 @@ const Dashboard = () => {
                   <TableCell className="text-right font-semibold">{agent.newLeads}</TableCell>
                   <TableCell className="text-right font-semibold">{agent.appointments}</TableCell>
                   <TableCell className="text-right font-semibold">{agent.appointmentsCompleted}</TableCell>
+                  <TableCell className="text-right font-semibold">{agent.propertyShowings}</TableCell>
                   <TableCell className="text-right font-semibold">{agent.deals}</TableCell>
                 </TableRow>
               ))}
