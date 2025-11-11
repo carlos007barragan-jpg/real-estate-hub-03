@@ -21,10 +21,12 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [leads, setLeads] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     leadId: "",
+    assignedTo: "",
     dueDate: new Date(),
     appointmentType: "",
   });
@@ -32,9 +34,20 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
   const handleOpen = async (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen) {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       // Fetch leads
-      const { data } = await supabase.from("leads").select("id, name").order("name");
-      setLeads(data || []);
+      const { data: leadsData } = await supabase.from("leads").select("id, name").order("name");
+      setLeads(leadsData || []);
+      
+      // Fetch users/agents for assignment
+      const { data: usersData } = await supabase.from("profiles").select("user_id, first_name, last_name");
+      setUsers(usersData || []);
+      
+      // Default assignedTo to current user
+      if (user && !formData.assignedTo) {
+        setFormData(prev => ({ ...prev, assignedTo: user.id }));
+      }
     }
   };
 
@@ -50,7 +63,7 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
         title: formData.title,
         description: formData.description,
         lead_id: formData.leadId,
-        user_id: user.id,
+        user_id: formData.assignedTo || user.id, // Assigned person
         created_by_user_id: user.id, // Track who created the appointment
         appointment_date: formData.dueDate.toISOString(),
         appointment_type: formData.appointmentType || null,
@@ -62,7 +75,7 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
 
       toast.success("Appointment created successfully");
       setOpen(false);
-      setFormData({ title: "", description: "", leadId: "", dueDate: new Date(), appointmentType: "" });
+      setFormData({ title: "", description: "", leadId: "", assignedTo: "", dueDate: new Date(), appointmentType: "" });
       onSuccess();
     } catch (error) {
       console.error("Error creating appointment:", error);
@@ -109,6 +122,26 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
                 {leads.map((lead) => (
                   <SelectItem key={lead.id} value={lead.id}>
                     {lead.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="assignedTo">Assigned To *</Label>
+            <Select
+              value={formData.assignedTo}
+              onValueChange={(value) => setFormData({ ...formData, assignedTo: value })}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select team member" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.user_id} value={user.user_id}>
+                    {user.first_name} {user.last_name}
                   </SelectItem>
                 ))}
               </SelectContent>
