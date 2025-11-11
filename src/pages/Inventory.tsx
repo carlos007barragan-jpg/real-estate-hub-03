@@ -274,6 +274,15 @@ export default function Inventory() {
       });
       return;
     }
+
+    if (!formData.property_type) {
+      toast({
+        title: "Validation Error",
+        description: "Property type is required. Please add property types in Field Settings first.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -478,7 +487,14 @@ export default function Inventory() {
     if (customTypes.length > 0) return customTypes;
     
     const types = items.map(item => item.property_type).filter(Boolean);
-    return Array.from(new Set(types)) as string[];
+    const uniqueTypes = Array.from(new Set(types)) as string[];
+    
+    // Provide default options if none exist
+    if (uniqueTypes.length === 0) {
+      return ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"];
+    }
+    
+    return uniqueTypes;
   };
 
   const resetForm = () => {
