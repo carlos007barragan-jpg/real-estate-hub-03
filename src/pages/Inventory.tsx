@@ -495,18 +495,12 @@ export default function Inventory() {
   };
 
   const getUniqueCategories = () => {
+    const systemDefaults = ["Residential", "Commercial", "Wholesale", "Off-Market", "Investment", "Luxury"];
     const customCats = getCustomOptions("category");
-    if (customCats.length > 0) return customCats;
     
-    const categories = items.map(item => item.category).filter(Boolean);
-    const uniqueCategories = Array.from(new Set(categories)) as string[];
-    
-    // Provide default options if none exist
-    if (uniqueCategories.length === 0) {
-      return ["Residential", "Commercial", "Wholesale", "Off-Market", "Investment", "Luxury"];
-    }
-    
-    return uniqueCategories;
+    // Merge system defaults with custom options, removing duplicates
+    const allCategories = [...systemDefaults, ...customCats];
+    return Array.from(new Set(allCategories));
   };
 
   const getUniqueStatuses = () => {
@@ -515,18 +509,12 @@ export default function Inventory() {
   };
 
   const getUniquePropertyTypes = () => {
+    const systemDefaults = ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"];
     const customTypes = getCustomOptions("property_type");
-    if (customTypes.length > 0) return customTypes;
     
-    const types = items.map(item => item.property_type).filter(Boolean);
-    const uniqueTypes = Array.from(new Set(types)) as string[];
-    
-    // Provide default options if none exist
-    if (uniqueTypes.length === 0) {
-      return ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"];
-    }
-    
-    return uniqueTypes;
+    // Merge system defaults with custom options, removing duplicates
+    const allTypes = [...systemDefaults, ...customTypes];
+    return Array.from(new Set(allTypes));
   };
 
   const resetForm = () => {
