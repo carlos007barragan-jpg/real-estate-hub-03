@@ -63,7 +63,6 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     language_preference: "English",
     preferred_contact_method: "phone",
     social_status: "",
-    marketing_category: "",
   });
 
   useEffect(() => {
@@ -215,10 +214,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         language_preference: formData.language_preference,
         preferred_contact_method: formData.preferred_contact_method,
         social_status: formData.social_status || null,
-        custom_data: {
-          ...customFieldValues,
-          marketing_category: formData.marketing_category || null,
-        },
+        custom_data: customFieldValues,
       });
 
       if (error) throw error;
@@ -248,7 +244,6 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         language_preference: "English",
         preferred_contact_method: "phone",
         social_status: "",
-        marketing_category: "",
       });
       setCustomFieldValues({});
       setOpen(false);
@@ -546,32 +541,6 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
               onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
               placeholder="Agent name"
             />
-          </div>
-
-          {/* Marketing Agent Category Section */}
-          <div className="pt-4 border-t space-y-4">
-            <div>
-              <h3 className="font-semibold text-foreground mb-1">Only for Marketing Agents</h3>
-              <p className="text-xs text-muted-foreground">Optional - Used for lead categorization</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="marketing_category">Marketing Category</Label>
-              <Select
-                value={formData.marketing_category}
-                onValueChange={(value) => setFormData({ ...formData, marketing_category: value })}
-              >
-                <SelectTrigger className="bg-popover">
-                  <SelectValue placeholder="Select category (optional)" />
-                </SelectTrigger>
-                <SelectContent className="z-50 bg-popover">
-                  <SelectItem value="new-leads">New Leads</SelectItem>
-                  <SelectItem value="any-leads">Any Leads</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="buyers">Buyers</SelectItem>
-                  <SelectItem value="investors">Investors</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           {/* Custom Fields Section */}

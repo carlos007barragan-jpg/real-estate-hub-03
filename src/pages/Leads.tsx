@@ -140,15 +140,13 @@ const Leads = () => {
   }, []);
 
   const getLeadCategory = (lead: Lead): string => {
-    const temp = lead.leadTemperature?.toLowerCase() || "";
+    const transactionType = lead.transactionType?.toLowerCase() || "";
     
-    // Categorize based on lead_temperature field
-    if (temp.includes("funding") || temp === "funding") return "funding";
-    if (temp.includes("sale") || temp === "seller") return "sale";
-    if (temp.includes("buyer") || temp === "buying") return "buyers";
-    if (temp.includes("investor") || temp === "investment") return "investors";
+    // If unassigned or empty, categorize as new-leads
+    if (!transactionType || transactionType === "unassigned") return "new-leads";
     
-    return "uncategorized";
+    // Return the transaction type as category
+    return transactionType.toLowerCase();
   };
 
   const filteredLeads = leads.filter((lead) => {
@@ -156,9 +154,6 @@ const Leads = () => {
       lead.email.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (activeTab === "all") return matchesSearch;
-    if (activeTab === "new-leads") {
-      return matchesSearch && lead.status === "new";
-    }
     
     const category = getLeadCategory(lead);
     return matchesSearch && category === activeTab;
@@ -166,9 +161,6 @@ const Leads = () => {
 
   const getLeadCountByCategory = (category: string) => {
     if (category === "all") return leads.length;
-    if (category === "new-leads") {
-      return leads.filter(lead => lead.status === "new").length;
-    }
     return leads.filter(lead => getLeadCategory(lead) === category).length;
   };
 
@@ -261,7 +253,7 @@ const Leads = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6 mb-6">
+        <TabsList className="grid w-full grid-cols-10 mb-6">
           <TabsTrigger value="all" className="relative">
             All
             <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
@@ -280,22 +272,46 @@ const Leads = () => {
               {getLeadCountByCategory("funding")}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="sale" className="relative">
-            Sale
+          <TabsTrigger value="listing" className="relative">
+            Listing
             <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("sale")}
+              {getLeadCountByCategory("listing")}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="buyers" className="relative">
-            Buyers
+          <TabsTrigger value="buyer's" className="relative">
+            Buyer's
             <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("buyers")}
+              {getLeadCountByCategory("buyer's")}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="investors" className="relative">
-            Investors
+          <TabsTrigger value="investor's" className="relative">
+            Investor's
             <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("investors")}
+              {getLeadCountByCategory("investor's")}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="rental" className="relative">
+            Rental
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("rental")}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="multifamily" className="relative">
+            Multifamily
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("multifamily")}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="wholesale" className="relative">
+            Wholesale
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("wholesale")}
+            </Badge>
+          </TabsTrigger>
+          <TabsTrigger value="commercial" className="relative">
+            Commercial
+            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory("commercial")}
             </Badge>
           </TabsTrigger>
         </TabsList>
