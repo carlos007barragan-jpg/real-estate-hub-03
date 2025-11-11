@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, LayoutGrid, Columns2, Table2, Layers } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { TwoColumnLayout } from "@/components/layouts/TwoColumnLayout";
-import { SingleColumnLayout } from "@/components/layouts/SingleColumnLayout";
-import { TableLayout } from "@/components/layouts/TableLayout";
 import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
 import { PipelineAssignmentDialog } from "@/components/PipelineAssignmentDialog";
 
@@ -51,7 +49,6 @@ const pipelineStages = [
 ] as const;
 
 type PipelineStage = typeof pipelineStages[number];
-type LayoutVariant = "two-column" | "single-column" | "table";
 
 const LeadProfile = () => {
   const { id } = useParams();
@@ -63,7 +60,6 @@ const LeadProfile = () => {
   const [currentLifecycle, setCurrentLifecycle] = useState<LeadLifecycle>("Contact");
   const [currentStage, setCurrentStage] = useState<PipelineStage>("New Lead");
   const [currentPipeline, setCurrentPipeline] = useState<string>("");
-  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>("two-column");
   const [pipelineDialogOpen, setPipelineDialogOpen] = useState(false);
   const [customFields, setCustomFields] = useState<any[]>([]);
 
@@ -530,31 +526,6 @@ const LeadProfile = () => {
             <p className="text-sm text-muted-foreground mt-1">Lead Profile</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant={layoutVariant === "two-column" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setLayoutVariant("two-column")}
-              className="h-8 w-8"
-            >
-              <Columns2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={layoutVariant === "single-column" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setLayoutVariant("single-column")}
-              className="h-8 w-8"
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={layoutVariant === "table" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setLayoutVariant("table")}
-              className="h-8 w-8"
-            >
-              <Table2 className="h-4 w-4" />
-            </Button>
-            <div className="h-8 w-px bg-border mx-2" />
             <ForwardLeadDialog
               leadId={leadData.id}
               currentAgent={leadData.assignedTo}
@@ -627,59 +598,21 @@ const LeadProfile = () => {
           </>
         )}
 
-        {layoutVariant === "two-column" && (
-          <TwoColumnLayout
-            leadData={leadData}
-            customFields={customFields}
-            handleCall={handleCall}
-            handleSendMessage={handleSendMessage}
-            handleAddNote={handleAddNote}
-            messages={messages}
-            notes={notes}
-            newMessage={newMessage}
-            setNewMessage={setNewMessage}
-            newNote={newNote}
-            setNewNote={setNewNote}
-            id={id}
-            onLeadUpdate={fetchLead}
-          />
-        )}
-
-        {layoutVariant === "single-column" && (
-          <SingleColumnLayout
-            leadData={leadData}
-            customFields={customFields}
-            handleCall={handleCall}
-            handleSendMessage={handleSendMessage}
-            handleAddNote={handleAddNote}
-            messages={messages}
-            notes={notes}
-            newMessage={newMessage}
-            setNewMessage={setNewMessage}
-            newNote={newNote}
-            setNewNote={setNewNote}
-            id={id}
-            onLeadUpdate={fetchLead}
-          />
-        )}
-
-        {layoutVariant === "table" && (
-          <TableLayout
-            leadData={leadData}
-            customFields={customFields}
-            handleCall={handleCall}
-            handleSendMessage={handleSendMessage}
-            handleAddNote={handleAddNote}
-            messages={messages}
-            notes={notes}
-            newMessage={newMessage}
-            setNewMessage={setNewMessage}
-            newNote={newNote}
-            setNewNote={setNewNote}
-            id={id}
-            onLeadUpdate={fetchLead}
-          />
-        )}
+        <TwoColumnLayout
+          leadData={leadData}
+          customFields={customFields}
+          handleCall={handleCall}
+          handleSendMessage={handleSendMessage}
+          handleAddNote={handleAddNote}
+          messages={messages}
+          notes={notes}
+          newMessage={newMessage}
+          setNewMessage={setNewMessage}
+          newNote={newNote}
+          setNewNote={setNewNote}
+          id={id}
+          onLeadUpdate={fetchLead}
+        />
 
         <PipelineAssignmentDialog
           open={pipelineDialogOpen}
