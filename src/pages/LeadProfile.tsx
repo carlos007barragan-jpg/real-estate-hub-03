@@ -303,12 +303,17 @@ const LeadProfile = () => {
   const handleLifecycleChange = async (newLifecycle: LeadLifecycle) => {
     if (!leadData) return;
     
+    const { data: { user } } = await supabase.auth.getUser();
+    
     // If moving to Pipeline, show assignment dialog
     if (newLifecycle === "Moved to Pipeline") {
       try {
         const { error } = await supabase
           .from("leads")
-          .update({ lead_lifecycle: newLifecycle })
+          .update({ 
+            lead_lifecycle: newLifecycle,
+            last_modified_by: user?.id,
+          })
           .eq("id", leadData.id);
 
         if (error) throw error;
@@ -329,7 +334,10 @@ const LeadProfile = () => {
     try {
       const { error } = await supabase
         .from("leads")
-        .update({ lead_lifecycle: newLifecycle })
+        .update({ 
+          lead_lifecycle: newLifecycle,
+          last_modified_by: user?.id,
+        })
         .eq("id", leadData.id);
 
       if (error) throw error;
@@ -352,10 +360,15 @@ const LeadProfile = () => {
   const handleStageChange = async (newStage: PipelineStage) => {
     if (!leadData) return;
     
+    const { data: { user } } = await supabase.auth.getUser();
+    
     try {
       const { error } = await supabase
         .from("leads")
-        .update({ pipeline_stage: newStage })
+        .update({ 
+          pipeline_stage: newStage,
+          last_modified_by: user?.id,
+        })
         .eq("id", leadData.id);
 
       if (error) throw error;
@@ -556,29 +569,32 @@ const LeadProfile = () => {
           </div>
         </div>
 
-        {/* Lifecycle Progress Bar */}
-        <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
-          <MoveRight className="h-4 w-4 text-primary" />
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium">Lead Lifecycle</span>
-              <span className="text-xs text-muted-foreground">{Math.round(getLifecycleProgress())}%</span>
+        {/* Show Lifecycle Progress Bar only when NOT in pipeline */}
+        {leadData?.leadLifecycle !== "Moved to Pipeline" && (
+          <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
+            <MoveRight className="h-4 w-4 text-primary" />
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium">Lead Lifecycle</span>
+                <span className="text-xs text-muted-foreground">{Math.round(getLifecycleProgress())}%</span>
+              </div>
+              <Progress value={getLifecycleProgress()} className="h-1.5" />
             </div>
-            <Progress value={getLifecycleProgress()} className="h-1.5" />
+            <Select value={currentLifecycle} onValueChange={handleLifecycleChange}>
+              <SelectTrigger className="w-[140px] h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+               <SelectContent className="z-50 bg-popover">
+                 {leadLifecycleStages.map((stage) => (
+                   <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                 ))}
+               </SelectContent>
+            </Select>
           </div>
-          <Select value={currentLifecycle} onValueChange={handleLifecycleChange}>
-            <SelectTrigger className="w-[140px] h-7 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-             <SelectContent className="z-50 bg-popover">
-               {leadLifecycleStages.map((stage) => (
-                 <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-               ))}
-             </SelectContent>
-          </Select>
-        </div>
+        )}
 
-        {(currentPipeline || leadData?.pipeline) && (
+        {/* Show Pipeline Progress only when lead is in pipeline */}
+        {leadData?.leadLifecycle === "Moved to Pipeline" && (currentPipeline || leadData?.pipeline) && (
           <>
             <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
               <Building2 className="h-4 w-4 text-primary" />
@@ -600,6 +616,33 @@ const LeadProfile = () => {
                  </SelectContent>
               </Select>
             </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={async () => {
+                const { data: { user } } = await supabase.auth.getUser();
+                const { error } = await supabase
+                  .from("leads")
+                  .update({ 
+                    lead_lifecycle: "Lead",
+                    pipeline: null,
+                    pipeline_stage: "New Lead",
+                    last_modified_by: user?.id,
+                  })
+                  .eq("id", id);
+                
+                if (!error) {
+                  toast({
+                    title: "Success",
+                    description: "Lead moved back to lifecycle stages",
+                  });
+                  fetchLead();
+                }
+              }}
+              className="w-full text-xs"
+            >
+              Move Back to Lifecycle
+            </Button>
           </>
         )}
 

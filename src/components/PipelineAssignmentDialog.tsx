@@ -55,12 +55,15 @@ export function PipelineAssignmentDialog({
 
     setSaving(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from("leads")
         .update({
           pipeline: selectedPipeline,
           pipeline_stage: selectedStage,
           lead_lifecycle: "Moved to Pipeline",
+          last_modified_by: user?.id,
         })
         .eq("id", leadId);
 
