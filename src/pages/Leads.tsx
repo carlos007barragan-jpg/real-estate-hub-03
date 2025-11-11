@@ -294,7 +294,7 @@ const Leads = () => {
               <TableHead>Contact</TableHead>
               <TableHead>Assigned To</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Type</TableHead>
+              <TableHead>Transaction Type</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Value</TableHead>
               <TableHead>Date</TableHead>
