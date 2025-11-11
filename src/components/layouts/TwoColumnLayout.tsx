@@ -33,22 +33,30 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
   const [agents, setAgents] = useState<Array<{ id: string; name: string; phone: string }>>([]);
-  const [createdByName, setCreatedByName] = useState<string>("");
+  const [createdByName, setCreatedByName] = useState<string>("Loading...");
   const [assignedAgent, setAssignedAgent] = useState<string>(leadData.agent_phone || "");
 
   useEffect(() => {
     const fetchCreatorAndAgents = async () => {
       // Fetch creator's name
       if (leadData.user_id) {
-        const { data: profile } = await supabase
+        console.log("Fetching creator for user_id:", leadData.user_id);
+        const { data: profile, error } = await supabase
           .from("profiles")
           .select("first_name, last_name")
           .eq("user_id", leadData.user_id)
           .maybeSingle();
         
+        console.log("Profile data:", profile, "Error:", error);
+        
         if (profile) {
-          setCreatedByName(`${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown");
+          const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+          setCreatedByName(fullName || "Unknown User");
+        } else {
+          setCreatedByName("Unknown User");
         }
+      } else {
+        setCreatedByName("Unknown User");
       }
 
       // Fetch active agents with their names
@@ -245,13 +253,11 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
               <Building2 className="h-3 w-3 text-muted-foreground" />
               <span>{leadData.source}</span>
             </div>
-            {createdByName && (
-              <div className="flex items-center gap-2">
-                <User className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground">Created By:</span>
-                <span>{createdByName}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <User className="h-3 w-3 text-muted-foreground" />
+              <span className="text-muted-foreground">Created By:</span>
+              <span>{createdByName}</span>
+            </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <User className="h-3 w-3" />
