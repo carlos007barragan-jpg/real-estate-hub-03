@@ -472,14 +472,21 @@ export default function Inventory() {
     if (customCats.length > 0) return customCats;
     
     const categories = items.map(item => item.category).filter(Boolean);
-    return Array.from(new Set(categories)) as string[];
+    const uniqueCategories = Array.from(new Set(categories)) as string[];
+    
+    // Provide default options if none exist
+    if (uniqueCategories.length === 0) {
+      return ["Residential", "Commercial", "Investment", "Luxury", "Vacation"];
+    }
+    
+    return uniqueCategories;
   };
 
   const getUniqueStatuses = () => {
     const customStatuses = getCustomOptions("status");
     if (customStatuses.length > 0) return customStatuses;
     
-    return ["available", "pending", "sold", "coming_soon"];
+    return ["available", "pending", "sold", "coming_soon", "under_contract"];
   };
 
   const getUniquePropertyTypes = () => {
