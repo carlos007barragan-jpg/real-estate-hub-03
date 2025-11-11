@@ -129,6 +129,69 @@ export default function InventoryFieldSettings() {
     }
   };
 
+  const handleHideSystemDefault = async (fieldType: string, value: string) => {
+    if (!confirm(`Hide "${value}" from your dropdowns?`)) {
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Add as inactive option to hide it
+      const { error } = await supabase
+        .from("inventory_field_options")
+        .insert({
+          user_id: user.id,
+          field_type: fieldType,
+          option_value: value,
+          display_order: 0,
+          is_active: false,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `"${value}" hidden from dropdowns`,
+      });
+
+      fetchOptions();
+    } catch (error: any) {
+      console.error("Error hiding option:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to hide option",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRestoreSystemDefault = async (id: string, value: string) => {
+    try {
+      const { error } = await supabase
+        .from("inventory_field_options")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `"${value}" restored to dropdowns`,
+      });
+
+      fetchOptions();
+    } catch (error: any) {
+      console.error("Error restoring option:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to restore option",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleMoveOption = async (id: string, direction: 'up' | 'down', fieldType: string) => {
     try {
       const fieldOptions = options.filter(opt => opt.field_type === fieldType && opt.is_active)
@@ -168,12 +231,58 @@ export default function InventoryFieldSettings() {
   };
 
   const renderFieldOptions = (fieldType: string) => {
+    const systemDefaults = fieldType === "category" 
+      ? ["Residential", "Commercial", "Wholesale", "Off-Market", "Investment", "Luxury"]
+      : ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"];
+    
     const fieldOptions = options.filter(opt => opt.field_type === fieldType && opt.is_active)
       .sort((a, b) => a.display_order - b.display_order);
+    
+    const hiddenDefaults = options.filter(opt => opt.field_type === fieldType && !opt.is_active);
 
     return (
       <div className="space-y-4">
-        {/* Current Custom Options */}
+        {/* System Defaults */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-medium">System Defaults</Label>
+            <Badge variant="secondary" className="text-xs">Always available</Badge>
+          </div>
+          <div className="space-y-2">
+            {systemDefaults.map(defaultValue => {
+              const isHidden = hiddenDefaults.some(opt => opt.option_value === defaultValue);
+              const hiddenOption = hiddenDefaults.find(opt => opt.option_value === defaultValue);
+              
+              return (
+                <div key={defaultValue} className={`flex items-center gap-3 p-3 border rounded-lg ${isHidden ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
+                  <Badge variant="outline" className="text-xs shrink-0">System</Badge>
+                  <span className="text-sm font-medium flex-1">{defaultValue}</span>
+                  {isHidden ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => hiddenOption && handleRestoreSystemDefault(hiddenOption.id, defaultValue)}
+                      className="text-xs"
+                    >
+                      Restore
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleHideSystemDefault(fieldType, defaultValue)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Custom Options */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">Your Custom Options</Label>
           {fieldOptions.length === 0 ? (

@@ -497,23 +497,35 @@ export default function Inventory() {
   const getUniqueCategories = () => {
     const systemDefaults = ["Residential", "Commercial", "Wholesale", "Off-Market", "Investment", "Luxury"];
     const customCats = getCustomOptions("category");
+    const hiddenDefaults = customFieldOptions
+      .filter(opt => opt.field_type === "category" && !opt.is_active)
+      .map(opt => opt.option_value);
     
-    // Merge system defaults with custom options, removing duplicates
-    const allCategories = [...systemDefaults, ...customCats];
+    // Filter out hidden system defaults
+    const availableDefaults = systemDefaults.filter(def => !hiddenDefaults.includes(def));
+    
+    // Merge available defaults with custom options, removing duplicates
+    const allCategories = [...availableDefaults, ...customCats];
     return Array.from(new Set(allCategories));
   };
 
   const getUniqueStatuses = () => {
-    // Statuses are now system-defined, not customizable
+    // Statuses are system-defined, not customizable
     return ["available", "pending", "sold", "coming_soon", "under_contract"];
   };
 
   const getUniquePropertyTypes = () => {
     const systemDefaults = ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"];
     const customTypes = getCustomOptions("property_type");
+    const hiddenDefaults = customFieldOptions
+      .filter(opt => opt.field_type === "property_type" && !opt.is_active)
+      .map(opt => opt.option_value);
     
-    // Merge system defaults with custom options, removing duplicates
-    const allTypes = [...systemDefaults, ...customTypes];
+    // Filter out hidden system defaults
+    const availableDefaults = systemDefaults.filter(def => !hiddenDefaults.includes(def));
+    
+    // Merge available defaults with custom options, removing duplicates
+    const allTypes = [...availableDefaults, ...customTypes];
     return Array.from(new Set(allTypes));
   };
 
