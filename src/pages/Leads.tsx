@@ -44,6 +44,7 @@ interface Lead {
   isDemoData?: boolean;
   leadLifecycle?: string;
   pipelineStage?: string;
+  createdBy?: string;
 }
 
 
@@ -74,26 +75,37 @@ const Leads = () => {
     try {
       const { data, error } = await supabase
         .from("leads")
-        .select("*")
+        .select(`
+          *,
+          profiles!leads_user_id_fkey(first_name, last_name)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      const formattedLeads: Lead[] = (data || []).map((lead) => ({
-        id: lead.id,
-        name: lead.name,
-        email: lead.email,
-        phone: lead.phone,
-        status: lead.status as "new" | "contacted" | "qualified" | "unqualified",
-        source: lead.source,
-        value: lead.value || "",
-        date: new Date(lead.created_at).toLocaleDateString(),
-        assignedTo: lead.assigned_to || undefined,
-        isInboundCall: lead.is_inbound_call || false,
-        isDemoData: lead.is_demo_data || false,
-        leadLifecycle: lead.lead_lifecycle,
-        pipelineStage: lead.pipeline_stage,
-      }));
+      const formattedLeads: Lead[] = (data || []).map((lead) => {
+        const profile = lead.profiles as any;
+        const creatorName = profile 
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User"
+          : "Unknown User";
+
+        return {
+          id: lead.id,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          status: lead.status as "new" | "contacted" | "qualified" | "unqualified",
+          source: lead.source,
+          value: lead.value || "",
+          date: new Date(lead.created_at).toLocaleDateString(),
+          assignedTo: lead.assigned_to || undefined,
+          isInboundCall: lead.is_inbound_call || false,
+          isDemoData: lead.is_demo_data || false,
+          leadLifecycle: lead.lead_lifecycle,
+          pipelineStage: lead.pipeline_stage,
+          createdBy: creatorName,
+        };
+      });
 
       setLeads(formattedLeads);
     } catch (error: any) {
@@ -216,6 +228,7 @@ const Leads = () => {
               <TableHead>Source</TableHead>
               <TableHead>Value</TableHead>
               <TableHead>Date</TableHead>
+              <TableHead>Created By</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -298,6 +311,7 @@ const Leads = () => {
                 <TableCell className="text-muted-foreground">{lead.source}</TableCell>
                 <TableCell className="font-semibold text-primary">{lead.value}</TableCell>
                 <TableCell className="text-muted-foreground">{lead.date}</TableCell>
+                <TableCell className="text-muted-foreground">{lead.createdBy}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <DropdownMenu>
