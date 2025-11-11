@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "./ui/card";
-import { Phone, Play, Pause, Loader2, PhoneIncoming, PhoneOutgoing, User } from "lucide-react";
+import { Phone, Play, Pause, Loader2, PhoneIncoming, PhoneOutgoing, User, FileText, ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -179,11 +179,8 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
     <div className="space-y-3">
       {callLogs.map((log) => (
         <Card key={log.id} className="p-4">
-          <div className="flex items-start justify-between">
-            <div 
-              className="flex items-start gap-3 flex-1 cursor-pointer" 
-              onClick={() => log.transcription && toggleTranscription(log.id)}
-            >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1">
               <div className={`p-2 rounded-lg ${
                 log.direction === 'inbound' 
                   ? 'bg-info/10' 
@@ -205,6 +202,12 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
                   <Badge variant="outline" className="text-xs">
                     {log.direction === 'inbound' ? 'Inbound' : 'Outbound'}
                   </Badge>
+                  {log.transcription && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      <FileText className="h-3 w-3" />
+                      Transcribed
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
@@ -215,8 +218,8 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
                   </span>
                   <span className={`px-2 py-0.5 rounded-full text-xs ${
                     log.status === 'completed' 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-yellow-100 text-yellow-700'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                      : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                   }`}>
                     {log.status}
                   </span>
@@ -227,39 +230,67 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
                     <span>Answered by: {log.answered_by}</span>
                   </div>
                 )}
-                {log.transcription && (expandedCallId === log.id || playingCallId === log.id) && (
-                  <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                    <div className="text-xs font-medium text-muted-foreground mb-1">
-                      Transcription:
-                    </div>
-                    <div className="text-sm">
-                      {log.transcription}
-                    </div>
+
+                {/* Transcription Display */}
+                {log.transcription && (
+                  <div className="mt-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleTranscription(log.id)}
+                      className="gap-2 h-7 px-2 text-xs"
+                    >
+                      <FileText className="h-3 w-3" />
+                      {expandedCallId === log.id ? 'Hide' : 'View'} Transcription
+                      <ChevronDown className={`h-3 w-3 transition-transform ${
+                        expandedCallId === log.id ? 'rotate-180' : ''
+                      }`} />
+                    </Button>
+                    {expandedCallId === log.id && (
+                      <div className="mt-2 p-3 bg-muted/50 rounded-lg border">
+                        <div className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
+                          <FileText className="h-3 w-3" />
+                          Call Transcription
+                        </div>
+                        <div className="text-sm text-foreground leading-relaxed">
+                          {log.transcription}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!log.transcription && log.recording_url && (
+                  <div className="mt-3 text-xs text-muted-foreground italic">
+                    No transcription available for this call
                   </div>
                 )}
               </div>
             </div>
-            {log.recording_url && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  playRecording(log.id, log.recording_url!);
-                }}
-                disabled={loadingAudio === log.id}
-                className="gap-2 ml-4"
-              >
-                {loadingAudio === log.id ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : playingCallId === log.id ? (
-                  <Pause className="h-3 w-3" />
-                ) : (
-                  <Play className="h-3 w-3" />
-                )}
-                {playingCallId === log.id ? 'Pause' : 'Play'}
-              </Button>
-            )}
+
+            {/* Audio Playback Button */}
+            <div className="flex flex-col gap-2">
+              {log.recording_url && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playRecording(log.id, log.recording_url!);
+                  }}
+                  disabled={loadingAudio === log.id}
+                  className="gap-2"
+                >
+                  {loadingAudio === log.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : playingCallId === log.id ? (
+                    <Pause className="h-3 w-3" />
+                  ) : (
+                    <Play className="h-3 w-3" />
+                  )}
+                  {playingCallId === log.id ? 'Pause' : 'Play'}
+                </Button>
+              )}
+            </div>
           </div>
         </Card>
       ))}
