@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Mail, Shield, MoreVertical, UserCog, Moon, Trash2, AlertCircle } from "lucide-react";
+import { Plus, Mail, Shield, MoreVertical, UserCog, Moon, Trash2, AlertCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,6 +70,10 @@ const Settings = () => {
     return localStorage.getItem("darkMode") === "true";
   });
   const [deletingDemoData, setDeletingDemoData] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -230,6 +234,83 @@ const Settings = () => {
       toast({
         title: "Error",
         description: error.message || "Failed to remove user",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setEditFirstName(user.first_name || "");
+    setEditLastName(user.last_name || "");
+    setEditPhone("");
+  };
+
+  const handleSaveUserEdit = async () => {
+    if (!editingUser || !isAdmin) {
+      toast({
+        title: "Permission Denied",
+        description: "Only admins can edit users",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Update profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          first_name: editFirstName,
+          last_name: editLastName,
+          phone_number: editPhone || null,
+        })
+        .eq('user_id', editingUser.id);
+
+      if (profileError) throw profileError;
+
+      // If phone number is provided, update or create agent record
+      if (editPhone) {
+        const { data: existingAgent } = await supabase
+          .from('agents')
+          .select('*')
+          .eq('user_id', editingUser.id)
+          .maybeSingle();
+
+        if (existingAgent) {
+          const { error: agentError } = await supabase
+            .from('agents')
+            .update({ phone_number: editPhone })
+            .eq('user_id', editingUser.id);
+
+          if (agentError) throw agentError;
+        } else {
+          const { error: agentError } = await supabase
+            .from('agents')
+            .insert({
+              user_id: editingUser.id,
+              phone_number: editPhone,
+              is_active: true,
+            });
+
+          if (agentError) throw agentError;
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "User information updated successfully",
+      });
+
+      setEditingUser(null);
+      setEditFirstName("");
+      setEditLastName("");
+      setEditPhone("");
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user",
         variant: "destructive",
       });
     }
@@ -406,10 +487,15 @@ const Settings = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover">
+                            <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit User
+                            </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-destructive"
                               onClick={() => handleRemoveUser(user.id)}
                             >
+                              <Trash2 className="h-4 w-4 mr-2" />
                               Remove User
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -420,6 +506,57 @@ const Settings = () => {
                 </TableBody>
               </Table>
             )}
+
+            {/* Edit User Dialog */}
+            <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit User</DialogTitle>
+                  <DialogDescription>
+                    Update user information and phone number for Twilio access
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-first-name">First Name</Label>
+                    <Input
+                      id="edit-first-name"
+                      value={editFirstName}
+                      onChange={(e) => setEditFirstName(e.target.value)}
+                      placeholder="John"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-last-name">Last Name</Label>
+                    <Input
+                      id="edit-last-name"
+                      value={editLastName}
+                      onChange={(e) => setEditLastName(e.target.value)}
+                      placeholder="Doe"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-phone">Phone Number</Label>
+                    <Input
+                      id="edit-phone"
+                      type="tel"
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      placeholder="+1234567890"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Required for Twilio calling features. Use E.164 format (e.g., +1234567890)
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditingUser(null)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSaveUserEdit}>Save Changes</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <div className="mt-8 p-4 bg-muted/50 rounded-lg">
               <div className="flex gap-4">
