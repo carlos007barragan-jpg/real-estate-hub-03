@@ -89,6 +89,11 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
     fetchCreatorAndAgents();
   }, [leadData.user_id]);
 
+  // Sync assigned agent when leadData changes
+  useEffect(() => {
+    setAssignedAgent(leadData.agent_phone || "");
+  }, [leadData.agent_phone]);
+
   const handleAssignmentChange = async (agentPhone: string) => {
     const selectedAgent = agents.find(a => a.phone === agentPhone);
     const isUnassigned = agentPhone === "unassigned";
