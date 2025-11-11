@@ -42,6 +42,7 @@ export type Database = {
         Row: {
           appointment_date: string
           appointment_type: string | null
+          completion_notes: string | null
           created_at: string
           created_by_user_id: string | null
           description: string | null
@@ -56,6 +57,7 @@ export type Database = {
         Insert: {
           appointment_date: string
           appointment_type?: string | null
+          completion_notes?: string | null
           created_at?: string
           created_by_user_id?: string | null
           description?: string | null
@@ -70,6 +72,7 @@ export type Database = {
         Update: {
           appointment_date?: string
           appointment_type?: string | null
+          completion_notes?: string | null
           created_at?: string
           created_by_user_id?: string | null
           description?: string | null
