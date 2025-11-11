@@ -77,11 +77,12 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
 
   const handleAssignmentChange = async (agentPhone: string) => {
     const selectedAgent = agents.find(a => a.phone === agentPhone);
+    const isUnassigned = agentPhone === "unassigned";
     
     const { error } = await supabase
       .from("leads")
       .update({
-        agent_phone: agentPhone,
+        agent_phone: isUnassigned ? null : agentPhone,
         assigned_to: selectedAgent?.name || "Unassigned",
       })
       .eq("id", id);
@@ -256,12 +257,12 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                 <User className="h-3 w-3" />
                 <span>Assigned To:</span>
               </div>
-              <Select value={assignedAgent} onValueChange={handleAssignmentChange}>
+              <Select value={assignedAgent || "unassigned"} onValueChange={handleAssignmentChange}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Select agent..." />
                 </SelectTrigger>
                 <SelectContent className="z-50 bg-popover">
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
                   {agents.map((agent) => (
                     <SelectItem key={agent.id} value={agent.phone}>
                       {agent.name}
