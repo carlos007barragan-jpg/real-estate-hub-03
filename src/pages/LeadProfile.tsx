@@ -357,10 +357,40 @@ const LeadProfile = () => {
     }
   };
 
-  const handleStageChange = async (newStage: PipelineStage) => {
+  const handleStageChange = async (newStage: PipelineStage | "Back to Lifecycle") => {
     if (!leadData) return;
     
     const { data: { user } } = await supabase.auth.getUser();
+    
+    // Special handling for moving back to lifecycle
+    if (newStage === "Back to Lifecycle") {
+      try {
+        const { error } = await supabase
+          .from("leads")
+          .update({ 
+            lead_lifecycle: "Lead",
+            pipeline: null,
+            pipeline_stage: "New Lead",
+            last_modified_by: user?.id,
+          })
+          .eq("id", id);
+        
+        if (!error) {
+          toast({
+            title: "Success",
+            description: "Lead moved back to lifecycle stages",
+          });
+          await fetchLead();
+        }
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+      return;
+    }
     
     try {
       const { error } = await supabase
@@ -610,39 +640,13 @@ const LeadProfile = () => {
                   <SelectValue />
                 </SelectTrigger>
                  <SelectContent className="z-50 bg-popover">
+                   <SelectItem value="Back to Lifecycle">← Back to Lifecycle</SelectItem>
                    {pipelineStages.map((stage) => (
                      <SelectItem key={stage} value={stage}>{stage}</SelectItem>
                    ))}
                  </SelectContent>
               </Select>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={async () => {
-                const { data: { user } } = await supabase.auth.getUser();
-                const { error } = await supabase
-                  .from("leads")
-                  .update({ 
-                    lead_lifecycle: "Lead",
-                    pipeline: null,
-                    pipeline_stage: "New Lead",
-                    last_modified_by: user?.id,
-                  })
-                  .eq("id", id);
-                
-                if (!error) {
-                  toast({
-                    title: "Success",
-                    description: "Lead moved back to lifecycle stages",
-                  });
-                  fetchLead();
-                }
-              }}
-              className="w-full text-xs"
-            >
-              Move Back to Lifecycle
-            </Button>
           </>
         )}
 
