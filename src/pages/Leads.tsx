@@ -52,14 +52,6 @@ interface Lead {
 }
 
 
-const agents = [
-  { id: "1", name: "John Smith" },
-  { id: "2", name: "Maria Garcia" },
-  { id: "3", name: "Alex Johnson" },
-  { id: "4", name: "Lisa Chen" },
-];
-
-
 const statusColors = {
   new: "bg-info text-info-foreground",
   contacted: "bg-warning text-warning-foreground",
@@ -77,6 +69,7 @@ const Leads = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
 
   const fetchLeads = async () => {
     try {
@@ -179,10 +172,36 @@ const Leads = () => {
     }
   };
 
+  const fetchAvailableUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(`
+          user_id,
+          first_name,
+          last_name,
+          agents!inner(phone_number)
+        `);
+
+      if (error) throw error;
+
+      const users = (data || []).map((profile: any) => ({
+        id: profile.user_id,
+        name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User",
+        phone: profile.agents?.phone_number || null,
+      }));
+
+      setAvailableUsers(users);
+    } catch (error: any) {
+      console.error("Error fetching available users:", error);
+    }
+  };
+
   useEffect(() => {
     fetchLeads();
     fetchTransactionTypes();
     fetchCurrentUserPhone();
+    fetchAvailableUsers();
   }, []);
 
   const getLeadCategory = (lead: Lead): string => {
@@ -229,24 +248,27 @@ const Leads = () => {
     return leads.filter(lead => getLeadCategory(lead) === category).length;
   };
 
-  const handleAssignLead = async (leadId: string, agentName: string) => {
+  const handleAssignLead = async (leadId: string, userId: string, userName: string, userPhone: string | null) => {
     try {
       const { error } = await supabase
         .from("leads")
-        .update({ assigned_to: agentName })
+        .update({ 
+          assigned_to: userName,
+          agent_phone: userPhone 
+        })
         .eq("id", leadId);
 
       if (error) throw error;
 
       setLeads(
         leads.map((lead) =>
-          lead.id === leadId ? { ...lead, assignedTo: agentName } : lead
+          lead.id === leadId ? { ...lead, assignedTo: userName, agentPhone: userPhone || undefined } : lead
         )
       );
 
       toast({
         title: "Lead assigned",
-        description: `Lead assigned to ${agentName}`,
+        description: `Lead assigned to ${userName}`,
       });
     } catch (error: any) {
       toast({
@@ -414,12 +436,12 @@ const Leads = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="bg-popover">
-                        {agents.map((agent) => (
+                        {availableUsers.map((user) => (
                           <DropdownMenuItem
-                            key={agent.id}
-                            onClick={() => handleAssignLead(lead.id, agent.name)}
+                            key={user.id}
+                            onClick={() => handleAssignLead(lead.id, user.id, user.name, user.phone)}
                           >
-                            {agent.name}
+                            {user.name}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>

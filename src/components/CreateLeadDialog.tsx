@@ -44,6 +44,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -70,6 +71,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     if (open) {
       fetchCustomFields();
       fetchTransactionTypes();
+      fetchAvailableUsers();
     }
   }, [open]);
 
@@ -113,6 +115,31 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
       }
     } catch (error) {
       console.error("Error fetching transaction types:", error);
+    }
+  };
+
+  const fetchAvailableUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(`
+          user_id,
+          first_name,
+          last_name,
+          agents!inner(phone_number)
+        `);
+
+      if (error) throw error;
+
+      const users = (data || []).map((profile: any) => ({
+        id: profile.user_id,
+        name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User",
+        phone: profile.agents?.phone_number || null,
+      }));
+
+      setAvailableUsers(users);
+    } catch (error) {
+      console.error("Error fetching available users:", error);
     }
   };
 
@@ -218,6 +245,9 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         throw new Error("User not authenticated");
       }
 
+      // Get agent phone if user is assigned
+      const assignedUser = availableUsers.find(u => u.id === formData.assigned_to);
+
       const { error } = await supabase.from("leads").insert({
         user_id: user.id,
         name: formData.name,
@@ -229,7 +259,8 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         source: formData.source,
         value: formData.value,
         status: formData.status,
-        assigned_to: formData.assigned_to || null,
+        assigned_to: assignedUser?.name || null,
+        agent_phone: assignedUser?.phone || null,
         pipeline_stage: "New Lead",
         lead_lifecycle: "Contact",
         down_payment: formData.down_payment || null,
@@ -558,12 +589,21 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
 
           <div className="space-y-2">
             <Label htmlFor="assigned_to">Assigned To</Label>
-            <Input
-              id="assigned_to"
+            <Select
               value={formData.assigned_to}
-              onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-              placeholder="Agent name"
-            />
+              onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select user" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableUsers.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Custom Fields Section */}
