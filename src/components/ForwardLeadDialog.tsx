@@ -59,20 +59,23 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
 
       const { data: agentsData, error: agentsError } = await supabase
         .from('agents')
-        .select('user_id, phone_number')
+        .select(`
+          user_id,
+          phone_number,
+          profiles!inner(first_name, last_name)
+        `)
         .eq('is_active', true);
 
       if (agentsError) throw agentsError;
 
-      // For each agent, we'll use their email from a profiles table or derive from user_id
-      // Since we can't call admin.getUserById from client, we'll just use user_id as identifier
-      const agentsWithDetails = (agentsData || []).map((agent) => {
-        // Use a simple name based on phone number for now
-        const name = agent.phone_number.substring(agent.phone_number.length - 4);
+      // Map agents with their profile names
+      const agentsWithDetails = (agentsData || []).map((agent: any) => {
+        const fullName = `${agent.profiles.first_name || ''} ${agent.profiles.last_name || ''}`.trim();
         return {
-          ...agent,
-          email: `agent-${name}@crm.local`,
-          name: `Agent ${name}`,
+          user_id: agent.user_id,
+          phone_number: agent.phone_number,
+          email: '', // Not needed for display
+          name: fullName || 'Unknown Agent',
         };
       });
 
@@ -114,10 +117,14 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
           settings = newSettings;
         }
 
-        // Get active agents
+        // Get active agents with their names
         const { data: activeAgents, error: agentsError } = await supabase
           .from('agents')
-          .select('user_id, phone_number')
+          .select(`
+            user_id,
+            phone_number,
+            profiles!inner(first_name, last_name)
+          `)
           .eq('is_active', true);
 
         if (agentsError) throw agentsError;
@@ -128,12 +135,13 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
         // Get next agent
         const nextIndex = settings.last_assigned_agent_index % activeAgents.length;
         const nextAgent = activeAgents[nextIndex];
+        const agentName = `${nextAgent.profiles.first_name || ''} ${nextAgent.profiles.last_name || ''}`.trim() || 'Unknown Agent';
 
         // Update lead
         const { error: updateError } = await supabase
           .from('leads')
           .update({ 
-            assigned_to: `Agent ${nextAgent.phone_number.substring(nextAgent.phone_number.length - 4)}`,
+            assigned_to: agentName,
             agent_phone: nextAgent.phone_number,
           })
           .eq('id', leadId);
