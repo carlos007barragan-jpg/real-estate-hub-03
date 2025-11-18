@@ -180,7 +180,7 @@ Deno.serve(async (req) => {
       }
 
       // Send password reset email so user can set their own password
-      const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
+      const { data: linkData, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email,
         options: {
@@ -189,7 +189,62 @@ Deno.serve(async (req) => {
       });
 
       if (resetError) {
-        console.error('Password reset email error:', resetError);
+        console.error('Password reset link generation error:', resetError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to generate invitation link' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Send the invitation email using Resend
+      const resendApiKey = Deno.env.get('RESEND_API_KEY');
+      if (!resendApiKey) {
+        console.error('RESEND_API_KEY not configured');
+        return new Response(
+          JSON.stringify({ error: 'Email service not configured' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const inviteLink = linkData?.properties?.action_link || '';
+      const emailHtml = `
+        <h1>You've been invited to join the team!</h1>
+        <p>Hello,</p>
+        <p>You've been invited to join as a <strong>${role.replace('_', ' ')}</strong>.</p>
+        <p>Click the link below to set up your account and create your profile:</p>
+        <p><a href="${inviteLink}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation & Set Up Account</a></p>
+        <p>You'll be able to enter your name, phone number, and set your password.</p>
+        <p>If you didn't expect this invitation, you can safely ignore this email.</p>
+        <p>Best regards,<br>The Team</p>
+      `;
+
+      try {
+        const resendResponse = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'Team Invitation <onboarding@resend.dev>',
+            to: [email],
+            subject: `You've been invited to join the team`,
+            html: emailHtml,
+          }),
+        });
+
+        if (!resendResponse.ok) {
+          const errorText = await resendResponse.text();
+          console.error('Resend API error:', errorText);
+          return new Response(
+            JSON.stringify({ error: 'Failed to send invitation email' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log('Invitation email sent successfully to:', email);
+      } catch (emailError) {
+        console.error('Error sending invitation email:', emailError);
         return new Response(
           JSON.stringify({ error: 'Failed to send invitation email' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
