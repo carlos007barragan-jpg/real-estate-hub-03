@@ -84,8 +84,6 @@ Deno.serve(async (req) => {
     if (createError) {
       console.error('User creation error:', createError);
 
-      // If the email already exists but the user was removed from Team (no role row),
-      // auto-clean the stale auth account and recreate a fresh one.
       if (createError.code === 'email_exists') {
         const targetEmail = (email || '').toLowerCase();
         let foundUserId: string | null = null;
@@ -107,7 +105,7 @@ Deno.serve(async (req) => {
         }
 
         if (foundUserId) {
-          // Check if they still have a role; if not, we consider it a stale auth user
+          // Check if they still have a role
           const { data: roleRow, error: roleLookupErr } = await supabaseAdmin
             .from('user_roles')
             .select('id')
@@ -119,7 +117,8 @@ Deno.serve(async (req) => {
           }
 
           if (!roleRow) {
-            console.log('Found stale auth user without role. Deleting before reinvite:', foundUserId);
+            // Considered a stale auth user: delete and recreate for a clean slate
+            console.log('Found existing auth user without role. Deleting before reinvite:', foundUserId);
             const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(foundUserId);
             if (!delErr) {
               const { data: retryData, error: retryErr } = await supabaseAdmin.auth.admin.createUser({
@@ -137,10 +136,16 @@ Deno.serve(async (req) => {
               console.error('Delete stale auth user failed:', delErr);
             }
           }
+
+          // If the user already exists and has a role, proceed to resend invite instead of failing
+          if (!newUser) {
+            newUser = { id: foundUserId } as any;
+            console.log('Existing user found. Will resend invitation email.');
+          }
         }
       }
 
-      // If we still don't have a new user, return a friendly error
+      // If we still don't have a new user reference, return a friendly error
       if (!newUser) {
         const safeMessage = createError.code === 'email_exists' || String(createError.message || '').includes('already registered')
           ? 'A user with this email address has already been registered'
