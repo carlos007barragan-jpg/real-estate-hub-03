@@ -591,8 +591,6 @@ const Settings = () => {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="destructive" onClick={handlePurgeByEmail}>Purge Account Only</Button>
-                    <Button variant="secondary" onClick={handleRemoveAndReinvite}>Remove & Re-invite</Button>
                     <Button onClick={handleInviteUser}>Send Invitation</Button>
                   </DialogFooter>
                 </DialogContent>
