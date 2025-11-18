@@ -232,6 +232,39 @@ const Settings = () => {
     }
   };
 
+  const handlePurgeByEmail = async () => {
+    if (!inviteEmail) {
+      toast({ title: 'Error', description: 'Please enter an email address', variant: 'destructive' });
+      return;
+    }
+    if (!isAdmin) {
+      toast({ title: 'Permission Denied', description: 'Only admins can manage users', variant: 'destructive' });
+      return;
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase.functions.invoke('admin-delete-user-by-email', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { email: inviteEmail },
+      });
+
+      if (error) throw error;
+      if (data?.error && data.error !== 'No account found for this email') throw new Error(data.error);
+
+      toast({
+        title: 'Account Purged',
+        description: `Any existing account for ${inviteEmail} has been removed. You can invite them later to create a fresh profile.`,
+      });
+
+      // Optional: refresh list in case the user was still visible
+      fetchUsers();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to purge account', variant: 'destructive' });
+    }
+  };
+
   const handleRoleChange = async (userId: string, newRole: "admin" | "agent" | "marketing_manager") => {
     if (!isAdmin) {
       toast({
@@ -558,6 +591,7 @@ const Settings = () => {
                     </div>
                   </div>
                   <DialogFooter>
+                    <Button variant="destructive" onClick={handlePurgeByEmail}>Purge Account Only</Button>
                     <Button variant="secondary" onClick={handleRemoveAndReinvite}>Remove & Re-invite</Button>
                     <Button onClick={handleInviteUser}>Send Invitation</Button>
                   </DialogFooter>
