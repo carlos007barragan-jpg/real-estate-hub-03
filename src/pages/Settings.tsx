@@ -232,23 +232,46 @@ const Settings = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call the admin edge function to delete user
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          userId: userId,
+        },
+      });
 
       if (error) throw error;
+      
+      // Check if the response contains an error
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       toast({
         title: "Success",
-        description: "User removed successfully",
+        description: "User has been completely removed and can be re-added if needed",
       });
       
       fetchUsers();
     } catch (error: any) {
+      const errorMessage = error.message || "Failed to remove user";
+      
+      // Provide more specific error messages
+      let description = errorMessage;
+      if (errorMessage.includes("cannot delete your own")) {
+        description = "You cannot delete your own account.";
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to remove user",
+        description,
         variant: "destructive",
       });
     }
