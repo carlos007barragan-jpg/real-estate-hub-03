@@ -183,11 +183,23 @@ Deno.serve(async (req) => {
       const resendFrom = Deno.env.get('RESEND_FROM_EMAIL') || 'onboarding@resend.dev';
       if (!resendApiKey) {
         console.error('Email sending not configured. Missing RESEND_API_KEY');
-        // Cleanup: remove the just-created auth user to avoid stuck state
-        try { await supabaseAdmin.auth.admin.deleteUser(newUser.id); } catch (e) { console.error('Cleanup deleteUser failed (email config missing):', e); }
+        // Ensure the user appears in the app and provide the invite link for manual sharing
+        const { error: roleInsertError2 } = await supabaseAdmin
+          .from('user_roles')
+          .insert({ user_id: newUser.id, role });
+        if (roleInsertError2) console.error('Role insert error (no email cfg):', roleInsertError2);
+
+        const { error: profileInsertError2 } = await supabaseAdmin
+          .from('profiles')
+          .insert({ user_id: newUser.id, first_name: '', last_name: '', phone_number: null });
+        if (profileInsertError2) console.error('Profile insert error (no email cfg):', profileInsertError2);
+
         return new Response(
-          JSON.stringify({ error: 'Email service not configured. RESEND_API_KEY is required.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({
+            data: { user: newUser, invite_link: inviteLink },
+            message: 'Email service not configured. Share the invite link manually or configure email sending.',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -225,27 +237,52 @@ Deno.serve(async (req) => {
           try {
             const j = JSON.parse(text);
             if (resendResponse.status === 403) {
-              msg = 'Email sending blocked. Verify a domain at resend.com/domains and set RESEND_FROM_EMAIL to that domain.';
+              msg = 'Email sending blocked. Verify a domain and set RESEND_FROM_EMAIL.';
             } else if (j?.message) {
               msg = j.message;
             }
           } catch {}
-          // Cleanup: remove created auth user so re-invite can retry cleanly
-          try { await supabaseAdmin.auth.admin.deleteUser(newUser.id); } catch (e) { console.error('Cleanup deleteUser failed after Resend error:', e); }
+
+          // Make user available and return the invite link for manual sharing
+          const { error: roleInsertError2 } = await supabaseAdmin
+            .from('user_roles')
+            .insert({ user_id: newUser.id, role });
+          if (roleInsertError2) console.error('Role insert error (resend blocked):', roleInsertError2);
+
+          const { error: profileInsertError2 } = await supabaseAdmin
+            .from('profiles')
+            .insert({ user_id: newUser.id, first_name: '', last_name: '', phone_number: null });
+          if (profileInsertError2) console.error('Profile insert error (resend blocked):', profileInsertError2);
+
           return new Response(
-            JSON.stringify({ error: msg }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({
+              data: { user: newUser, invite_link: inviteLink },
+              message: `${msg} — share the invite link manually.`,
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
         console.log('Invitation email sent successfully to:', email);
       } catch (emailError) {
         console.error('Error sending invitation email:', emailError);
-        // Cleanup: remove created auth user so re-invite can retry cleanly
-        try { await supabaseAdmin.auth.admin.deleteUser(newUser.id); } catch (e) { console.error('Cleanup deleteUser failed after email exception:', e); }
+        // Insert role/profile and return the invite link so the admin can share it manually
+        const { error: roleInsertError2 } = await supabaseAdmin
+          .from('user_roles')
+          .insert({ user_id: newUser.id, role });
+        if (roleInsertError2) console.error('Role insert error (email exception):', roleInsertError2);
+
+        const { error: profileInsertError2 } = await supabaseAdmin
+          .from('profiles')
+          .insert({ user_id: newUser.id, first_name: '', last_name: '', phone_number: null });
+        if (profileInsertError2) console.error('Profile insert error (email exception):', profileInsertError2);
+
         return new Response(
-          JSON.stringify({ error: 'Failed to send invitation email' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({
+            data: { user: newUser, invite_link: inviteLink },
+            message: 'Failed to send invitation email — share the invite link manually.',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
