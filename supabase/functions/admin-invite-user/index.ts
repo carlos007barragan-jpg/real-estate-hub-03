@@ -178,6 +178,8 @@ Deno.serve(async (req) => {
         );
       }
 
+      const inviteLink = linkData?.properties?.action_link || '';
+
       // Send the invitation email using Resend
       const resendApiKey = Deno.env.get('RESEND_API_KEY');
       const resendFrom = Deno.env.get('RESEND_FROM_EMAIL') || 'onboarding@resend.dev';
@@ -203,7 +205,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      const inviteLink = linkData?.properties?.action_link || '';
       const emailHtml = `
         <h1>You've been invited to join the team!</h1>
         <p>Hello,</p>
