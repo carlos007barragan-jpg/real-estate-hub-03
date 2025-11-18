@@ -15,7 +15,7 @@ const Landing = () => {
             <Building2 className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold text-foreground">RealEstate CRM</span>
           </div>
-          <Button onClick={() => navigate("/dashboard")} className="gap-2">
+          <Button onClick={() => navigate("/auth")} className="gap-2">
             Get Started
             <ArrowRight className="h-4 w-4" />
           </Button>
@@ -33,7 +33,7 @@ const Landing = () => {
             Track leads, manage pipelines, and close more deals with our powerful CRM built specifically for real estate professionals.
           </p>
           <div className="flex gap-4 justify-center pt-4">
-            <Button size="lg" onClick={() => navigate("/dashboard")} className="gap-2">
+            <Button size="lg" onClick={() => navigate("/auth")} className="gap-2">
               Get Started
               <ArrowRight className="h-5 w-5" />
             </Button>
