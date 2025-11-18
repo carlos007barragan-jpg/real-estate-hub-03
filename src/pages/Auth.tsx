@@ -185,9 +185,15 @@ const Auth = () => {
       });
 
       if (error) {
+        // Provide more helpful error messages
+        let errorMessage = error.message;
+        if (error.message === "Invalid login credentials") {
+          errorMessage = "The email or password you entered is incorrect. Try 'Forgot Password' if you need to reset it.";
+        }
+        
         toast({
           title: "Sign in failed",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
       } else {

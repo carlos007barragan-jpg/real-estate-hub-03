@@ -277,6 +277,52 @@ const Settings = () => {
     }
   };
 
+  const handleResendInvite = async (email: string) => {
+    if (!isAdmin) {
+      toast({
+        title: "Permission Denied",
+        description: "Only admins can resend invitations",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call the admin edge function to resend invitation
+      const { data, error } = await supabase.functions.invoke('admin-resend-invite', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          email: email,
+        },
+      });
+
+      if (error) throw error;
+      
+      // Check if the response contains an error
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "Invitation Resent",
+        description: `A password reset link has been sent to ${email}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend invitation",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleEditUser = (user: User) => {
     setEditingUser(user);
     setEditFirstName(user.first_name || "");
@@ -528,6 +574,10 @@ const Settings = () => {
                             <DropdownMenuItem onClick={() => handleEditUser(user)}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Edit User
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleResendInvite(user.email)}>
+                              <Mail className="h-4 w-4 mr-2" />
+                              Resend Invitation
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-destructive"
