@@ -175,13 +175,13 @@ Deno.serve(async (req) => {
 
       // Send the invitation email using Resend
       const resendApiKey = Deno.env.get('RESEND_API_KEY');
-      const resendFrom = Deno.env.get('RESEND_FROM_EMAIL');
-      if (!resendApiKey || !resendFrom) {
-        console.error('Email sending not configured. Missing RESEND_API_KEY or RESEND_FROM_EMAIL');
+      const resendFrom = Deno.env.get('RESEND_FROM_EMAIL') || 'onboarding@resend.dev';
+      if (!resendApiKey) {
+        console.error('Email sending not configured. Missing RESEND_API_KEY');
         // Cleanup: remove the just-created auth user to avoid stuck state
         try { await supabaseAdmin.auth.admin.deleteUser(newUser.id); } catch (e) { console.error('Cleanup deleteUser failed (email config missing):', e); }
         return new Response(
-          JSON.stringify({ error: 'Email service not configured. Verify a domain in Resend and set RESEND_FROM_EMAIL.' }),
+          JSON.stringify({ error: 'Email service not configured. RESEND_API_KEY is required.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
