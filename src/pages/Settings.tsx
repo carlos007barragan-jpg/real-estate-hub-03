@@ -156,6 +156,11 @@ const Settings = () => {
       });
 
       if (error) throw error;
+      
+      // Check if the response contains an error
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       toast({
         title: "Invitation Sent",
@@ -165,9 +170,19 @@ const Settings = () => {
       setInviteEmail("");
       fetchUsers();
     } catch (error: any) {
+      const errorMessage = error.message || "Failed to invite user";
+      
+      // Provide more specific error messages
+      let description = errorMessage;
+      if (errorMessage.includes("already been registered")) {
+        description = "This email is already registered. The user may already be in your team.";
+      } else if (errorMessage.includes("email address")) {
+        description = "Please enter a valid email address.";
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to invite user",
+        description,
         variant: "destructive",
       });
     }
