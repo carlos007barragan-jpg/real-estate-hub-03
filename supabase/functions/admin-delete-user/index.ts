@@ -72,12 +72,19 @@ Deno.serve(async (req) => {
 
     console.log('Deleting user:', userId);
 
-    // First manually delete from profiles and user_roles to ensure clean removal
+    // First manually delete from agents, profiles and user_roles to ensure clean removal of PII
+    const { error: agentError } = await supabaseAdmin
+      .from('agents')
+      .delete()
+      .eq('user_id', userId);
+    if (agentError) {
+      console.error('Agent deletion error:', agentError);
+    }
+
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .delete()
       .eq('user_id', userId);
-
     if (profileError) {
       console.error('Profile deletion error:', profileError);
     }
@@ -86,14 +93,12 @@ Deno.serve(async (req) => {
       .from('user_roles')
       .delete()
       .eq('user_id', userId);
-
     if (userRoleError) {
       console.error('Role deletion error:', userRoleError);
     }
 
     // Now delete user from auth - this is the critical step that allows re-invite
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
     if (deleteError) {
       console.error('User deletion error:', deleteError);
       return new Response(
