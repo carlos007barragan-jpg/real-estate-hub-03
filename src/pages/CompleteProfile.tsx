@@ -40,19 +40,25 @@ const CompleteProfile = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Validate all inputs with zod
+    // Validate profile inputs (password is optional if already set)
     try {
-      profileSchema.parse({
-        firstName,
-        lastName,
-        phoneNumber,
-        password,
-        confirmPassword,
-      });
+      if (password) {
+        // Only validate password fields if user is setting a new password
+        if (password !== confirmPassword) {
+          throw new Error("Passwords don't match");
+        }
+        if (password.length < 6) {
+          throw new Error("Password must be at least 6 characters");
+        }
+      }
+      
+      if (!firstName || !lastName) {
+        throw new Error("First name and last name are required");
+      }
     } catch (error: any) {
       toast({
         title: "Validation error",
-        description: error.errors?.[0]?.message || "Please check your inputs",
+        description: error.message || "Please check your inputs",
         variant: "destructive",
       });
       setLoading(false);
@@ -70,17 +76,30 @@ const CompleteProfile = () => {
     }
 
     try {
-      // Update password
-      const { error: passwordError } = await supabase.auth.updateUser({
-        password: password,
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          phone_number: phoneNumber,
-        },
-      });
+      // Update password only if provided
+      if (password) {
+        const { error: passwordError } = await supabase.auth.updateUser({
+          password: password,
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phoneNumber,
+          },
+        });
 
-      if (passwordError) throw passwordError;
+        if (passwordError) throw passwordError;
+      } else {
+        // Just update user metadata without changing password
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phoneNumber,
+          },
+        });
+
+        if (metadataError) throw metadataError;
+      }
 
       // Create or update profile
       const { error: profileError } = await supabase
@@ -128,7 +147,7 @@ const CompleteProfile = () => {
           <CardHeader>
             <CardTitle>Complete Your Profile</CardTitle>
             <CardDescription>
-              Set your password and fill in your details to get started
+              Fill in your details to get started. Password is only needed if you want to change it.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -178,27 +197,28 @@ const CompleteProfile = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">New Password (Optional)</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Minimum 6 characters"
+                  placeholder="Leave blank to keep existing password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
                   minLength={6}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Only fill this if you want to set a new password
+                </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
                   placeholder="Re-enter your password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
                   minLength={6}
                 />
               </div>

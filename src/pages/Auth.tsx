@@ -197,11 +197,31 @@ const Auth = () => {
           variant: "destructive",
         });
       } else {
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully signed in.",
-        });
-        navigate("/dashboard");
+        // Check if user has a complete profile
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, phone_number')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          // If profile is incomplete or doesn't exist, redirect to complete-profile
+          if (!profile || !profile.first_name || !profile.last_name) {
+            toast({
+              title: "Complete your profile",
+              description: "Please set up your profile to continue.",
+            });
+            navigate("/complete-profile");
+          } else {
+            toast({
+              title: "Welcome back!",
+              description: "You've successfully signed in.",
+            });
+            navigate("/dashboard");
+          }
+        }
       }
     } catch (error: any) {
       toast({
