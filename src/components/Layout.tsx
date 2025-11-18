@@ -18,7 +18,7 @@ const baseNavItems = [
 ];
 
 const adminNavItems = [
-  { title: "User Management", url: "/users", icon: Shield, adminOnly: true },
+  { title: "User Management", url: "/settings/users", icon: Shield, adminOnly: true },
 ];
 
 const settingsNavItem = { title: "Settings", url: "/settings", icon: Settings };
