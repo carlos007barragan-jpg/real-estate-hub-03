@@ -29,7 +29,40 @@ const Auth = () => {
   const [isInvited, setIsInvited] = useState(false);
 
   useEffect(() => {
-    // Check if this is an invitation link or password reset link
+    // Handle auth callback from email links (password reset, magic link, etc.)
+    const handleAuthCallback = async () => {
+      // Check if there's a hash in the URL (from password reset email)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get('type');
+
+      if (accessToken && type === 'recovery') {
+        // This is a password reset link - set session from token
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: hashParams.get('refresh_token') || '',
+        });
+
+        if (error) {
+          console.error('Session error:', error);
+          toast({
+            title: "Error",
+            description: "Invalid or expired password reset link. Please request a new one.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Session established, show password reset form
+        setIsResettingPassword(true);
+        setIsInvited(false);
+        return;
+      }
+    };
+
+    handleAuthCallback();
+
+    // Check if this is an invitation link or password reset link from query params
     const isPasswordReset = searchParams.get("reset") === "true";
     const isInvitation = searchParams.get("invited") === "true";
     
@@ -52,7 +85,7 @@ const Auth = () => {
         }
       }
     });
-  }, [navigate, searchParams]);
+  }, [navigate, searchParams, toast]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,7 +273,7 @@ const Auth = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+        redirectTo: `${window.location.origin}/auth`,
       });
 
       if (error) {
@@ -292,6 +325,19 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Verify we have a valid session first
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Session Error",
+          description: "Authorization session missing. Please request a new password reset link.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
         data: {
