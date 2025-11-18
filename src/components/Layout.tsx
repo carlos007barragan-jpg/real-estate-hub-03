@@ -1,12 +1,13 @@
-import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming, CalendarDays, Package } from "lucide-react";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming, CalendarDays, Package, Shield } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { GlobalCallManager } from "@/components/GlobalCallManager";
 import { NotificationBell } from "@/components/NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
 
-const navItems = [
+const baseNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Leads", url: "/leads", icon: Users },
@@ -14,11 +15,23 @@ const navItems = [
   { title: "Pipelines", url: "/pipelines", icon: Layers },
   { title: "Contacts", url: "/contacts", icon: Phone },
   { title: "Inventory", url: "/inventory", icon: Package },
-  { title: "Settings", url: "/settings", icon: Settings },
 ];
+
+const adminNavItems = [
+  { title: "User Management", url: "/users", icon: Shield, adminOnly: true },
+];
+
+const settingsNavItem = { title: "Settings", url: "/settings", icon: Settings };
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
+
+  const navItems = [
+    ...baseNavItems,
+    ...(isAdmin ? adminNavItems : []),
+    settingsNavItem
+  ];
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
