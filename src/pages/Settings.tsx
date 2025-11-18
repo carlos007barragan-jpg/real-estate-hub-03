@@ -220,7 +220,7 @@ const Settings = () => {
       const { error } = await supabase
         .from('user_roles')
         .delete()
-        .eq('id', userId);
+        .eq('user_id', userId);
 
       if (error) throw error;
 
