@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { authSchema, emailSchema, passwordSchema, phoneSchema, nameSchema } from "@/lib/validation";
@@ -28,7 +27,6 @@ const Auth = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [isInvited, setIsInvited] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<"admin" | "agent" | "marketing_manager" | "marketing">("agent");
 
   useEffect(() => {
     // Check if this is an invitation link or password reset link
@@ -132,12 +130,12 @@ const Auth = () => {
           console.error('Profile creation error:', profileError);
         }
 
-        // Assign selected role to new users
+        // Assign default "agent" role to new public signups
         const { error: roleError } = await supabase
           .from('user_roles')
           .insert({
             user_id: data.user.id,
-            role: selectedRole,
+            role: 'agent',
           });
 
         if (roleError) {
@@ -526,20 +524,6 @@ const Auth = () => {
                       required
                       minLength={6}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-role">Role *</Label>
-                    <Select value={selectedRole} onValueChange={(value: any) => setSelectedRole(value)}>
-                      <SelectTrigger id="signup-role">
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="marketing_manager">Marketing Manager</SelectItem>
-                        <SelectItem value="agent">Agent</SelectItem>
-                        <SelectItem value="marketing">Marketing</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? "Creating account..." : "Sign Up"}
