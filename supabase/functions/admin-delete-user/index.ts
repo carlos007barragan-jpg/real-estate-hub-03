@@ -72,18 +72,37 @@ Deno.serve(async (req) => {
 
     console.log('Deleting user:', userId);
 
-    // Delete user from auth (this will cascade to profiles and user_roles if foreign keys are set up)
+    // First manually delete from profiles and user_roles to ensure clean removal
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('user_id', userId);
+
+    if (profileError) {
+      console.error('Profile deletion error:', profileError);
+    }
+
+    const { error: userRoleError } = await supabaseAdmin
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId);
+
+    if (userRoleError) {
+      console.error('Role deletion error:', userRoleError);
+    }
+
+    // Now delete user from auth - this is the critical step that allows re-invite
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (deleteError) {
       console.error('User deletion error:', deleteError);
       return new Response(
-        JSON.stringify({ error: 'Failed to delete user' }),
+        JSON.stringify({ error: 'Failed to delete user from authentication system' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('User deleted successfully');
+    console.log('User completely deleted - can now be re-invited');
 
     return new Response(
       JSON.stringify({ success: true, message: 'User deleted successfully' }),

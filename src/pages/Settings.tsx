@@ -164,7 +164,7 @@ const Settings = () => {
 
       toast({
         title: "Invitation Sent",
-        description: `${inviteEmail} will receive an email to set their password and join as ${inviteRole.replace('_', ' ')}`,
+        description: `An invitation has been sent to ${inviteEmail}. They will receive an email to create their account and set up their profile (name, phone number, etc.) as a ${inviteRole.replace('_', ' ')}.`,
       });
       
       setInviteEmail("");
