@@ -198,10 +198,11 @@ Deno.serve(async (req) => {
 
       // Send the invitation email using Resend
       const resendApiKey = Deno.env.get('RESEND_API_KEY');
-      if (!resendApiKey) {
-        console.error('RESEND_API_KEY not configured');
+      const resendFrom = Deno.env.get('RESEND_FROM_EMAIL');
+      if (!resendApiKey || !resendFrom) {
+        console.error('Email sending not configured. Missing RESEND_API_KEY or RESEND_FROM_EMAIL');
         return new Response(
-          JSON.stringify({ error: 'Email service not configured' }),
+          JSON.stringify({ error: 'Email service not configured. Verify a domain in Resend and set RESEND_FROM_EMAIL.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -226,7 +227,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: 'Team Invitation <onboarding@resend.dev>',
+            from: `Team Invitation <${resendFrom}>`,
             to: [email],
             subject: `You've been invited to join the team`,
             html: emailHtml,
@@ -234,10 +235,19 @@ Deno.serve(async (req) => {
         });
 
         if (!resendResponse.ok) {
-          const errorText = await resendResponse.text();
-          console.error('Resend API error:', errorText);
+          const text = await resendResponse.text();
+          console.error('Resend API error:', text);
+          let msg = 'Failed to send invitation email';
+          try {
+            const j = JSON.parse(text);
+            if (resendResponse.status === 403) {
+              msg = 'Email sending blocked. Verify a domain at resend.com/domains and set RESEND_FROM_EMAIL to that domain.';
+            } else if (j?.message) {
+              msg = j.message;
+            }
+          } catch {}
           return new Response(
-            JSON.stringify({ error: 'Failed to send invitation email' }),
+            JSON.stringify({ error: msg }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
