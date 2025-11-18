@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     // Generate a temporary password (user will be required to change it)
     const tempPassword = crypto.randomUUID();
 
-    // Create the user with a temporary password
+    // Attempt to create the user with a temporary password
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: tempPassword,
@@ -78,24 +78,86 @@ Deno.serve(async (req) => {
       },
     });
 
+    // We'll carry the created user here (supports retry logic below)
+    let newUser = userData?.user || null;
+
     if (createError) {
       console.error('User creation error:', createError);
-      // Check the error code instead of message for more reliable error handling
-      const safeMessage = createError.code === 'email_exists' || createError.message.includes('already registered')
-        ? 'A user with this email address has already been registered' 
-        : 'Failed to create user';
-      return new Response(
-        JSON.stringify({ error: safeMessage }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+
+      // If the email already exists but the user was removed from Team (no role row),
+      // auto-clean the stale auth account and recreate a fresh one.
+      if (createError.code === 'email_exists') {
+        const targetEmail = (email || '').toLowerCase();
+        let foundUserId: string | null = null;
+        try {
+          let page = 1;
+          const perPage = 200;
+          while (true) {
+            const { data: listData, error: listErr } = await (supabaseAdmin as any).auth.admin.listUsers({ page, perPage });
+            if (listErr) break;
+            const users = listData?.users ?? [];
+            const match = users.find((u: any) => (u.email || '').toLowerCase() === targetEmail);
+            if (match) { foundUserId = match.id; break; }
+            if (users.length < perPage) break;
+            page += 1;
+            if (page > 50) break; // safety cap
+          }
+        } catch (e) {
+          console.error('List users failed:', e);
+        }
+
+        if (foundUserId) {
+          // Check if they still have a role; if not, we consider it a stale auth user
+          const { data: roleRow, error: roleLookupErr } = await supabaseAdmin
+            .from('user_roles')
+            .select('id')
+            .eq('user_id', foundUserId)
+            .maybeSingle();
+
+          if (roleLookupErr) {
+            console.error('Role lookup error:', roleLookupErr);
+          }
+
+          if (!roleRow) {
+            console.log('Found stale auth user without role. Deleting before reinvite:', foundUserId);
+            const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(foundUserId);
+            if (!delErr) {
+              const { data: retryData, error: retryErr } = await supabaseAdmin.auth.admin.createUser({
+                email,
+                password: tempPassword,
+                email_confirm: true,
+                user_metadata: { invited: true, must_change_password: true },
+              });
+              if (!retryErr) {
+                newUser = retryData?.user || null;
+              } else {
+                console.error('Retry create user failed:', retryErr);
+              }
+            } else {
+              console.error('Delete stale auth user failed:', delErr);
+            }
+          }
+        }
+      }
+
+      // If we still don't have a new user, return a friendly error
+      if (!newUser) {
+        const safeMessage = createError.code === 'email_exists' || String(createError.message || '').includes('already registered')
+          ? 'A user with this email address has already been registered'
+          : 'Failed to create user';
+        return new Response(
+          JSON.stringify({ error: safeMessage }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Create user role entry
-    if (userData.user) {
+    if (newUser) {
       const { error: roleInsertError } = await supabaseAdmin
         .from('user_roles')
         .insert({
-          user_id: userData.user.id,
+          user_id: newUser.id,
           role: role,
         });
 
@@ -107,7 +169,7 @@ Deno.serve(async (req) => {
       const { error: profileInsertError } = await supabaseAdmin
         .from('profiles')
         .insert({
-          user_id: userData.user.id,
+          user_id: newUser.id,
           first_name: '',
           last_name: '',
           phone_number: null,
@@ -137,7 +199,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        data: userData,
+        data: { user: newUser },
         message: 'User invited successfully. They will receive an email to set their password.' 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
