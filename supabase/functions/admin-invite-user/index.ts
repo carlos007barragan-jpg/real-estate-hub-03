@@ -80,7 +80,8 @@ Deno.serve(async (req) => {
 
     if (createError) {
       console.error('User creation error:', createError);
-      const safeMessage = createError.message.includes('already registered') 
+      // Check the error code instead of message for more reliable error handling
+      const safeMessage = createError.code === 'email_exists' || createError.message.includes('already registered')
         ? 'A user with this email address has already been registered' 
         : 'Failed to create user';
       return new Response(
