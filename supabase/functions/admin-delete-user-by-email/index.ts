@@ -95,6 +95,12 @@ Deno.serve(async (req) => {
     }
 
     // Clean up related data first (best-effort)
+    const { error: agentError } = await supabaseAdmin
+      .from('agents')
+      .delete()
+      .eq('user_id', foundUserId);
+    if (agentError) console.error('Agent deletion error:', agentError);
+
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .delete()

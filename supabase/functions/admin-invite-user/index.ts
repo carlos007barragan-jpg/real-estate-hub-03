@@ -152,34 +152,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Create user role entry
+    // Generate invitation link and send email BEFORE inserting role/profile to avoid stale records on failure
     if (newUser) {
-      const { error: roleInsertError } = await supabaseAdmin
-        .from('user_roles')
-        .insert({
-          user_id: newUser.id,
-          role: role,
-        });
-
-      if (roleInsertError) {
-        console.error('Role insert error:', roleInsertError);
-      }
-
-      // Create profile entry so the user shows up in the dashboard immediately
-      const { error: profileInsertError } = await supabaseAdmin
-        .from('profiles')
-        .insert({
-          user_id: newUser.id,
-          first_name: '',
-          last_name: '',
-          phone_number: null,
-        });
-
-      if (profileInsertError) {
-        console.error('Profile insert error:', profileInsertError);
-      }
-
-      // Send password reset email so user can set their own password
+      // Generate password reset link so the user can set their own password
       const { data: linkData, error: resetError } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email,
@@ -190,6 +165,8 @@ Deno.serve(async (req) => {
 
       if (resetError) {
         console.error('Password reset link generation error:', resetError);
+        // Cleanup: remove the just-created auth user to avoid "email already registered"
+        try { await supabaseAdmin.auth.admin.deleteUser(newUser.id); } catch (e) { console.error('Cleanup deleteUser failed after link error:', e); }
         return new Response(
           JSON.stringify({ error: 'Failed to generate invitation link' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -201,6 +178,8 @@ Deno.serve(async (req) => {
       const resendFrom = Deno.env.get('RESEND_FROM_EMAIL');
       if (!resendApiKey || !resendFrom) {
         console.error('Email sending not configured. Missing RESEND_API_KEY or RESEND_FROM_EMAIL');
+        // Cleanup: remove the just-created auth user to avoid stuck state
+        try { await supabaseAdmin.auth.admin.deleteUser(newUser.id); } catch (e) { console.error('Cleanup deleteUser failed (email config missing):', e); }
         return new Response(
           JSON.stringify({ error: 'Email service not configured. Verify a domain in Resend and set RESEND_FROM_EMAIL.' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -246,6 +225,8 @@ Deno.serve(async (req) => {
               msg = j.message;
             }
           } catch {}
+          // Cleanup: remove created auth user so re-invite can retry cleanly
+          try { await supabaseAdmin.auth.admin.deleteUser(newUser.id); } catch (e) { console.error('Cleanup deleteUser failed after Resend error:', e); }
           return new Response(
             JSON.stringify({ error: msg }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -255,10 +236,35 @@ Deno.serve(async (req) => {
         console.log('Invitation email sent successfully to:', email);
       } catch (emailError) {
         console.error('Error sending invitation email:', emailError);
+        // Cleanup: remove created auth user so re-invite can retry cleanly
+        try { await supabaseAdmin.auth.admin.deleteUser(newUser.id); } catch (e) { console.error('Cleanup deleteUser failed after email exception:', e); }
         return new Response(
           JSON.stringify({ error: 'Failed to send invitation email' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      // Only now create user role entry and profile so UI shows the user, avoiding stale records on failures above
+      const { error: roleInsertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({
+          user_id: newUser.id,
+          role: role,
+        });
+      if (roleInsertError) {
+        console.error('Role insert error:', roleInsertError);
+      }
+
+      const { error: profileInsertError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          user_id: newUser.id,
+          first_name: '',
+          last_name: '',
+          phone_number: null,
+        });
+      if (profileInsertError) {
+        console.error('Profile insert error:', profileInsertError);
       }
     }
 
