@@ -188,6 +188,50 @@ const Settings = () => {
     }
   };
 
+  const handleRemoveAndReinvite = async () => {
+    if (!inviteEmail) {
+      toast({ title: 'Error', description: 'Please enter an email address', variant: 'destructive' });
+      return;
+    }
+    if (!isAdmin) {
+      toast({ title: 'Permission Denied', description: 'Only admins can invite users', variant: 'destructive' });
+      return;
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      // 1) Remove any existing account for this email
+      const { data: delData, error: delError } = await supabase.functions.invoke('admin-delete-user-by-email', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { email: inviteEmail },
+      });
+      if (delError && delError.message && !String(delError.message).includes('No account found')) {
+        throw delError;
+      }
+      if (delData?.error && delData.error !== 'No account found for this email') {
+        throw new Error(delData.error);
+      }
+
+      // 2) Send a fresh invite
+      const { data, error } = await supabase.functions.invoke('admin-invite-user', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { email: inviteEmail, role: inviteRole },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: 'Removed & Re-invited',
+        description: `Removed any existing account for ${inviteEmail} and sent a fresh invitation. They can now set up their name and phone.`,
+      });
+      setInviteEmail('');
+      fetchUsers();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to remove & re-invite', variant: 'destructive' });
+    }
+  };
+
   const handleRoleChange = async (userId: string, newRole: "admin" | "agent" | "marketing_manager") => {
     if (!isAdmin) {
       toast({
@@ -514,6 +558,7 @@ const Settings = () => {
                     </div>
                   </div>
                   <DialogFooter>
+                    <Button variant="secondary" onClick={handleRemoveAndReinvite}>Remove & Re-invite</Button>
                     <Button onClick={handleInviteUser}>Send Invitation</Button>
                   </DialogFooter>
                 </DialogContent>
