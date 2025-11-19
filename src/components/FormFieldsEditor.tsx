@@ -5,19 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { GripVertical, Trash2, Plus, Eye } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { GripVertical, Trash2 } from "lucide-react";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface FormField {
   id: string;
@@ -53,97 +47,88 @@ const SortableField = ({ field, onToggleRequired, onDelete }: SortableFieldProps
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const renderFieldPreview = () => {
+    if (field.field_type === 'select') {
+      return (
+        <Select disabled>
+          <SelectTrigger>
+            <SelectValue placeholder={`Select ${field.field_label.toLowerCase()}`} />
+          </SelectTrigger>
+        </Select>
+      );
+    } else if (field.field_type === 'textarea') {
+      return (
+        <textarea
+          disabled
+          className="w-full min-h-[80px] p-2 border rounded-md bg-muted resize-none"
+          placeholder={`Enter ${field.field_label.toLowerCase()}`}
+        />
+      );
+    } else {
+      return (
+        <Input
+          type={field.field_type}
+          disabled
+          placeholder={`Enter ${field.field_label.toLowerCase()}`}
+          className="bg-muted"
+        />
+      );
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 p-4 bg-card border rounded-lg hover:border-primary/50 transition-colors"
+      className="relative space-y-2 p-4 bg-card border rounded-lg hover:border-primary/50 transition-colors"
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing"
-      >
-        <GripVertical className="h-5 w-5 text-muted-foreground" />
-      </div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2">
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing"
+            >
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <Label className="text-sm font-medium">
+              {field.field_label}
+              {field.is_required && <span className="text-destructive ml-1">*</span>}
+            </Label>
+            {field.is_standard && (
+              <Badge variant="secondary" className="text-xs">Standard</Badge>
+            )}
+            {field.is_custom && (
+              <Badge variant="outline" className="text-xs">Custom</Badge>
+            )}
+          </div>
+          {renderFieldPreview()}
+        </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium text-foreground">{field.field_label}</span>
-          {field.is_standard && (
-            <Badge variant="secondary" className="text-xs">Standard</Badge>
-          )}
+        <div className="flex flex-col items-end gap-2 pt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Required</span>
+            <Switch
+              checked={field.is_required}
+              onCheckedChange={(checked) => onToggleRequired(field.id, checked)}
+              disabled={field.is_standard && (field.field_name === 'name' || field.field_name === 'email' || field.field_name === 'phone' || field.field_name === 'source')}
+            />
+          </div>
+
           {field.is_custom && (
-            <Badge variant="outline" className="text-xs">Custom</Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(field.id)}
+              className="text-destructive hover:text-destructive h-8 px-2"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           )}
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="capitalize">{field.field_type}</span>
-          {field.options && field.options.length > 0 && (
-            <span className="text-xs">• {field.options.length} options</span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Required</span>
-          <Switch
-            checked={field.is_required}
-            onCheckedChange={(checked) => onToggleRequired(field.id, checked)}
-            disabled={field.is_standard && (field.field_name === 'name' || field.field_name === 'email' || field.field_name === 'phone')}
-          />
-        </div>
-
-        {field.is_custom && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(field.id)}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
       </div>
     </div>
-  );
-};
-
-const FormPreview = ({ fields }: { fields: FormField[] }) => {
-  return (
-    <ScrollArea className="h-[600px] w-full rounded-lg border bg-muted/20 p-6">
-      <div className="space-y-4 max-w-2xl mx-auto">
-        <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold text-foreground">Lead Form Preview</h3>
-          <p className="text-sm text-muted-foreground">This is how your form will appear</p>
-        </div>
-        
-        {fields
-          .sort((a, b) => a.display_order - b.display_order)
-          .map((field) => (
-            <div key={field.id} className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                {field.field_label}
-                {field.is_required && <span className="text-destructive ml-1">*</span>}
-              </label>
-              {field.field_type === 'select' ? (
-                <div className="w-full p-2 border rounded-md bg-background text-sm text-muted-foreground">
-                  Select {field.field_label.toLowerCase()}
-                </div>
-              ) : field.field_type === 'textarea' ? (
-                <div className="w-full p-2 border rounded-md bg-background min-h-[80px] text-sm text-muted-foreground">
-                  Enter {field.field_label.toLowerCase()}
-                </div>
-              ) : (
-                <div className="w-full p-2 border rounded-md bg-background text-sm text-muted-foreground">
-                  Enter {field.field_label.toLowerCase()}
-                </div>
-              )}
-            </div>
-          ))}
-      </div>
-    </ScrollArea>
   );
 };
 
@@ -151,7 +136,6 @@ export const FormFieldsEditor = () => {
   const { toast } = useToast();
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
-  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Standard fields that are always present
   const STANDARD_FIELDS: Partial<FormField>[] = [
@@ -338,49 +322,43 @@ export const FormFieldsEditor = () => {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Form Fields Editor</CardTitle>
-            <CardDescription>
-              Drag to reorder fields, toggle required status, or remove custom fields
-            </CardDescription>
-          </div>
-          <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Eye className="h-4 w-4 mr-2" />
-                Preview Form
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl">
-              <DialogHeader>
-                <DialogTitle>Form Preview</DialogTitle>
-                <DialogDescription>
-                  This is how your lead form will appear to users
-                </DialogDescription>
-              </DialogHeader>
-              <FormPreview fields={fields} />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <CardTitle>Lead Form Editor</CardTitle>
+        <CardDescription>
+          This is how your lead form appears. Drag fields to reorder, toggle required status, or delete custom fields.
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
-              {fields
-                .sort((a, b) => a.display_order - b.display_order)
-                .map((field) => (
-                  <SortableField
-                    key={field.id}
-                    field={field}
-                    onToggleRequired={handleToggleRequired}
-                    onDelete={handleDelete}
-                  />
-                ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+        <div className="max-w-2xl mx-auto bg-muted/20 rounded-lg border p-6">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-foreground mb-1">Create New Lead</h3>
+            <p className="text-sm text-muted-foreground">
+              Add a new lead to your CRM. Fill in the details below.
+            </p>
+          </div>
+
+          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-4">
+                {fields
+                  .sort((a, b) => a.display_order - b.display_order)
+                  .map((field) => (
+                    <SortableField
+                      key={field.id}
+                      field={field}
+                      onToggleRequired={handleToggleRequired}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+
+          <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
+            <p className="text-sm text-muted-foreground">
+              💡 <strong>Tip:</strong> Drag the grip handle to reorder fields. Toggle the switch to make custom fields required or optional. Click the trash icon to remove custom fields.
+            </p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
