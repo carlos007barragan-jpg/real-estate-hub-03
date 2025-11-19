@@ -48,51 +48,56 @@ export const ProfileSettings = () => {
           last_name,
           phone_number,
           created_at,
-          organization_id,
-          organizations (
-            name
-          )
+          organization_id
         `)
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (profileError) throw profileError;
 
-      // If no profile exists, create one
+      // If no profile exists, create one with an organization
       if (!profileData) {
         console.log('No profile found, creating one...');
+        
+        // Create organization first
+        const { data: newOrg, error: orgError } = await supabase
+          .from('organizations')
+          .insert({
+            name: `${user.user_metadata?.first_name || user.email}'s Organization`,
+            created_by: user.id
+          })
+          .select('id')
+          .single();
+
+        if (orgError) throw orgError;
+
+        // Create profile with organization
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
             user_id: user.id,
             first_name: user.user_metadata?.first_name || null,
             last_name: user.user_metadata?.last_name || null,
+            organization_id: newOrg.id
           })
-          .select(`
-            first_name,
-            last_name,
-            phone_number,
-            created_at,
-            organization_id,
-            organizations (
-              name
-            )
-          `)
+          .select('first_name, last_name, phone_number, created_at, organization_id')
           .single();
 
-        if (createError) {
-          console.error('Error creating profile:', createError);
-          throw createError;
-        }
+        if (createError) throw createError;
 
-        // Get user role - use maybeSingle to handle missing roles
-        const { data: roleData, error: roleError } = await supabase
+        // Get organization name
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', newOrg.id)
+          .single();
+
+        // Get user role
+        const { data: roleData } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
           .maybeSingle();
-
-        if (roleError) throw roleError;
 
         setUserRole(roleData?.role || 'agent');
         setProfile({
@@ -100,20 +105,53 @@ export const ProfileSettings = () => {
           firstName: newProfile.first_name,
           lastName: newProfile.last_name,
           phoneNumber: newProfile.phone_number,
-          organizationName: newProfile.organizations?.name || null,
+          organizationName: orgData?.name || null,
           createdAt: newProfile.created_at,
         });
         return;
       }
 
-      // Get user role - use maybeSingle to handle missing roles
-      const { data: roleData, error: roleError } = await supabase
+      // If profile exists but no organization, create one
+      if (profileData && !profileData.organization_id) {
+        console.log('Profile exists but no organization, creating one...');
+        
+        const { data: newOrg, error: orgError } = await supabase
+          .from('organizations')
+          .insert({
+            name: `${profileData.first_name || user.email}'s Organization`,
+            created_by: user.id
+          })
+          .select('id')
+          .single();
+
+        if (!orgError && newOrg) {
+          await supabase
+            .from('profiles')
+            .update({ organization_id: newOrg.id })
+            .eq('user_id', user.id);
+          
+          profileData.organization_id = newOrg.id;
+        }
+      }
+
+      // Get organization name if organization_id exists
+      let organizationName = null;
+      if (profileData.organization_id) {
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', profileData.organization_id)
+          .maybeSingle();
+        
+        organizationName = orgData?.name || null;
+      }
+
+      // Get user role
+      const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .maybeSingle();
-
-      if (roleError) throw roleError;
 
       setUserRole(roleData?.role || 'agent');
       setProfile({
@@ -121,7 +159,7 @@ export const ProfileSettings = () => {
         firstName: profileData.first_name,
         lastName: profileData.last_name,
         phoneNumber: profileData.phone_number,
-        organizationName: profileData.organizations?.name || null,
+        organizationName: organizationName,
         createdAt: profileData.created_at,
       });
     } catch (error: any) {
