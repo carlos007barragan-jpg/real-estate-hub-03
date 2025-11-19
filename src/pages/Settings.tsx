@@ -11,7 +11,7 @@ import { RoundRobinSettings } from "@/components/RoundRobinSettings";
 import { CustomFieldsManager } from "@/components/CustomFieldsManager";
 import { TransactionTypesManager } from "@/components/TransactionTypesManager";
 import { ProfileSettings } from "@/components/ProfileSettings";
-import UserManagement from "./UserManagement";
+import { TeamManagement } from "@/components/TeamManagement";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -242,7 +242,7 @@ const Settings = () => {
 
         {isAdmin && (
           <TabsContent value="team">
-            <UserManagement />
+            <TeamManagement />
           </TabsContent>
         )}
       </Tabs>
