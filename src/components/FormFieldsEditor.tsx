@@ -371,9 +371,6 @@ export const FormFieldsEditor = () => {
           <div className="overflow-y-auto pr-2" style={{ maxHeight: 'calc(90vh - 180px)' }}>
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-foreground mb-2">Form Editor</h3>
-              <p className="text-xs text-muted-foreground">
-                Customize your lead form fields below
-              </p>
             </div>
 
             <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -403,7 +400,7 @@ export const FormFieldsEditor = () => {
           {/* Right Panel - Live Preview */}
           <div className="overflow-y-auto pl-2 border-l" style={{ maxHeight: 'calc(90vh - 180px)' }}>
             <div className="mb-4">
-              <h3 className="text-sm font-semibold text-foreground mb-2">Live Preview</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-2">Edit Lead Form</h3>
               <p className="text-xs text-muted-foreground">
                 This is how your form appears to users
               </p>
