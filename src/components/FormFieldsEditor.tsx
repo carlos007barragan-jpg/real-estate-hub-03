@@ -58,7 +58,7 @@ const SortableField = ({ field, onToggleRequired, onDelete }: SortableFieldProps
     if (field.field_type === 'select') {
       return (
         <Select disabled>
-          <SelectTrigger>
+          <SelectTrigger className="h-9">
             <SelectValue placeholder={`Select ${field.field_label.toLowerCase()}`} />
           </SelectTrigger>
         </Select>
@@ -67,7 +67,7 @@ const SortableField = ({ field, onToggleRequired, onDelete }: SortableFieldProps
       return (
         <textarea
           disabled
-          className="w-full min-h-[80px] p-2 border rounded-md bg-muted resize-none"
+          className="w-full min-h-[60px] p-2 text-sm border rounded-md bg-muted resize-none"
           placeholder={`Enter ${field.field_label.toLowerCase()}`}
         />
       );
@@ -77,7 +77,7 @@ const SortableField = ({ field, onToggleRequired, onDelete }: SortableFieldProps
           type={field.field_type}
           disabled
           placeholder={`Enter ${field.field_label.toLowerCase()}`}
-          className="bg-muted"
+          className="bg-muted h-9 text-sm"
         />
       );
     }
@@ -87,39 +87,42 @@ const SortableField = ({ field, onToggleRequired, onDelete }: SortableFieldProps
     <div
       ref={setNodeRef}
       style={style}
-      className="relative space-y-2 p-4 bg-card border rounded-lg hover:border-primary/50 transition-colors"
+      className="relative space-y-2 p-3 bg-card border rounded-lg hover:border-primary/50 transition-colors"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 space-y-2 min-w-0">
           <div className="flex items-center gap-2">
             <div
               {...attributes}
               {...listeners}
-              className="cursor-grab active:cursor-grabbing"
+              className="cursor-grab active:cursor-grabbing flex-shrink-0"
             >
               <GripVertical className="h-4 w-4 text-muted-foreground" />
             </div>
-            <Label className="text-sm font-medium">
+            <Label className="text-xs font-medium truncate">
               {field.field_label}
               {field.is_required && <span className="text-destructive ml-1">*</span>}
             </Label>
             {field.is_standard && (
-              <Badge variant="secondary" className="text-xs">Standard</Badge>
+              <Badge variant="secondary" className="text-[10px] px-1 py-0">Std</Badge>
             )}
             {field.is_custom && (
-              <Badge variant="outline" className="text-xs">Custom</Badge>
+              <Badge variant="outline" className="text-[10px] px-1 py-0">Custom</Badge>
             )}
           </div>
-          {renderFieldPreview()}
+          <div className="pl-6">
+            {renderFieldPreview()}
+          </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2 pt-1">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Required</span>
+        <div className="flex flex-col items-end gap-2 pt-1 flex-shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground">Req</span>
             <Switch
               checked={field.is_required}
               onCheckedChange={(checked) => onToggleRequired(field.id, checked)}
               disabled={field.is_standard && (field.field_name === 'name' || field.field_name === 'email' || field.field_name === 'phone' || field.field_name === 'source')}
+              className="scale-75"
             />
           </div>
 
@@ -128,9 +131,9 @@ const SortableField = ({ field, onToggleRequired, onDelete }: SortableFieldProps
               variant="ghost"
               size="sm"
               onClick={() => onDelete(field.id)}
-              className="text-destructive hover:text-destructive h-8 px-2"
+              className="text-destructive hover:text-destructive h-6 w-6 p-0"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3 w-3" />
             </Button>
           )}
         </div>
@@ -355,35 +358,104 @@ export const FormFieldsEditor = () => {
           Edit Form Layout
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[1400px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Edit Lead Form</DialogTitle>
           <DialogDescription>
-            This is how your lead form appears. Drag fields to reorder, toggle required status, or delete custom fields.
+            Drag fields to reorder, toggle required status, or delete custom fields. See changes in real-time on the right.
           </DialogDescription>
         </DialogHeader>
 
-        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-4">
-              {fields
-                .sort((a, b) => a.display_order - b.display_order)
-                .map((field) => (
-                  <SortableField
-                    key={field.id}
-                    field={field}
-                    onToggleRequired={handleToggleRequired}
-                    onDelete={handleDelete}
-                  />
-                ))}
+        <div className="grid grid-cols-2 gap-6 overflow-hidden">
+          {/* Left Panel - Editor */}
+          <div className="overflow-y-auto pr-2" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-foreground mb-2">Form Editor</h3>
+              <p className="text-xs text-muted-foreground">
+                Customize your lead form fields below
+              </p>
             </div>
-          </SortableContext>
-        </DndContext>
 
-        <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
-          <p className="text-sm text-muted-foreground">
-            💡 <strong>Tip:</strong> Drag the grip handle to reorder fields. Toggle the switch to make custom fields required or optional. Click the trash icon to remove custom fields.
-          </p>
+            <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-3">
+                  {fields
+                    .sort((a, b) => a.display_order - b.display_order)
+                    .map((field) => (
+                      <SortableField
+                        key={field.id}
+                        field={field}
+                        onToggleRequired={handleToggleRequired}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+
+            <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <p className="text-xs text-muted-foreground">
+                💡 <strong>Tip:</strong> Drag the grip handle to reorder. Toggle required status. Delete custom fields.
+              </p>
+            </div>
+          </div>
+
+          {/* Right Panel - Live Preview */}
+          <div className="overflow-y-auto pl-2 border-l" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-foreground mb-2">Live Preview</h3>
+              <p className="text-xs text-muted-foreground">
+                This is how your form appears to users
+              </p>
+            </div>
+
+            <div className="bg-muted/20 rounded-lg border p-6">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-foreground mb-1">Create New Lead</h3>
+                <p className="text-sm text-muted-foreground">
+                  Add a new lead to your CRM. Fill in the details below.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {fields
+                  .sort((a, b) => a.display_order - b.display_order)
+                  .map((field) => (
+                    <div key={field.id} className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        {field.field_label}
+                        {field.is_required && <span className="text-destructive ml-1">*</span>}
+                      </Label>
+                      {field.field_type === 'select' ? (
+                        <Select disabled>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder={`Select ${field.field_label.toLowerCase()}`} />
+                          </SelectTrigger>
+                        </Select>
+                      ) : field.field_type === 'textarea' ? (
+                        <textarea
+                          disabled
+                          className="w-full min-h-[80px] p-2 border rounded-md bg-background resize-none text-sm"
+                          placeholder={`Enter ${field.field_label.toLowerCase()}`}
+                        />
+                      ) : (
+                        <Input
+                          type={field.field_type}
+                          disabled
+                          placeholder={`Enter ${field.field_label.toLowerCase()}`}
+                          className="bg-background"
+                        />
+                      )}
+                    </div>
+                  ))}
+              </div>
+
+              <div className="mt-6 flex justify-end gap-2">
+                <Button variant="outline" size="sm" disabled>Cancel</Button>
+                <Button size="sm" disabled>Create Lead</Button>
+              </div>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
