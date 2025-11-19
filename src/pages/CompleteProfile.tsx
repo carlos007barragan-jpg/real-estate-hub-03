@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { profileSchema } from "@/lib/validation";
 const CompleteProfile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -19,6 +20,8 @@ const CompleteProfile = () => {
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if user is authenticated (came from invitation link)
@@ -29,12 +32,18 @@ const CompleteProfile = () => {
         const metadata = session.user.user_metadata;
         if (metadata?.first_name) setFirstName(metadata.first_name);
         if (metadata?.last_name) setLastName(metadata.last_name);
+        
+        // Get organization and role from URL params (from OAuth redirect)
+        const orgId = searchParams.get("organization_id");
+        const userRole = searchParams.get("role");
+        if (orgId) setOrganizationId(orgId);
+        if (userRole) setRole(userRole);
       } else {
         // Not authenticated, redirect to auth
         navigate("/auth");
       }
     });
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,10 +118,46 @@ const CompleteProfile = () => {
           first_name: firstName,
           last_name: lastName,
           phone_number: phoneNumber,
+          organization_id: organizationId, // Include organization from invitation
         });
 
       if (profileError) {
         console.error('Profile creation error:', profileError);
+        throw profileError;
+      }
+
+      // If role was provided (from invitation), create user role
+      if (role) {
+        // Check if user already has a role
+        const { data: existingRole } = await supabase
+          .from('user_roles')
+          .select('id')
+          .eq('user_id', userId)
+          .single();
+
+        if (!existingRole) {
+          // Create new role if it doesn't exist
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: userId,
+              role: role as "admin" | "agent" | "marketing_manager" | "marketing",
+            });
+
+          if (roleError) {
+            console.error('Role creation error:', roleError);
+            // Don't throw - profile was created successfully
+          }
+        }
+      }
+
+      // Update invitation status if there was a token
+      const invitationToken = searchParams.get("invitation_token");
+      if (invitationToken) {
+        await supabase
+          .from("user_invitations")
+          .update({ status: "accepted" })
+          .eq("token", invitationToken);
       }
 
       toast({

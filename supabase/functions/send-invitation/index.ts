@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -10,9 +11,9 @@ const corsHeaders = {
 };
 
 interface InvitationRequest {
-  to: string;
+  email: string;
   role: string;
-  inviteUrl: string;
+  organizationId: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -22,13 +23,65 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { to, role, inviteUrl }: InvitationRequest = await req.json();
+    const { email, role, organizationId }: InvitationRequest = await req.json();
 
-    console.log("Sending invitation to:", to, "with role:", role);
+    console.log("Processing invitation for:", email, "with role:", role);
 
+    // Create Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Get the authorization header to identify the inviting user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("No authorization header");
+    }
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
+      authHeader.replace("Bearer ", "")
+    );
+
+    if (userError || !user) {
+      throw new Error("Unauthorized");
+    }
+
+    // Generate unique token
+    const token = crypto.randomUUID();
+    
+    // Set expiration to 7 days from now
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    // Create invitation record
+    const { data: invitation, error: invitationError } = await supabaseClient
+      .from("user_invitations")
+      .insert({
+        email,
+        role,
+        organization_id: organizationId,
+        invited_by: user.id,
+        token,
+        expires_at: expiresAt.toISOString(),
+        status: "pending"
+      })
+      .select()
+      .single();
+
+    if (invitationError) {
+      console.error("Error creating invitation:", invitationError);
+      throw invitationError;
+    }
+
+    // Get the app URL from environment or construct it
+    const baseUrl = Deno.env.get("APP_URL") || `${new URL(req.url).protocol}//${new URL(req.url).hostname}`;
+    const inviteUrl = `${baseUrl}/accept-invite?token=${token}`;
+
+    // Send invitation email
     const emailResponse = await resend.emails.send({
       from: "RealEstate CRM <onboarding@resend.dev>",
-      to: [to],
+      to: [email],
       subject: "You've been invited to join RealEstate CRM",
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -56,7 +109,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify(emailResponse), {
+    return new Response(JSON.stringify({ 
+      success: true,
+      invitation,
+      emailResponse 
+    }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
