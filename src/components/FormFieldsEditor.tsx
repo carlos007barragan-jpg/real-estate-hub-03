@@ -359,7 +359,6 @@ export const FormFieldsEditor = () => {
         <div className="overflow-y-auto px-8" style={{ maxHeight: 'calc(90vh - 180px)' }}>
           <div className="bg-muted/20 rounded-lg border p-6">
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-foreground mb-1">Edit Lead Form</h3>
               <p className="text-sm text-muted-foreground">
                 Hover over fields to drag, reorder, toggle required status, or delete custom fields
               </p>
