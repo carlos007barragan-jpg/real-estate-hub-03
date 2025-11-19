@@ -54,6 +54,11 @@ export default function AcceptInvite() {
   const handleAcceptInvitation = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("Please enter your first and last name");
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast.error("Passwords don't match");
       return;
@@ -66,44 +71,62 @@ export default function AcceptInvite() {
 
     setSubmitting(true);
 
-    const { error } = await supabase.auth.signUp({
-      email: invitation.email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          organization_id: invitation.organization_id,
-          role: invitation.role
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: invitation.email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            organization_id: invitation.organization_id,
+            role: invitation.role
+          }
         }
-      }
-    });
+      });
 
-    if (error) {
-      toast.error(error.message);
-      setSubmitting(false);
-    } else {
+      if (error) throw error;
+
+      // Update invitation status to accepted
+      await supabase
+        .from("user_invitations")
+        .update({ status: "accepted" })
+        .eq("token", searchParams.get("token"));
+
       toast.success("Account created successfully!");
       navigate("/dashboard");
+    } catch (error: any) {
+      toast.error(error.message);
+      setSubmitting(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`,
-        queryParams: {
-          invitation_email: invitation.email,
-          organization_id: invitation.organization_id,
-          role: invitation.role
-        }
-      }
-    });
+    
+    try {
+      // Update invitation status before OAuth redirect
+      await supabase
+        .from("user_invitations")
+        .update({ status: "accepted" })
+        .eq("token", searchParams.get("token"));
 
-    if (error) {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/complete-profile`,
+          queryParams: {
+            invitation_email: invitation.email,
+            organization_id: invitation.organization_id,
+            role: invitation.role,
+            invitation_token: searchParams.get("token")
+          }
+        }
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
       toast.error(error.message);
       setSubmitting(false);
     }

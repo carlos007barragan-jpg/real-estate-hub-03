@@ -18,7 +18,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 
 const Settings = () => {
   const { toast } = useToast();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
@@ -124,7 +124,7 @@ const Settings = () => {
           <TabsTrigger value="types">Transaction Types</TabsTrigger>
           <TabsTrigger value="fields">Custom Fields</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          {isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
+          {!roleLoading && isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="general">
@@ -240,7 +240,7 @@ const Settings = () => {
           </Card>
         </TabsContent>
 
-        {isAdmin && (
+        {!roleLoading && isAdmin && (
           <TabsContent value="team">
             <TeamManagement />
           </TabsContent>
