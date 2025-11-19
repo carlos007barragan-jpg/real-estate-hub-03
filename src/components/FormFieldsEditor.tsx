@@ -60,53 +60,52 @@ const SortableField = ({ field, onToggleRequired, onDelete }: SortableFieldProps
       style={style}
       className="relative group"
     >
-      {/* Drag handle and controls overlay */}
-      <div className="absolute -left-8 top-0 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1 bg-card border rounded shadow-sm"
-        >
-          <GripVertical className="h-4 w-4 text-muted-foreground" />
-        </div>
-      </div>
-
-      <div className="absolute -right-2 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="flex items-center gap-1 bg-card border rounded shadow-sm p-1">
-          <span className="text-[10px] text-muted-foreground">Req</span>
-          <Switch
-            checked={field.is_required}
-            onCheckedChange={(checked) => onToggleRequired(field.id, checked)}
-            disabled={field.is_standard && (field.field_name === 'name' || field.field_name === 'email' || field.field_name === 'phone' || field.field_name === 'source')}
-            className="scale-75"
-          />
-        </div>
-        {field.is_custom && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(field.id)}
-            className="text-destructive hover:text-destructive h-7 w-7 p-0 bg-card border shadow-sm"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        )}
-      </div>
-
       {/* Actual form field as it appears to users */}
-      <div className="space-y-2 p-3 border rounded-lg bg-background group-hover:border-primary/50 transition-colors">
-        <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium">
-            {field.field_label}
-            {field.is_required && <span className="text-destructive ml-1">*</span>}
-          </Label>
-          {field.is_standard && (
-            <Badge variant="secondary" className="text-[10px] px-1 py-0">Std</Badge>
-          )}
-          {field.is_custom && (
-            <Badge variant="outline" className="text-[10px] px-1 py-0">Custom</Badge>
-          )}
+      <div className="space-y-2 p-3 border rounded-lg bg-background group-hover:border-primary transition-colors group-hover:shadow-md">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-1">
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <Label className="text-sm font-medium">
+              {field.field_label}
+              {field.is_required && <span className="text-destructive ml-1">*</span>}
+            </Label>
+            {field.is_standard && (
+              <Badge variant="secondary" className="text-[10px] px-1 py-0">Std</Badge>
+            )}
+            {field.is_custom && (
+              <Badge variant="outline" className="text-[10px] px-1 py-0">Custom</Badge>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground">Required</span>
+              <Switch
+                checked={field.is_required}
+                onCheckedChange={(checked) => onToggleRequired(field.id, checked)}
+                disabled={field.is_standard && (field.field_name === 'name' || field.field_name === 'email' || field.field_name === 'phone' || field.field_name === 'source')}
+                className="scale-75"
+              />
+            </div>
+            {field.is_custom && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(field.id)}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 w-7 p-0"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
+        
         {field.field_type === 'select' ? (
           <Select disabled>
             <SelectTrigger className="bg-background">
