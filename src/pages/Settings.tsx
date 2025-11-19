@@ -10,11 +10,14 @@ import { AgentPhoneSetup } from "@/components/AgentPhoneSetup";
 import { RoundRobinSettings } from "@/components/RoundRobinSettings";
 import { CustomFieldsManager } from "@/components/CustomFieldsManager";
 import { TransactionTypesManager } from "@/components/TransactionTypesManager";
+import UserManagement from "./UserManagement";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const Settings = () => {
   const { toast } = useToast();
+  const { isAdmin } = useUserRole();
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
@@ -119,6 +122,7 @@ const Settings = () => {
           <TabsTrigger value="types">Transaction Types</TabsTrigger>
           <TabsTrigger value="fields">Custom Fields</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          {isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="general">
@@ -219,16 +223,22 @@ const Settings = () => {
 
               <div className="flex items-center justify-between py-3">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Appointment Reminders</Label>
+                  <Label className="text-base">SMS Notifications</Label>
                   <p className="text-sm text-muted-foreground">
-                    Get notified about upcoming appointments
+                    Get text messages for urgent updates
                   </p>
                 </div>
-                <Switch defaultChecked />
+                <Switch />
               </div>
             </div>
           </Card>
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="team">
+            <UserManagement />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
