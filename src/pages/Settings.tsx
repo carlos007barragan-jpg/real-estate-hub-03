@@ -10,6 +10,7 @@ import { AgentPhoneSetup } from "@/components/AgentPhoneSetup";
 import { RoundRobinSettings } from "@/components/RoundRobinSettings";
 import { CustomFieldsManager } from "@/components/CustomFieldsManager";
 import { TransactionTypesManager } from "@/components/TransactionTypesManager";
+import { ProfileSettings } from "@/components/ProfileSettings";
 import UserManagement from "./UserManagement";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -119,6 +120,7 @@ const Settings = () => {
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="types">Transaction Types</TabsTrigger>
           <TabsTrigger value="fields">Custom Fields</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
@@ -177,6 +179,10 @@ const Settings = () => {
               </div>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="profile">
+          <ProfileSettings />
         </TabsContent>
 
         <TabsContent value="types">

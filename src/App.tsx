@@ -26,7 +26,6 @@ import PropertyDetail from "./pages/PropertyDetail";
 import ResetPassword from "./pages/ResetPassword";
 import AcceptInvite from "./pages/AcceptInvite";
 import UserManagement from "./pages/UserManagement";
-import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -87,7 +86,6 @@ const App = () => {
           <Route path="/inventory/:id" element={<ProtectedRoute><Layout><PropertyDetail /></Layout></ProtectedRoute>} />
           <Route path="/settings/users" element={<ProtectedRoute><Layout><UserManagement /></Layout></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Layout><Profile /></Layout></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
