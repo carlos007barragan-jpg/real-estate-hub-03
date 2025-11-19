@@ -18,7 +18,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 
 const Settings = () => {
   const { toast } = useToast();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdmin } = useUserRole();
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
@@ -117,14 +117,14 @@ const Settings = () => {
         <p className="text-muted-foreground mt-1">Manage your CRM settings and preferences</p>
       </div>
 
-      <Tabs defaultValue="general" className="w-full">
+      <Tabs defaultValue="general" className="w-full" key={isAdmin ? "admin-tabs" : "user-tabs"}>
         <TabsList className="mb-6">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="types">Transaction Types</TabsTrigger>
           <TabsTrigger value="fields">Custom Fields</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          {!roleLoading && isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="general">
@@ -240,7 +240,7 @@ const Settings = () => {
           </Card>
         </TabsContent>
 
-        {!roleLoading && isAdmin && (
+        {isAdmin && (
           <TabsContent value="team">
             <TeamManagement />
           </TabsContent>
