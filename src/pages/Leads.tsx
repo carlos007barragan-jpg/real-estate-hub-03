@@ -382,26 +382,26 @@ const Leads = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full mb-6" style={{ gridTemplateColumns: `repeat(${transactionTypes.length + 1}, minmax(0, 1fr))` }}>
-          <TabsTrigger value="all" className="relative">
-            All
-            <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-              {getLeadCountByCategory("all")}
-            </Badge>
-          </TabsTrigger>
+        <TabsTrigger value="all" className="relative gap-2">
+          All
+          <Badge variant="secondary" className="h-5 min-w-5 px-1.5">
+            {getLeadCountByCategory("all")}
+          </Badge>
+        </TabsTrigger>
           {transactionTypes.map((type) => {
             const tabValue = type.toLowerCase();
             const isNewLeads = type === "Unassigned";
             return (
-              <TabsTrigger 
-                key={type} 
-                value={tabValue}
-                className={isNewLeads ? "relative bg-info/10 data-[state=active]:bg-info data-[state=active]:text-info-foreground" : "relative"}
-              >
-                {isNewLeads ? "New Leads" : type}
-                <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
-                  {getLeadCountByCategory(tabValue)}
-                </Badge>
-              </TabsTrigger>
+          <TabsTrigger 
+            key={type} 
+            value={tabValue}
+            className={isNewLeads ? "relative gap-2 bg-info/10 data-[state=active]:bg-info data-[state=active]:text-info-foreground" : "relative gap-2"}
+          >
+            {isNewLeads ? "New Leads" : type}
+            <Badge variant="secondary" className="h-5 min-w-5 px-1.5">
+              {getLeadCountByCategory(tabValue)}
+            </Badge>
+          </TabsTrigger>
             );
           })}
         </TabsList>
