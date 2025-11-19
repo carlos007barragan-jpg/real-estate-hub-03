@@ -52,13 +52,12 @@ Deno.serve(async (req) => {
       params[key] = value.toString();
     }
     
-    // Validate Twilio signature (temporarily disabled for development)
-    // const isValid = await validateTwilioSignature(req, params);
-    // if (!isValid) {
-    //   console.error('Invalid Twilio signature');
-    //   return new Response('Unauthorized', { status: 401 });
-    // }
-    console.log('Signature validation temporarily disabled - configure TwiML app with correct URL');
+    // Validate Twilio signature for security
+    const isValid = await validateTwilioSignature(req, params);
+    if (!isValid) {
+      console.error('Invalid Twilio signature');
+      return new Response('Unauthorized', { status: 401 });
+    }
     
     // Validate input parameters
     const to = params['To'];
