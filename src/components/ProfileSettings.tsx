@@ -40,7 +40,7 @@ export const ProfileSettings = () => {
         return;
       }
 
-      // Get profile data
+      // Get profile data - use maybeSingle to handle missing profiles
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select(`
@@ -54,20 +54,68 @@ export const ProfileSettings = () => {
           )
         `)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) throw profileError;
 
-      // Get user role
+      // If no profile exists, create one
+      if (!profileData) {
+        console.log('No profile found, creating one...');
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            first_name: user.user_metadata?.first_name || null,
+            last_name: user.user_metadata?.last_name || null,
+          })
+          .select(`
+            first_name,
+            last_name,
+            phone_number,
+            created_at,
+            organization_id,
+            organizations (
+              name
+            )
+          `)
+          .single();
+
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          throw createError;
+        }
+
+        // Get user role - use maybeSingle to handle missing roles
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (roleError) throw roleError;
+
+        setUserRole(roleData?.role || 'agent');
+        setProfile({
+          email: user.email || '',
+          firstName: newProfile.first_name,
+          lastName: newProfile.last_name,
+          phoneNumber: newProfile.phone_number,
+          organizationName: newProfile.organizations?.name || null,
+          createdAt: newProfile.created_at,
+        });
+        return;
+      }
+
+      // Get user role - use maybeSingle to handle missing roles
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (roleError) throw roleError;
 
-      setUserRole(roleData.role);
+      setUserRole(roleData?.role || 'agent');
       setProfile({
         email: user.email || '',
         firstName: profileData.first_name,
