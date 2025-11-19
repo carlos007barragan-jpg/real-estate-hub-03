@@ -18,7 +18,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 
 const Settings = () => {
   const { toast } = useToast();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, loading } = useUserRole();
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
@@ -109,6 +109,14 @@ const Settings = () => {
       setDeletingDemoData(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
