@@ -12,6 +12,7 @@ import { CustomFieldsManager } from "@/components/CustomFieldsManager";
 import { TransactionTypesManager } from "@/components/TransactionTypesManager";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { TeamManagement } from "@/components/TeamManagement";
+import { LeadFieldsManager } from "@/components/LeadFieldsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -129,8 +130,7 @@ const Settings = () => {
         <TabsList className="mb-6">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="types">Transaction Types</TabsTrigger>
-          <TabsTrigger value="fields">Custom Fields</TabsTrigger>
+          {isAdmin && <TabsTrigger value="lead-fields">Lead Form</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
         </TabsList>
@@ -193,13 +193,11 @@ const Settings = () => {
           <ProfileSettings />
         </TabsContent>
 
-        <TabsContent value="types">
-          <TransactionTypesManager />
-        </TabsContent>
-
-        <TabsContent value="fields">
-          <CustomFieldsManager />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="lead-fields">
+            <LeadFieldsManager />
+          </TabsContent>
+        )}
 
         <TabsContent value="notifications">
           <Card className="p-6">

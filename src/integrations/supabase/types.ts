@@ -256,6 +256,7 @@ export type Database = {
           id: string
           is_required: boolean
           options: string[] | null
+          organization_id: string | null
           updated_at: string
           user_id: string
         }
@@ -268,6 +269,7 @@ export type Database = {
           id?: string
           is_required?: boolean
           options?: string[] | null
+          organization_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -280,10 +282,19 @@ export type Database = {
           id?: string
           is_required?: boolean
           options?: string[] | null
+          organization_id?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "custom_fields_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       documents: {
         Row: {
@@ -876,6 +887,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          organization_id: string | null
           updated_at: string
           user_id: string
         }
@@ -885,6 +897,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          organization_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -894,10 +907,19 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          organization_id?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "transaction_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_invitations: {
         Row: {

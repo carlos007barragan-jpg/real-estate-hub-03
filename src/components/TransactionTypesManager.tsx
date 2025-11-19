@@ -125,17 +125,26 @@ export const TransactionTypesManager = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get user's organization
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.organization_id) return;
+
       const { data, error } = await supabase
         .from("transaction_types")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("organization_id", profile.organization_id)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
 
       // If no types exist, create default ones
       if (!data || data.length === 0) {
-        await initializeDefaultTypes(user.id);
+        await initializeDefaultTypes(user.id, profile.organization_id);
         await fetchTypes(); // Fetch again after initialization
         return;
       }
@@ -153,10 +162,11 @@ export const TransactionTypesManager = () => {
     }
   };
 
-  const initializeDefaultTypes = async (userId: string) => {
+  const initializeDefaultTypes = async (userId: string, organizationId: string) => {
     try {
       const defaultTypes = DEFAULT_TYPES.map((name, index) => ({
         user_id: userId,
+        organization_id: organizationId,
         name,
         display_order: index,
         is_active: true,
@@ -201,11 +211,23 @@ export const TransactionTypesManager = () => {
         });
       } else {
         // Create new type
+        // Get user's organization
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .single();
+
+        if (!profile?.organization_id) {
+          throw new Error("Organization not found");
+        }
+
         const maxOrder = Math.max(...types.map(t => t.display_order), -1);
         const { error } = await supabase
           .from("transaction_types")
           .insert({
             user_id: user.id,
+            organization_id: profile.organization_id,
             name: typeName,
             display_order: maxOrder + 1,
             is_active: true,

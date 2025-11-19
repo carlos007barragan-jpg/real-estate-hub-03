@@ -41,10 +41,19 @@ export const CustomFieldsManager = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get user's organization
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.organization_id) return;
+
       const { data, error } = await supabase
         .from("custom_fields")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("organization_id", profile.organization_id)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
@@ -75,12 +84,24 @@ export const CustomFieldsManager = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get user's organization
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.organization_id) {
+        throw new Error("Organization not found");
+      }
+
       const options = newField.field_type === "select" && newField.options
         ? newField.options.split(",").map(opt => opt.trim())
         : null;
 
       const { error } = await supabase.from("custom_fields").insert({
         user_id: user.id,
+        organization_id: profile.organization_id,
         field_name: newField.field_name,
         field_label: newField.field_label,
         field_type: newField.field_type,

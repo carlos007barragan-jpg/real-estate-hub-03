@@ -80,10 +80,19 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get user's organization
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.organization_id) return;
+
       const { data, error } = await supabase
         .from("custom_fields")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("organization_id", profile.organization_id)
         .order("display_order", { ascending: true });
 
       if (error) throw error;
@@ -98,10 +107,19 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get user's organization
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.organization_id) return;
+
       const { data, error } = await supabase
         .from("transaction_types")
         .select("name")
-        .eq("user_id", user.id)
+        .eq("organization_id", profile.organization_id)
         .eq("is_active", true)
         .order("display_order", { ascending: true });
 
@@ -120,21 +138,36 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
 
   const fetchAvailableUsers = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get current user's organization
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile?.organization_id) return;
+
+      // Fetch all users in the same organization
       const { data, error } = await supabase
         .from("profiles")
         .select(`
           user_id,
           first_name,
           last_name,
-          agents!inner(phone_number)
-        `);
+          phone_number,
+          agents(phone_number)
+        `)
+        .eq("organization_id", profile.organization_id);
 
       if (error) throw error;
 
       const users = (data || []).map((profile: any) => ({
         id: profile.user_id,
         name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User",
-        phone: profile.agents?.phone_number || null,
+        phone: profile.agents?.[0]?.phone_number || profile.phone_number || null,
       }));
 
       setAvailableUsers(users);
@@ -248,7 +281,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
       // Get agent phone if user is assigned
       const assignedUser = availableUsers.find(u => u.id === formData.assigned_to);
 
-      const { error } = await supabase.from("leads").insert({
+      const { data: leadData, error } = await supabase.from("leads").insert({
         user_id: user.id,
         name: formData.name,
         email: formData.email,
@@ -273,9 +306,20 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         preferred_contact_method: formData.preferred_contact_method,
         social_status: formData.social_status || null,
         custom_data: customFieldValues,
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // Send notification if lead is assigned to someone else
+      if (formData.assigned_to && formData.assigned_to !== user.id) {
+        await supabase.from("notifications").insert({
+          user_id: formData.assigned_to,
+          type: "lead_assignment",
+          title: "New Lead Assigned",
+          description: `You have been assigned a new lead: ${formData.name}`,
+          link: `/lead/${leadData?.id}`,
+        });
+      }
 
       toast({
         title: "Lead created!",
