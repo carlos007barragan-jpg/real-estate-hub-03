@@ -54,13 +54,14 @@ export const TeamManagement = () => {
           user_id,
           first_name,
           last_name,
+          email,
           created_at
         `)
         .eq("organization_id", profile.organization_id);
 
       if (error) throw error;
 
-      // Get roles and emails for each user
+      // Get roles for each user
       const usersWithRoles: User[] = [];
       
       for (const prof of profiles || []) {
@@ -71,13 +72,9 @@ export const TeamManagement = () => {
             .eq("user_id", prof.user_id)
             .single();
 
-          // Get email from auth
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          const email = prof.user_id === currentUser?.id ? currentUser.email || "" : "user@example.com";
-
           usersWithRoles.push({
             id: prof.user_id,
-            email,
+            email: prof.email || "",
             first_name: prof.first_name,
             last_name: prof.last_name,
             role: roleData?.role || "agent",
