@@ -1,10 +1,21 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Building2, Users, TrendingUp, Shield, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 
 const Landing = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Redirect to dashboard if already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate("/dashboard");
+      }
+    });
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-background">
