@@ -54,89 +54,79 @@ const SortableField = ({ field, onToggleRequired, onDelete }: SortableFieldProps
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const renderFieldPreview = () => {
-    if (field.field_type === 'select') {
-      return (
-        <Select disabled>
-          <SelectTrigger className="h-9">
-            <SelectValue placeholder={`Select ${field.field_label.toLowerCase()}`} />
-          </SelectTrigger>
-        </Select>
-      );
-    } else if (field.field_type === 'textarea') {
-      return (
-        <textarea
-          disabled
-          className="w-full min-h-[60px] p-2 text-sm border rounded-md bg-muted resize-none"
-          placeholder={`Enter ${field.field_label.toLowerCase()}`}
-        />
-      );
-    } else {
-      return (
-        <Input
-          type={field.field_type}
-          disabled
-          placeholder={`Enter ${field.field_label.toLowerCase()}`}
-          className="bg-muted h-9 text-sm"
-        />
-      );
-    }
-  };
-
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="relative space-y-2 p-3 bg-card border rounded-lg hover:border-primary/50 transition-colors"
+      className="relative group"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 space-y-2 min-w-0">
-          <div className="flex items-center gap-2">
-            <div
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing flex-shrink-0"
-            >
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <Label className="text-xs font-medium truncate">
-              {field.field_label}
-              {field.is_required && <span className="text-destructive ml-1">*</span>}
-            </Label>
-            {field.is_standard && (
-              <Badge variant="secondary" className="text-[10px] px-1 py-0">Std</Badge>
-            )}
-            {field.is_custom && (
-              <Badge variant="outline" className="text-[10px] px-1 py-0">Custom</Badge>
-            )}
-          </div>
-          <div className="pl-6">
-            {renderFieldPreview()}
-          </div>
+      {/* Drag handle and controls overlay */}
+      <div className="absolute -left-8 top-0 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 bg-card border rounded shadow-sm"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
         </div>
+      </div>
 
-        <div className="flex flex-col items-end gap-2 pt-1 flex-shrink-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-muted-foreground">Req</span>
-            <Switch
-              checked={field.is_required}
-              onCheckedChange={(checked) => onToggleRequired(field.id, checked)}
-              disabled={field.is_standard && (field.field_name === 'name' || field.field_name === 'email' || field.field_name === 'phone' || field.field_name === 'source')}
-              className="scale-75"
-            />
-          </div>
+      <div className="absolute -right-2 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 bg-card border rounded shadow-sm p-1">
+          <span className="text-[10px] text-muted-foreground">Req</span>
+          <Switch
+            checked={field.is_required}
+            onCheckedChange={(checked) => onToggleRequired(field.id, checked)}
+            disabled={field.is_standard && (field.field_name === 'name' || field.field_name === 'email' || field.field_name === 'phone' || field.field_name === 'source')}
+            className="scale-75"
+          />
+        </div>
+        {field.is_custom && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(field.id)}
+            className="text-destructive hover:text-destructive h-7 w-7 p-0 bg-card border shadow-sm"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
 
+      {/* Actual form field as it appears to users */}
+      <div className="space-y-2 p-3 border rounded-lg bg-background group-hover:border-primary/50 transition-colors">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm font-medium">
+            {field.field_label}
+            {field.is_required && <span className="text-destructive ml-1">*</span>}
+          </Label>
+          {field.is_standard && (
+            <Badge variant="secondary" className="text-[10px] px-1 py-0">Std</Badge>
+          )}
           {field.is_custom && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(field.id)}
-              className="text-destructive hover:text-destructive h-6 w-6 p-0"
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
+            <Badge variant="outline" className="text-[10px] px-1 py-0">Custom</Badge>
           )}
         </div>
+        {field.field_type === 'select' ? (
+          <Select disabled>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder={`Select ${field.field_label.toLowerCase()}`} />
+            </SelectTrigger>
+          </Select>
+        ) : field.field_type === 'textarea' ? (
+          <textarea
+            disabled
+            className="w-full min-h-[80px] p-2 border rounded-md bg-background resize-none text-sm"
+            placeholder={`Enter ${field.field_label.toLowerCase()}`}
+          />
+        ) : (
+          <Input
+            type={field.field_type}
+            disabled
+            placeholder={`Enter ${field.field_label.toLowerCase()}`}
+            className="bg-background"
+          />
+        )}
       </div>
     </div>
   );
@@ -366,18 +356,18 @@ export const FormFieldsEditor = () => {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+        <div className="overflow-y-auto px-8" style={{ maxHeight: 'calc(90vh - 180px)' }}>
           <div className="bg-muted/20 rounded-lg border p-6">
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-foreground mb-1">Edit Lead Form</h3>
               <p className="text-sm text-muted-foreground">
-                Drag to reorder, toggle required status, or delete custom fields
+                Hover over fields to drag, reorder, toggle required status, or delete custom fields
               </p>
             </div>
 
             <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {fields
                     .sort((a, b) => a.display_order - b.display_order)
                     .map((field) => (
