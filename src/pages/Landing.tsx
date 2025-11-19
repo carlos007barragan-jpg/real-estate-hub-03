@@ -9,12 +9,23 @@ const Landing = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Force light mode on landing page
+    const wasDarkMode = document.documentElement.classList.contains("dark");
+    document.documentElement.classList.remove("dark");
+
     // Redirect to dashboard if already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         navigate("/dashboard");
       }
     });
+
+    // Restore dark mode when leaving the page
+    return () => {
+      if (wasDarkMode) {
+        document.documentElement.classList.add("dark");
+      }
+    };
   }, [navigate]);
 
   return (
