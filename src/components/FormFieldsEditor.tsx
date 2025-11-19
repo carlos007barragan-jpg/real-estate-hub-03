@@ -366,11 +366,13 @@ export const FormFieldsEditor = () => {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-6 overflow-hidden">
-          {/* Left Panel - Editor */}
-          <div className="overflow-y-auto pr-2" style={{ maxHeight: 'calc(90vh - 180px)' }}>
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-foreground mb-2">Form Editor</h3>
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 180px)' }}>
+          <div className="bg-muted/20 rounded-lg border p-6">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-foreground mb-1">Edit Lead Form</h3>
+              <p className="text-sm text-muted-foreground">
+                Drag to reorder, toggle required status, or delete custom fields
+              </p>
             </div>
 
             <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -389,69 +391,6 @@ export const FormFieldsEditor = () => {
                 </div>
               </SortableContext>
             </DndContext>
-
-            <div className="mt-4 p-3 bg-primary/10 rounded-lg border border-primary/20">
-              <p className="text-xs text-muted-foreground">
-                💡 <strong>Tip:</strong> Drag the grip handle to reorder. Toggle required status. Delete custom fields.
-              </p>
-            </div>
-          </div>
-
-          {/* Right Panel - Live Preview */}
-          <div className="overflow-y-auto pl-2 border-l" style={{ maxHeight: 'calc(90vh - 180px)' }}>
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-foreground mb-2">Edit Lead Form</h3>
-              <p className="text-xs text-muted-foreground">
-                This is how your form appears to users
-              </p>
-            </div>
-
-            <div className="bg-muted/20 rounded-lg border p-6">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-foreground mb-1">Create New Lead</h3>
-                <p className="text-sm text-muted-foreground">
-                  Add a new lead to your CRM. Fill in the details below.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {fields
-                  .sort((a, b) => a.display_order - b.display_order)
-                  .map((field) => (
-                    <div key={field.id} className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        {field.field_label}
-                        {field.is_required && <span className="text-destructive ml-1">*</span>}
-                      </Label>
-                      {field.field_type === 'select' ? (
-                        <Select disabled>
-                          <SelectTrigger className="bg-background">
-                            <SelectValue placeholder={`Select ${field.field_label.toLowerCase()}`} />
-                          </SelectTrigger>
-                        </Select>
-                      ) : field.field_type === 'textarea' ? (
-                        <textarea
-                          disabled
-                          className="w-full min-h-[80px] p-2 border rounded-md bg-background resize-none text-sm"
-                          placeholder={`Enter ${field.field_label.toLowerCase()}`}
-                        />
-                      ) : (
-                        <Input
-                          type={field.field_type}
-                          disabled
-                          placeholder={`Enter ${field.field_label.toLowerCase()}`}
-                          className="bg-background"
-                        />
-                      )}
-                    </div>
-                  ))}
-              </div>
-
-              <div className="mt-6 flex justify-end gap-2">
-                <Button variant="outline" size="sm" disabled>Cancel</Button>
-                <Button size="sm" disabled>Create Lead</Button>
-              </div>
-            </div>
           </div>
         </div>
       </DialogContent>
