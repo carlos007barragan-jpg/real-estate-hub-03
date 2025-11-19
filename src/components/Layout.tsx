@@ -1,4 +1,4 @@
-import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming, CalendarDays, Package, Shield } from "lucide-react";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming, CalendarDays, Package, Shield, User } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -76,8 +76,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <Button
             variant="ghost"
             size="sm"
+            onClick={() => navigate("/profile")}
+            className="ml-2 gap-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
+          >
+            <User className="h-4 w-4" />
+            <span>Profile</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleLogout}
-            className="ml-4 gap-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
+            className="ml-2 gap-2 text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
           >
             <LogOut className="h-4 w-4" />
             <span>Logout</span>
@@ -94,6 +104,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/profile")}
+              className="gap-2 text-primary-foreground/80 hover:bg-primary-foreground/10"
+            >
+              <User className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
