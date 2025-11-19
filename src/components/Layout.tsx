@@ -17,10 +17,6 @@ const baseNavItems = [
   { title: "Inventory", url: "/inventory", icon: Package },
 ];
 
-const adminNavItems = [
-  { title: "User Management", url: "/settings/users", icon: Shield, adminOnly: true },
-];
-
 const settingsNavItem = { title: "Settings", url: "/settings", icon: Settings };
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -29,7 +25,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     ...baseNavItems,
-    ...(isAdmin ? adminNavItems : []),
     settingsNavItem
   ];
 

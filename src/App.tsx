@@ -25,7 +25,6 @@ import Inventory from "./pages/Inventory";
 import PropertyDetail from "./pages/PropertyDetail";
 import ResetPassword from "./pages/ResetPassword";
 import AcceptInvite from "./pages/AcceptInvite";
-import UserManagement from "./pages/UserManagement";
 
 const queryClient = new QueryClient();
 
@@ -84,7 +83,6 @@ const App = () => {
           <Route path="/inbox" element={<ProtectedRoute><Layout><Inbox /></Layout></ProtectedRoute>} />
           <Route path="/inventory" element={<ProtectedRoute><Layout><Inventory /></Layout></ProtectedRoute>} />
           <Route path="/inventory/:id" element={<ProtectedRoute><Layout><PropertyDetail /></Layout></ProtectedRoute>} />
-          <Route path="/settings/users" element={<ProtectedRoute><Layout><UserManagement /></Layout></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
