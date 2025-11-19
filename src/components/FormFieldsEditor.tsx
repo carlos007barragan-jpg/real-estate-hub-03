@@ -1,17 +1,24 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, Trash2, Settings2 } from "lucide-react";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface FormField {
   id: string;
@@ -134,8 +141,15 @@ const SortableField = ({ field, onToggleRequired, onDelete }: SortableFieldProps
 
 export const FormFieldsEditor = () => {
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (open) {
+      fetchFields();
+    }
+  }, [open]);
 
   // Standard fields that are always present
   const STANDARD_FIELDS: Partial<FormField>[] = [
@@ -160,8 +174,10 @@ export const FormFieldsEditor = () => {
   ];
 
   useEffect(() => {
-    fetchFields();
-  }, []);
+    if (open) {
+      fetchFields();
+    }
+  }, [open]);
 
   const fetchFields = async () => {
     try {
@@ -316,50 +332,60 @@ export const FormFieldsEditor = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-muted-foreground">Loading...</div>;
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" className="gap-2">
+            <Settings2 className="h-4 w-4" />
+            Edit Form Layout
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Lead Form Editor</CardTitle>
-        <CardDescription>
-          This is how your lead form appears. Drag fields to reorder, toggle required status, or delete custom fields.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="max-w-2xl mx-auto bg-muted/20 rounded-lg border p-6">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-foreground mb-1">Create New Lead</h3>
-            <p className="text-sm text-muted-foreground">
-              Add a new lead to your CRM. Fill in the details below.
-            </p>
-          </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <Settings2 className="h-4 w-4" />
+          Edit Form Layout
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Lead Form</DialogTitle>
+          <DialogDescription>
+            This is how your lead form appears. Drag fields to reorder, toggle required status, or delete custom fields.
+          </DialogDescription>
+        </DialogHeader>
 
-          <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-4">
-                {fields
-                  .sort((a, b) => a.display_order - b.display_order)
-                  .map((field) => (
-                    <SortableField
-                      key={field.id}
-                      field={field}
-                      onToggleRequired={handleToggleRequired}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-4">
+              {fields
+                .sort((a, b) => a.display_order - b.display_order)
+                .map((field) => (
+                  <SortableField
+                    key={field.id}
+                    field={field}
+                    onToggleRequired={handleToggleRequired}
+                    onDelete={handleDelete}
+                  />
+                ))}
+            </div>
+          </SortableContext>
+        </DndContext>
 
-          <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
-            <p className="text-sm text-muted-foreground">
-              💡 <strong>Tip:</strong> Drag the grip handle to reorder fields. Toggle the switch to make custom fields required or optional. Click the trash icon to remove custom fields.
-            </p>
-          </div>
+        <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
+          <p className="text-sm text-muted-foreground">
+            💡 <strong>Tip:</strong> Drag the grip handle to reorder fields. Toggle the switch to make custom fields required or optional. Click the trash icon to remove custom fields.
+          </p>
         </div>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 };
