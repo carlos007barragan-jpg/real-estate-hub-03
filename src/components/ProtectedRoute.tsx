@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
+import { CompleteProfileModal } from "./CompleteProfileModal";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,9 +10,9 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   // Check profile completeness when session is available
   useEffect(() => {
     const checkProfile = async () => {
-      if (!session?.user || location.pathname === "/complete-profile") {
+      if (!session?.user) {
         setCheckingProfile(false);
         return;
       }
@@ -48,8 +49,9 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
           .maybeSingle();
 
         if (!profile) {
-          // No profile exists, redirect to complete profile
-          navigate("/complete-profile");
+          // No profile exists, show modal
+          setShowProfileModal(true);
+          setCheckingProfile(false);
           return;
         }
 
@@ -60,11 +62,13 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
                           profile.email;
 
         if (!isComplete) {
-          // Profile exists but incomplete
-          navigate("/complete-profile");
+          // Profile exists but incomplete, show modal
+          setShowProfileModal(true);
+          setCheckingProfile(false);
           return;
         }
 
+        setShowProfileModal(false);
         setCheckingProfile(false);
       } catch (error) {
         console.error("Error checking profile:", error);
@@ -77,13 +81,19 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     } else {
       setCheckingProfile(false);
     }
-  }, [session, loading, navigate, location.pathname]);
+  }, [session, loading]);
 
   useEffect(() => {
     if (!loading && !session) {
       navigate("/login");
     }
   }, [session, loading, navigate]);
+
+  const handleProfileComplete = () => {
+    setShowProfileModal(false);
+    // Refresh to load the newly created profile
+    window.location.reload();
+  };
 
   if (loading || checkingProfile) {
     return (
@@ -97,5 +107,16 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {showProfileModal && session.user && (
+        <CompleteProfileModal
+          userId={session.user.id}
+          email={session.user.email || ""}
+          onComplete={handleProfileComplete}
+        />
+      )}
+      {children}
+    </>
+  );
 };
