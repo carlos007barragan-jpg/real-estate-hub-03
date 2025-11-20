@@ -120,6 +120,54 @@ const CompleteProfile = () => {
 
       if (existingProfile) {
         // Update existing profile
+        let orgId = existingProfile.organization_id;
+        
+        // Check if user was invited and needs organization/role update
+        if (isInvited) {
+          const { data: invitation } = await supabase
+            .from("user_invitations")
+            .select("organization_id, role")
+            .eq("email", email)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (invitation) {
+            orgId = invitation.organization_id;
+
+            // Update or insert the correct role
+            const { data: existingRole } = await supabase
+              .from("user_roles")
+              .select("*")
+              .eq("user_id", userId)
+              .maybeSingle();
+
+            if (existingRole) {
+              // Update existing role
+              await supabase
+                .from("user_roles")
+                .update({ role: invitation.role })
+                .eq("user_id", userId);
+            } else {
+              // Insert new role
+              await supabase
+                .from("user_roles")
+                .insert({
+                  user_id: userId,
+                  role: invitation.role,
+                });
+            }
+
+            // Mark invitation as accepted
+            await supabase
+              .from("user_invitations")
+              .update({ status: "accepted" })
+              .eq("email", email)
+              .eq("status", "pending");
+          }
+        }
+
         const { error: updateError } = await supabase
           .from("profiles")
           .update({
@@ -127,6 +175,7 @@ const CompleteProfile = () => {
             last_name: lastName,
             phone_number: phoneNumber,
             email: email,
+            organization_id: orgId,
           })
           .eq("user_id", userId);
 
