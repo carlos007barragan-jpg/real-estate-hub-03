@@ -76,26 +76,19 @@ export default function AcceptInvite() {
         email: invitation.email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/complete-profile?invited=true`,
           data: {
             first_name: firstName,
             last_name: lastName,
-            organization_id: invitation.organization_id,
-            role: invitation.role
+            invited: true
           }
         }
       });
 
       if (error) throw error;
 
-      // Update invitation status to accepted
-      await supabase
-        .from("user_invitations")
-        .update({ status: "accepted" })
-        .eq("token", searchParams.get("token"));
-
-      toast.success("Account created successfully!");
-      navigate("/dashboard");
+      toast.success("Account created successfully! Please complete your profile.");
+      navigate("/complete-profile?invited=true");
     } catch (error: any) {
       toast.error(error.message);
       setSubmitting(false);
@@ -106,21 +99,12 @@ export default function AcceptInvite() {
     setSubmitting(true);
     
     try {
-      // Update invitation status before OAuth redirect
-      await supabase
-        .from("user_invitations")
-        .update({ status: "accepted" })
-        .eq("token", searchParams.get("token"));
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/complete-profile`,
+          redirectTo: `${window.location.origin}/complete-profile?invited=true`,
           queryParams: {
-            invitation_email: invitation.email,
-            organization_id: invitation.organization_id,
-            role: invitation.role,
-            invitation_token: searchParams.get("token")
+            invited: 'true'
           }
         }
       });
