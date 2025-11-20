@@ -66,11 +66,15 @@ export const TeamManagement = () => {
       
       for (const prof of profiles || []) {
         try {
-          const { data: roleData } = await supabase
+          const { data: roleData, error: roleError } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", prof.user_id)
-            .single();
+            .maybeSingle();
+
+          if (roleError) {
+            console.error("Error fetching role for user:", prof.email, roleError);
+          }
 
           usersWithRoles.push({
             id: prof.user_id,
@@ -81,7 +85,16 @@ export const TeamManagement = () => {
             created_at: prof.created_at
           });
         } catch (err) {
-          console.error("Error processing user:", err);
+          console.error("Error processing user:", prof.email, err);
+          // Still add the user even if role fetch fails
+          usersWithRoles.push({
+            id: prof.user_id,
+            email: prof.email || "",
+            first_name: prof.first_name,
+            last_name: prof.last_name,
+            role: "agent",
+            created_at: prof.created_at
+          });
         }
       }
 
