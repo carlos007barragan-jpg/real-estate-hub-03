@@ -99,15 +99,28 @@ const CompleteProfile = () => {
       return;
     }
 
-    if (!isInvited && !organizationName) {
-      toast.error("Organization name is required");
-      return;
-    }
-
     setLoading(true);
 
     try {
       if (!userId) throw new Error("User not found");
+
+      // ALWAYS check for pending invitation first, regardless of isInvited flag
+      const { data: pendingInvitation } = await supabase
+        .from("user_invitations")
+        .select("organization_id, role, id")
+        .eq("email", email)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
+
+      const hasInvitation = pendingInvitation !== null;
+
+      // If no invitation and no org name provided, require org name
+      if (!hasInvitation && !organizationName) {
+        toast.error("Organization name is required");
+        setLoading(false);
+        return;
+      }
 
       // Update user metadata
       const { error: metadataError } = await supabase.auth.updateUser({
@@ -131,50 +144,40 @@ const CompleteProfile = () => {
         // Update existing profile
         let orgId = existingProfile.organization_id;
         
-        // Check if user was invited and needs organization/role update
-        if (isInvited) {
-          const { data: invitation } = await supabase
-            .from("user_invitations")
-            .select("organization_id, role")
-            .eq("email", email)
-            .eq("status", "pending")
-            .order("created_at", { ascending: false })
-            .limit(1)
+        // If user has a pending invitation, use that organization and role
+        if (hasInvitation && pendingInvitation) {
+          orgId = pendingInvitation.organization_id;
+
+          // Update or insert the correct role
+          const { data: existingRole } = await supabase
+            .from("user_roles")
+            .select("*")
+            .eq("user_id", userId)
             .maybeSingle();
 
-          if (invitation) {
-            orgId = invitation.organization_id;
-
-            // Update or insert the correct role
-            const { data: existingRole } = await supabase
-              .from("user_roles")
-              .select("*")
-              .eq("user_id", userId)
-              .maybeSingle();
-
-            if (existingRole) {
-              // Update existing role
-              await supabase
-                .from("user_roles")
-                .update({ role: invitation.role })
-                .eq("user_id", userId);
-            } else {
-              // Insert new role
-              await supabase
-                .from("user_roles")
-                .insert({
-                  user_id: userId,
-                  role: invitation.role,
-                });
-            }
-
-            // Mark invitation as accepted
+          if (existingRole) {
+            // Update existing role
             await supabase
-              .from("user_invitations")
-              .update({ status: "accepted" })
-              .eq("email", email)
-              .eq("status", "pending");
+              .from("user_roles")
+              .update({ role: pendingInvitation.role })
+              .eq("user_id", userId);
+          } else {
+            // Insert new role
+            await supabase
+              .from("user_roles")
+              .insert({
+                user_id: userId,
+                role: pendingInvitation.role,
+              });
           }
+
+          // Mark invitation as accepted
+          await supabase
+            .from("user_invitations")
+            .update({ status: "accepted" })
+            .eq("id", pendingInvitation.id);
+
+          toast.success("Joined organization successfully!");
         }
 
         const { error: updateError } = await supabase
@@ -193,7 +196,41 @@ const CompleteProfile = () => {
         // Create new profile
         let orgId = null;
 
-        if (!isInvited) {
+        if (hasInvitation && pendingInvitation) {
+          // Invited user - use organization from invitation
+          orgId = pendingInvitation.organization_id;
+
+          // Update or insert the correct role
+          const { data: existingRole } = await supabase
+            .from("user_roles")
+            .select("*")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (existingRole) {
+            // Update existing role
+            await supabase
+              .from("user_roles")
+              .update({ role: pendingInvitation.role })
+              .eq("user_id", userId);
+          } else {
+            // Insert new role
+            await supabase
+              .from("user_roles")
+              .insert({
+                user_id: userId,
+                role: pendingInvitation.role,
+              });
+          }
+
+          // Mark invitation as accepted
+          await supabase
+            .from("user_invitations")
+            .update({ status: "accepted" })
+            .eq("id", pendingInvitation.id);
+
+          toast.success("Joined organization successfully!");
+        } else {
           // New admin - create organization
           const { data: org, error: orgError } = await supabase
             .from("organizations")
@@ -207,45 +244,25 @@ const CompleteProfile = () => {
           if (orgError) throw orgError;
           orgId = org.id;
 
-          // Assign admin role
-          const { error: roleError } = await supabase
+          // Update or insert admin role
+          const { data: existingRole } = await supabase
             .from("user_roles")
-            .insert({
-              user_id: userId,
-              role: "admin",
-            });
-
-          if (roleError) throw roleError;
-        } else {
-          // Invited user - get organization from invitation
-          const { data: invitation } = await supabase
-            .from("user_invitations")
-            .select("organization_id, role")
-            .eq("email", email)
-            .eq("status", "pending")
-            .order("created_at", { ascending: false })
-            .limit(1)
+            .select("*")
+            .eq("user_id", userId)
             .maybeSingle();
 
-          if (invitation) {
-            orgId = invitation.organization_id;
-
-            // Assign role from invitation
-            const { error: roleError } = await supabase
+          if (existingRole) {
+            await supabase
+              .from("user_roles")
+              .update({ role: "admin" })
+              .eq("user_id", userId);
+          } else {
+            await supabase
               .from("user_roles")
               .insert({
                 user_id: userId,
-                role: invitation.role,
+                role: "admin",
               });
-
-            if (roleError) throw roleError;
-
-            // Mark invitation as accepted
-            await supabase
-              .from("user_invitations")
-              .update({ status: "accepted" })
-              .eq("email", email)
-              .eq("status", "pending");
           }
         }
 
