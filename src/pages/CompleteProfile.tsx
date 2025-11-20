@@ -37,16 +37,25 @@ const CompleteProfile = () => {
       setUserId(session.user.id);
       setEmail(session.user.email || "");
       
-      // Check if user was invited
+      // Check if user has a pending invitation
+      const { data: pendingInvitation } = await supabase
+        .from("user_invitations")
+        .select("*")
+        .eq("email", session.user.email)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
+
+      // User is invited if there's a pending invitation OR invited param is true
       const invitedParam = searchParams.get("invited");
-      const wasInvited = invitedParam === "true" || session.user.user_metadata?.invited === true;
+      const wasInvited = pendingInvitation !== null || invitedParam === "true" || session.user.user_metadata?.invited === true;
       setIsInvited(wasInvited);
 
       // Pre-fill with any existing data from auth metadata
       const metadata = session.user.user_metadata;
       if (metadata?.first_name) setFirstName(metadata.first_name);
       if (metadata?.last_name) setLastName(metadata.last_name);
-      if (metadata?.organization_name) setOrganizationName(metadata.organization_name);
+      if (metadata?.organization_name && !wasInvited) setOrganizationName(metadata.organization_name);
 
       // Check if profile already exists and is complete
       const { data: profile } = await supabase
