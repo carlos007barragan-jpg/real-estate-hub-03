@@ -5,276 +5,318 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { profileSchema } from "@/lib/validation";
+import { Building2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const CompleteProfile = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [checkingProfile, setCheckingProfile] = useState(true);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const [isInvited, setIsInvited] = useState(false);
 
   useEffect(() => {
-    // Check if user is authenticated (came from invitation link)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUserId(session.user.id);
-        // Pre-fill with any existing data
-        const metadata = session.user.user_metadata;
-        if (metadata?.first_name) setFirstName(metadata.first_name);
-        if (metadata?.last_name) setLastName(metadata.last_name);
-        
-        // Get organization and role from URL params (from OAuth redirect)
-        const orgId = searchParams.get("organization_id");
-        const userRole = searchParams.get("role");
-        if (orgId) setOrganizationId(orgId);
-        if (userRole) setRole(userRole);
-      } else {
-        // Not authenticated, redirect to auth
+    checkProfileStatus();
+  }, []);
+
+  const checkProfileStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user) {
         navigate("/auth");
+        return;
       }
-    });
-  }, [navigate, searchParams]);
+
+      setUserId(session.user.id);
+      setEmail(session.user.email || "");
+      
+      // Check if user was invited
+      const invitedParam = searchParams.get("invited");
+      const wasInvited = invitedParam === "true" || session.user.user_metadata?.invited === true;
+      setIsInvited(wasInvited);
+
+      // Pre-fill with any existing data from auth metadata
+      const metadata = session.user.user_metadata;
+      if (metadata?.first_name) setFirstName(metadata.first_name);
+      if (metadata?.last_name) setLastName(metadata.last_name);
+      if (metadata?.organization_name) setOrganizationName(metadata.organization_name);
+
+      // Check if profile already exists and is complete
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (profile) {
+        // Profile exists, check if it's complete
+        const isComplete = profile.first_name && 
+                          profile.last_name && 
+                          profile.phone_number && 
+                          profile.email;
+        
+        if (isComplete) {
+          // Profile is complete, redirect to dashboard
+          navigate("/dashboard");
+          return;
+        }
+
+        // Profile exists but incomplete, pre-fill the form
+        if (profile.first_name) setFirstName(profile.first_name);
+        if (profile.last_name) setLastName(profile.last_name);
+        if (profile.phone_number) setPhoneNumber(profile.phone_number);
+      }
+
+      setCheckingProfile(false);
+    } catch (error) {
+      console.error("Error checking profile:", error);
+      setCheckingProfile(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!firstName || !lastName || !phoneNumber) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    if (!isInvited && !organizationName) {
+      toast.error("Organization name is required");
+      return;
+    }
+
     setLoading(true);
 
-    // Validate profile inputs (password is optional if already set)
     try {
-      if (password) {
-        // Only validate password fields if user is setting a new password
-        if (password !== confirmPassword) {
-          throw new Error("Passwords don't match");
-        }
-        if (password.length < 6) {
-          throw new Error("Password must be at least 6 characters");
-        }
-      }
-      
-      if (!firstName || !lastName) {
-        throw new Error("First name and last name are required");
-      }
-    } catch (error: any) {
-      toast({
-        title: "Validation error",
-        description: error.message || "Please check your inputs",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
+      if (!userId) throw new Error("User not found");
 
-    if (!userId) {
-      toast({
-        title: "Error",
-        description: "User session not found",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Update password only if provided
-      if (password) {
-        const { error: passwordError } = await supabase.auth.updateUser({
-          password: password,
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            phone_number: phoneNumber,
-          },
-        });
-
-        if (passwordError) throw passwordError;
-      } else {
-        // Just update user metadata without changing password
-        const { error: metadataError } = await supabase.auth.updateUser({
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            phone_number: phoneNumber,
-          },
-        });
-
-        if (metadataError) throw metadataError;
-      }
-
-      // Create or update profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: userId,
+      // Update user metadata
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: {
           first_name: firstName,
           last_name: lastName,
           phone_number: phoneNumber,
-          organization_id: organizationId, // Include organization from invitation
-        });
+        },
+      });
 
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
-        throw profileError;
-      }
+      if (metadataError) throw metadataError;
 
-      // If role was provided (from invitation), create user role
-      if (role) {
-        // Check if user already has a role
-        const { data: existingRole } = await supabase
-          .from('user_roles')
-          .select('id')
-          .eq('user_id', userId)
-          .single();
+      // Check if profile exists
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-        if (!existingRole) {
-          // Create new role if it doesn't exist
+      if (existingProfile) {
+        // Update existing profile
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phoneNumber,
+            email: email,
+          })
+          .eq("user_id", userId);
+
+        if (updateError) throw updateError;
+      } else {
+        // Create new profile
+        let orgId = null;
+
+        if (!isInvited) {
+          // New admin - create organization
+          const { data: org, error: orgError } = await supabase
+            .from("organizations")
+            .insert({
+              name: organizationName,
+              created_by: userId,
+            })
+            .select()
+            .single();
+
+          if (orgError) throw orgError;
+          orgId = org.id;
+
+          // Assign admin role
           const { error: roleError } = await supabase
-            .from('user_roles')
+            .from("user_roles")
             .insert({
               user_id: userId,
-              role: role as "admin" | "agent" | "marketing_manager" | "marketing",
+              role: "admin",
             });
 
-          if (roleError) {
-            console.error('Role creation error:', roleError);
-            // Don't throw - profile was created successfully
+          if (roleError) throw roleError;
+        } else {
+          // Invited user - get organization from invitation
+          const { data: invitation } = await supabase
+            .from("user_invitations")
+            .select("organization_id, role")
+            .eq("email", email)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (invitation) {
+            orgId = invitation.organization_id;
+
+            // Assign role from invitation
+            const { error: roleError } = await supabase
+              .from("user_roles")
+              .insert({
+                user_id: userId,
+                role: invitation.role,
+              });
+
+            if (roleError) throw roleError;
+
+            // Mark invitation as accepted
+            await supabase
+              .from("user_invitations")
+              .update({ status: "accepted" })
+              .eq("email", email)
+              .eq("status", "pending");
           }
         }
+
+        // Create profile
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({
+            user_id: userId,
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phoneNumber,
+            email: email,
+            organization_id: orgId,
+          });
+
+        if (profileError) throw profileError;
       }
 
-      // Update invitation status if there was a token
-      const invitationToken = searchParams.get("invitation_token");
-      if (invitationToken) {
-        await supabase
-          .from("user_invitations")
-          .update({ status: "accepted" })
-          .eq("token", invitationToken);
-      }
-
-      toast({
-        title: "Profile Complete!",
-        description: "Your account is ready. Redirecting to dashboard...",
-      });
-
-      // Redirect to dashboard
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1500);
+      toast.success("Profile completed successfully!");
+      navigate("/dashboard");
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to complete profile",
-        variant: "destructive",
-      });
+      console.error("Error completing profile:", error);
+      toast.error(error.message || "Failed to complete profile");
     } finally {
       setLoading(false);
     }
   };
 
+  if (checkingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <Building2 className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold text-foreground">RealEstate CRM</span>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Complete Your Profile</CardTitle>
-            <CardDescription>
-              Fill in your details to get started. Password is only needed if you want to change it.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    placeholder="John"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                    minLength={1}
-                    maxLength={100}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    placeholder="Doe"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                    minLength={1}
-                    maxLength={100}
-                  />
-                </div>
-              </div>
-
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Building2 className="h-8 w-8 text-primary" />
+            <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
+          </div>
+          <CardDescription>
+            {isInvited 
+              ? "Please complete your profile information to get started"
+              : "Set up your organization and profile to get started"
+            }
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number *</Label>
+                <Label htmlFor="firstName">First Name *</Label>
                 <Input
-                  id="phoneNumber"
-                  type="tel"
-                  placeholder="+1234567890"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  id="firstName"
+                  placeholder="John"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   required
                 />
-                <p className="text-xs text-muted-foreground">
-                  Use international format (e.g., +12025551234)
-                </p>
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="password">New Password (Optional)</Label>
+                <Label htmlFor="lastName">Last Name *</Label>
                 <Input
-                  id="password"
-                  type="password"
-                  placeholder="Leave blank to keep existing password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  minLength={6}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Only fill this if you want to set a new password
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Re-enter your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  minLength={6}
+                  id="lastName"
+                  placeholder="Doe"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
                 />
               </div>
+            </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Setting up your account..." : "Complete Profile"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Phone Number *</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                placeholder="+1234567890"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                required
+              />
+            </div>
+
+            {!isInvited && (
+              <div className="space-y-2">
+                <Label htmlFor="organizationName">Organization Name *</Label>
+                <Input
+                  id="organizationName"
+                  placeholder="My Real Estate Company"
+                  value={organizationName}
+                  onChange={(e) => setOrganizationName(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Completing Profile...
+                </>
+              ) : (
+                "Complete Profile"
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };

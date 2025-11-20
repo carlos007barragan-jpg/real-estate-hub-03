@@ -69,10 +69,11 @@ export default function AcceptInvitation() {
       email: invitation.email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `${window.location.origin}/complete-profile?invited=true`,
         data: {
           first_name: firstName,
-          last_name: lastName
+          last_name: lastName,
+          invited: true
         }
       }
     });
@@ -91,7 +92,7 @@ export default function AcceptInvitation() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}/complete-profile?invited=true`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
