@@ -72,6 +72,8 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
     setLoading(true);
 
     try {
+      console.log("Starting profile completion for user:", userId);
+
       // Update user metadata
       const { error: metadataError } = await supabase.auth.updateUser({
         data: {
@@ -81,11 +83,15 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
         },
       });
 
-      if (metadataError) throw metadataError;
+      if (metadataError) {
+        console.error("Metadata error:", metadataError);
+        throw metadataError;
+      }
 
       let orgId = null;
 
       if (!isInvited) {
+        console.log("Creating organization:", organizationName);
         // New admin - create organization
         const { data: org, error: orgError } = await supabase
           .from("organizations")
@@ -96,7 +102,11 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
           .select()
           .single();
 
-        if (orgError) throw orgError;
+        if (orgError) {
+          console.error("Organization error:", orgError);
+          throw orgError;
+        }
+        console.log("Organization created:", org);
         orgId = org.id;
       } else {
         // Invited user - get organization from invitation
@@ -111,6 +121,7 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
 
         if (invitation) {
           orgId = invitation.organization_id;
+          console.log("Using invitation org:", orgId);
 
           // Mark invitation as accepted
           await supabase
@@ -121,8 +132,9 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
         }
       }
 
+      console.log("Creating profile with org:", orgId);
       // Create profile
-      const { error: profileError } = await supabase
+      const { data: newProfile, error: profileError } = await supabase
         .from("profiles")
         .insert({
           user_id: userId,
@@ -131,15 +143,25 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
           phone_number: phoneNumber,
           email: email,
           organization_id: orgId,
-        });
+        })
+        .select()
+        .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("Profile creation error:", profileError);
+        throw profileError;
+      }
 
+      console.log("Profile created successfully:", newProfile);
       toast.success("Profile completed successfully!");
+      
+      // Small delay to ensure database operations complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       onComplete();
     } catch (error: any) {
       console.error("Error completing profile:", error);
-      toast.error(error.message || "Failed to complete profile");
+      toast.error(error.message || "Failed to complete profile. Please try again.");
     } finally {
       setLoading(false);
     }
