@@ -34,8 +34,8 @@ interface Contact {
   email: string | null;
   phone: string | null;
   company: string | null;
-  category: ContactCategory;
-  vendor_subcategory: VendorSubcategory | null;
+  category: string; // Changed to string to support custom categories
+  vendor_subcategory: string | null; // Changed to string to support custom vendor types
   notes: string | null;
   tags: string[] | null;
   created_at: string;
@@ -68,8 +68,8 @@ const Contacts = () => {
   const queryClient = useQueryClient();
   const { isAdmin } = useUserRole();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<ContactCategory | "all">("all");
-  const [vendorFilter, setVendorFilter] = useState<VendorSubcategory | "all">("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [vendorFilter, setVendorFilter] = useState<string>("all");
 
   // Fetch custom categories
   const { data: customCategories = [] } = useQuery({
@@ -164,7 +164,7 @@ const Contacts = () => {
     },
   });
 
-  const getCategoryCount = (category: ContactCategory) => {
+  const getCategoryCount = (category: string) => {
     return contacts.filter(c => c.category === category).length;
   };
 
@@ -286,7 +286,7 @@ const Contacts = () => {
 
           {/* Category Tabs */}
           <Tabs value={selectedCategory} onValueChange={(value) => {
-            setSelectedCategory(value as ContactCategory | "all");
+            setSelectedCategory(value);
             setVendorFilter("all");
           }} className="w-full">
             <TabsList className="w-full justify-start overflow-x-auto flex-wrap h-auto gap-2 bg-muted/50 p-2">
@@ -297,7 +297,7 @@ const Contacts = () => {
               {Object.entries(allCategoryLabels).map(([key, label]) => (
                 <TabsTrigger key={key} value={key} className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
                   {label}
-                  <Badge variant="secondary" className="ml-1">{getCategoryCount(key as ContactCategory)}</Badge>
+                  <Badge variant="secondary" className="ml-1">{getCategoryCount(key)}</Badge>
                 </TabsTrigger>
               ))}
             </TabsList>

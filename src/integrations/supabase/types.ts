@@ -202,7 +202,7 @@ export type Database = {
       }
       contacts: {
         Row: {
-          category: Database["public"]["Enums"]["contact_category"]
+          category: string
           company: string | null
           created_at: string
           email: string | null
@@ -213,12 +213,10 @@ export type Database = {
           tags: string[] | null
           updated_at: string
           user_id: string
-          vendor_subcategory:
-            | Database["public"]["Enums"]["vendor_subcategory"]
-            | null
+          vendor_subcategory: string | null
         }
         Insert: {
-          category?: Database["public"]["Enums"]["contact_category"]
+          category?: string
           company?: string | null
           created_at?: string
           email?: string | null
@@ -229,12 +227,10 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string
           user_id: string
-          vendor_subcategory?:
-            | Database["public"]["Enums"]["vendor_subcategory"]
-            | null
+          vendor_subcategory?: string | null
         }
         Update: {
-          category?: Database["public"]["Enums"]["contact_category"]
+          category?: string
           company?: string | null
           created_at?: string
           email?: string | null
@@ -245,9 +241,7 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string
           user_id?: string
-          vendor_subcategory?:
-            | Database["public"]["Enums"]["vendor_subcategory"]
-            | null
+          vendor_subcategory?: string | null
         }
         Relationships: []
       }

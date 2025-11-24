@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 
+// Default category and vendor type options (for backwards compatibility)
 type ContactCategory = "client" | "lead" | "vendor" | "partner" | "other";
 type VendorSubcategory = "title_company" | "inspector" | "contractor" | "photographer" | "stager" | "attorney" | "lender" | "insurance" | "other";
 
@@ -71,8 +72,8 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
     phone: "",
     company: "",
     notes: "",
-    category: "client" as ContactCategory,
-    vendor_subcategory: null as VendorSubcategory | null,
+    category: "client" as string,
+    vendor_subcategory: null as string | null,
   });
 
   // Fetch custom categories
@@ -264,7 +265,7 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
                 value={formData.category}
                 onValueChange={(value) => setFormData({ 
                   ...formData, 
-                  category: value as ContactCategory,
+                  category: value,
                   vendor_subcategory: value !== "vendor" ? null : formData.vendor_subcategory
                 })}
               >
@@ -288,7 +289,7 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
                   value={formData.vendor_subcategory || ""}
                   onValueChange={(value) => setFormData({ 
                     ...formData, 
-                    vendor_subcategory: value as VendorSubcategory 
+                    vendor_subcategory: value 
                   })}
                 >
                   <SelectTrigger id="vendor_subcategory">
