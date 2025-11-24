@@ -271,9 +271,14 @@ export default function Inventory() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🏠 Form submitted');
+    console.log('🏠 Form data:', formData);
+    console.log('🏠 Photo files:', photoFiles.length);
+    console.log('🏠 Existing photo URLs:', existingPhotoUrls);
     
     // Validate required fields
     if (!formData.name.trim()) {
+      console.log('❌ Validation failed: name required');
       toast({
         title: "Validation Error",
         description: "Property name is required",
@@ -283,6 +288,7 @@ export default function Inventory() {
     }
 
     if (!formData.status) {
+      console.log('❌ Validation failed: status required');
       toast({
         title: "Validation Error",
         description: "Status is required",
@@ -292,6 +298,7 @@ export default function Inventory() {
     }
 
     if (!formData.property_type) {
+      console.log('❌ Validation failed: property_type required');
       toast({
         title: "Validation Error",
         description: "Property type is required. Please select a property type.",
@@ -301,6 +308,7 @@ export default function Inventory() {
     }
 
     if (!formData.category) {
+      console.log('❌ Validation failed: category required');
       toast({
         title: "Validation Error",
         description: "Property category is required. Please select a category.",
@@ -309,9 +317,13 @@ export default function Inventory() {
       return;
     }
     
+    console.log('✅ All validations passed');
+    
     try {
+      console.log('🔐 Getting authenticated user...');
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        console.log('❌ No authenticated user');
         toast({
           title: "Authentication Error",
           description: "You must be logged in to add properties",
@@ -319,16 +331,21 @@ export default function Inventory() {
         });
         return;
       }
+      console.log('✅ User authenticated:', user.id);
 
       let photoUrls: string[] = existingPhotoUrls;
 
       if (editingItem) {
+        console.log('📝 Updating existing item:', editingItem.id);
         // Update existing item - upload new photos and combine with existing
         if (photoFiles.length > 0) {
+          console.log('📤 Uploading', photoFiles.length, 'new photos...');
           const newPhotoUrls = await uploadPhotos(photoFiles, editingItem.id);
           photoUrls = [...existingPhotoUrls, ...newPhotoUrls];
+          console.log('✅ Photos uploaded. Total photos:', photoUrls.length);
         }
 
+        console.log('💾 Updating database...');
         const { error } = await supabase
           .from("inventory")
           .update({
@@ -339,13 +356,18 @@ export default function Inventory() {
           })
           .eq("id", editingItem.id);
 
-        if (error) throw error;
+        if (error) {
+          console.log('❌ Database update error:', error);
+          throw error;
+        }
+        console.log('✅ Item updated successfully');
 
         toast({
           title: "Success",
           description: "Inventory item updated successfully",
         });
       } else {
+        console.log('➕ Creating new item...');
         // Create new item
         const { data: newItem, error: insertError } = await supabase
           .from("inventory")
@@ -357,17 +379,31 @@ export default function Inventory() {
           .select()
           .single();
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.log('❌ Database insert error:', insertError);
+          throw insertError;
+        }
+        console.log('✅ Item created:', newItem?.id);
 
         if (photoFiles.length > 0 && newItem) {
+          console.log('📤 Uploading', photoFiles.length, 'photos...');
           photoUrls = await uploadPhotos(photoFiles, newItem.id);
-          await supabase
+          console.log('✅ Photos uploaded:', photoUrls.length);
+          
+          console.log('💾 Updating item with photo URLs...');
+          const { error: updateError } = await supabase
             .from("inventory")
             .update({ 
               photo_urls: photoUrls,
               photo_url: photoUrls[0] || null, // Maintain backward compatibility
             })
             .eq("id", newItem.id);
+          
+          if (updateError) {
+            console.log('❌ Photo URL update error:', updateError);
+            throw updateError;
+          }
+          console.log('✅ Photos linked to item');
         }
 
         toast({
@@ -376,11 +412,18 @@ export default function Inventory() {
         });
       }
 
+      console.log('🎉 Operation completed successfully');
       setIsDialogOpen(false);
       resetForm();
       fetchInventory();
     } catch (error: any) {
-      console.error("Error saving inventory:", error);
+      console.error("❌ Error saving inventory:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       toast({
         title: "Error",
         description: error.message || "Failed to save inventory item",
