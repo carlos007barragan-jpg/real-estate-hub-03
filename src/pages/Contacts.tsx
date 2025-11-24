@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { CreateContactDialog } from "@/components/CreateContactDialog";
 
 type ContactCategory = "client" | "lead" | "vendor" | "partner" | "other";
 type VendorSubcategory = "title_company" | "inspector" | "contractor" | "photographer" | "stager" | "attorney" | "lender" | "insurance" | "other";
@@ -191,13 +192,7 @@ const Contacts = () => {
               </h1>
               <p className="text-muted-foreground">Manage and organize all your contacts in one place</p>
             </div>
-            <Button 
-              className="gap-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-primary hover:bg-primary/90"
-              onClick={() => toast({ title: "Add Contact", description: "Contact creation dialog coming soon" })}
-            >
-              <Plus className="h-5 w-5" />
-              <span className="font-semibold">Add New Contact</span>
-            </Button>
+            <CreateContactDialog />
           </div>
 
           {/* Search and Filter Bar */}
