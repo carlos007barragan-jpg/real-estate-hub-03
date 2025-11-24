@@ -107,6 +107,11 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
     setAssignedMemberId("unassigned");
   }, [leadData.agent_phone, (leadData as any).assignedTo, members]);
 
+  // Sync transaction type when leadData changes
+  useEffect(() => {
+    setTransactionType(leadData.lead_temperature || "Unassigned");
+  }, [leadData.lead_temperature]);
+
   const handleAssignmentChange = async (memberId: string) => {
     const isUnassigned = memberId === "unassigned";
     const selectedMember = members.find((m) => m.id === memberId);
