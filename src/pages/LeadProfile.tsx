@@ -189,6 +189,7 @@ const LeadProfile = () => {
 
   useEffect(() => {
     fetchLead();
+    fetchNotes();
 
     // Fetch SMS logs
     const fetchMessages = async () => {
