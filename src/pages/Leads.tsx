@@ -132,7 +132,7 @@ const Leads = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   const fetchTransactionTypes = useCallback(async () => {
     try {
