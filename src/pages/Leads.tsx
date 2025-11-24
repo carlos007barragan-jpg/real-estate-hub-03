@@ -75,22 +75,27 @@ const Leads = () => {
 
   const fetchLeads = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data: leadsData, error: leadsError } = await supabase
         .from("leads")
-        .select(`
-          *,
-          profiles!leads_user_id_fkey (
-            user_id,
-            first_name,
-            last_name
-          )
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (leadsError) throw leadsError;
 
-      const formattedLeads: Lead[] = (data || []).map((lead: any) => {
-        const profile = lead.profiles;
+      // Fetch profiles separately
+      const userIds = [...new Set((leadsData || []).map((lead: any) => lead.user_id))];
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name")
+        .in("user_id", userIds);
+
+      // Create a map for quick profile lookup
+      const profilesMap = new Map(
+        (profilesData || []).map(profile => [profile.user_id, profile])
+      );
+
+      const formattedLeads: Lead[] = (leadsData || []).map((lead: any) => {
+        const profile = profilesMap.get(lead.user_id);
         const createdBy = profile 
           ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User"
           : "Unknown User";
