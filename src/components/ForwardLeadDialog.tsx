@@ -117,14 +117,10 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
           settings = newSettings;
         }
 
-        // Get active agents with their names
+        // Get active agents
         const { data: activeAgents, error: agentsError } = await supabase
           .from('agents')
-          .select(`
-            user_id,
-            phone_number,
-            profiles!inner(first_name, last_name)
-          `)
+          .select('user_id, phone_number')
           .eq('is_active', true);
 
         if (agentsError) throw agentsError;
@@ -132,10 +128,27 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
           throw new Error("No active agents available");
         }
 
+        // Get profiles for these agents
+        const userIds = activeAgents.map(a => a.user_id);
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, first_name, last_name')
+          .in('user_id', userIds);
+
+        if (profilesError) throw profilesError;
+
+        // Map profiles to agents
+        const agentsWithProfiles = activeAgents.map(agent => ({
+          ...agent,
+          profile: profiles?.find(p => p.user_id === agent.user_id) || null
+        }));
+
         // Get next agent
-        const nextIndex = settings.last_assigned_agent_index % activeAgents.length;
-        const nextAgent = activeAgents[nextIndex];
-        const agentName = `${nextAgent.profiles.first_name || ''} ${nextAgent.profiles.last_name || ''}`.trim() || 'Unknown Agent';
+        const nextIndex = settings.last_assigned_agent_index % agentsWithProfiles.length;
+        const nextAgent = agentsWithProfiles[nextIndex];
+        const agentName = nextAgent.profile 
+          ? `${nextAgent.profile.first_name || ''} ${nextAgent.profile.last_name || ''}`.trim() || 'Unknown Agent'
+          : 'Unknown Agent';
 
         // Update lead
         const { error: updateError } = await supabase
