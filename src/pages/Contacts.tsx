@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Phone, Mail, MapPin, MoreVertical } from "lucide-react";
+import { Search, Plus, Phone, Mail, MapPin, MoreVertical, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -65,6 +66,7 @@ const Contacts = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAdmin } = useUserRole();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<ContactCategory | "all">("all");
   const [vendorFilter, setVendorFilter] = useState<VendorSubcategory | "all">("all");
@@ -192,7 +194,19 @@ const Contacts = () => {
               </h1>
               <p className="text-muted-foreground">Manage and organize all your contacts in one place</p>
             </div>
-            <CreateContactDialog />
+            <div className="flex gap-2">
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => navigate('/settings?tab=contact-fields')}
+                  title="Manage contact fields"
+                >
+                  <Settings className="h-5 w-5" />
+                </Button>
+              )}
+              <CreateContactDialog />
+            </div>
           </div>
 
           {/* Search and Filter Bar */}

@@ -12,6 +12,7 @@ import { TransactionTypesManager } from "@/components/TransactionTypesManager";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { TeamManagement } from "@/components/TeamManagement";
 import { LeadFieldsManager } from "@/components/LeadFieldsManager";
+import { ContactFieldsManager } from "@/components/ContactFieldsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -23,6 +24,16 @@ const Settings = () => {
     return localStorage.getItem("darkMode") === "true";
   });
   const [deletingDemoData, setDeletingDemoData] = useState(false);
+  const [activeTab, setActiveTab] = useState("general");
+
+  useEffect(() => {
+    // Check URL for tab parameter
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("darkMode", darkMode.toString());
@@ -125,11 +136,12 @@ const Settings = () => {
         <p className="text-muted-foreground mt-1">Manage your CRM settings and preferences</p>
       </div>
 
-      <Tabs defaultValue="general" className="w-full" key={isAdmin ? "admin-tabs" : "user-tabs"}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" key={isAdmin ? "admin-tabs" : "user-tabs"}>
         <TabsList className="mb-6">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {isAdmin && <TabsTrigger value="lead-fields">Lead Form</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="contact-fields">Contact Form</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
         </TabsList>
@@ -195,6 +207,12 @@ const Settings = () => {
         {isAdmin && (
           <TabsContent value="lead-fields">
             <LeadFieldsManager />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="contact-fields">
+            <ContactFieldsManager />
           </TabsContent>
         )}
 
