@@ -415,7 +415,7 @@ export default function Inventory() {
       console.log('🎉 Operation completed successfully');
       setIsDialogOpen(false);
       resetForm();
-      fetchInventory();
+      // Real-time subscription will handle the refresh
     } catch (error: any) {
       console.error("❌ Error saving inventory:", error);
       console.error("Error details:", {
@@ -493,7 +493,7 @@ export default function Inventory() {
         title: "Success",
         description: "Property deleted successfully",
       });
-      fetchInventory();
+      // Real-time subscription will handle the refresh
     } catch (error: any) {
       console.error("Error deleting inventory:", error);
       toast({
