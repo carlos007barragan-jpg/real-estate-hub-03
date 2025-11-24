@@ -159,6 +159,47 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_category_options: {
+        Row: {
+          category_value: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          organization_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_value: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          organization_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_value?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          organization_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_category_options_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           category: Database["public"]["Enums"]["contact_category"]
@@ -988,6 +1029,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      vendor_subcategory_options: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          organization_id: string | null
+          subcategory_value: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          organization_id?: string | null
+          subcategory_value: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          organization_id?: string | null
+          subcategory_value?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_subcategory_options_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
