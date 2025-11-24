@@ -9,23 +9,12 @@ const Landing = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Force light mode on landing page
-    const wasDarkMode = document.documentElement.classList.contains("dark");
-    document.documentElement.classList.remove("dark");
-
     // Redirect to dashboard if already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         navigate("/dashboard");
       }
     });
-
-    // Restore dark mode when leaving the page
-    return () => {
-      if (wasDarkMode) {
-        document.documentElement.classList.add("dark");
-      }
-    };
   }, [navigate]);
 
   return (
@@ -137,7 +126,7 @@ const Landing = () => {
           <Button
             size="lg"
             variant="secondary"
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/signup")}
             className="gap-2"
           >
             Start Using RealEstate CRM
