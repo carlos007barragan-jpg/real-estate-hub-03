@@ -107,17 +107,15 @@ const Contacts = () => {
     },
   });
 
-  // Build category labels map (default + custom)
-  const allCategoryLabels: Record<string, string> = {
-    ...categoryLabels,
-    ...Object.fromEntries(customCategories.map(cat => [cat.category_value, cat.category_value]))
-  };
+  // Build category labels map (ONLY custom if they exist, otherwise use defaults)
+  const allCategoryLabels: Record<string, string> = customCategories.length > 0
+    ? Object.fromEntries(customCategories.map(cat => [cat.category_value, cat.category_value]))
+    : categoryLabels;
 
-  // Build vendor type labels map (default + custom)
-  const allVendorLabels: Record<string, string> = {
-    ...vendorSubcategoryLabels,
-    ...Object.fromEntries(customVendorTypes.map(vendor => [vendor.subcategory_value, vendor.subcategory_value]))
-  };
+  // Build vendor type labels map (ONLY custom if they exist, otherwise use defaults)
+  const allVendorLabels: Record<string, string> = customVendorTypes.length > 0
+    ? Object.fromEntries(customVendorTypes.map(vendor => [vendor.subcategory_value, vendor.subcategory_value]))
+    : vendorSubcategoryLabels;
 
   // Fetch contacts from database
   const { data: contacts = [], isLoading } = useQuery({

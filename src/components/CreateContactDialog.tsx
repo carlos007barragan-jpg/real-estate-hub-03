@@ -112,17 +112,15 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
     },
   });
 
-  // Build category options (default + custom)
-  const availableCategories = [
-    ...Object.entries(categoryLabels).map(([value, label]) => ({ value, label })),
-    ...customCategories.map(cat => ({ value: cat.category_value, label: cat.category_value }))
-  ];
+  // Build category options (ONLY custom if they exist, otherwise use defaults)
+  const availableCategories = customCategories.length > 0
+    ? customCategories.map(cat => ({ value: cat.category_value, label: cat.category_value }))
+    : Object.entries(categoryLabels).map(([value, label]) => ({ value, label }));
 
-  // Build vendor type options (default + custom)
-  const availableVendorTypes = [
-    ...Object.entries(vendorSubcategoryLabels).map(([value, label]) => ({ value, label })),
-    ...customVendorTypes.map(vendor => ({ value: vendor.subcategory_value, label: vendor.subcategory_value }))
-  ];
+  // Build vendor type options (ONLY custom if they exist, otherwise use defaults)
+  const availableVendorTypes = customVendorTypes.length > 0
+    ? customVendorTypes.map(vendor => ({ value: vendor.subcategory_value, label: vendor.subcategory_value }))
+    : Object.entries(vendorSubcategoryLabels).map(([value, label]) => ({ value, label }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
