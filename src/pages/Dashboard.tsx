@@ -95,10 +95,16 @@ const Dashboard = () => {
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchDashboardData();
-    setupPresenceTracking();
-    checkAdminStatus();
-    fetchCurrentUserPhone();
+    const initializeDashboard = async () => {
+      await Promise.all([
+        checkAdminStatus(),
+        fetchCurrentUserPhone()
+      ]);
+      await fetchDashboardData();
+      setupPresenceTracking();
+    };
+    
+    initializeDashboard();
   }, []);
 
   useEffect(() => {
@@ -320,6 +326,8 @@ const Dashboard = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      console.log('Fetching dashboard data with:', { isAdmin, currentUserPhone });
 
       const today = new Date();
       const weekStart = startOfWeek(today);
