@@ -40,7 +40,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
   const [members, setMembers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
   const [createdByName, setCreatedByName] = useState<string>("Loading...");
   const [assignedMemberId, setAssignedMemberId] = useState<string>("unassigned");
-  const [transactionType, setTransactionType] = useState<string>(leadData.lead_temperature || "Unassigned");
+  const [transactionType, setTransactionType] = useState<string>(leadData.leadTemperature || "Unassigned");
 
   useEffect(() => {
     const fetchCreatorAndAgents = async () => {
@@ -109,8 +109,8 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
 
   // Sync transaction type when leadData changes
   useEffect(() => {
-    setTransactionType(leadData.lead_temperature || "Unassigned");
-  }, [leadData.lead_temperature]);
+    setTransactionType(leadData.leadTemperature || "Unassigned");
+  }, [leadData.leadTemperature]);
 
   const handleAssignmentChange = async (memberId: string) => {
     const isUnassigned = memberId === "unassigned";
