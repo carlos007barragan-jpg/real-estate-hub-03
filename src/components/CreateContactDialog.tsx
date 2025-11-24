@@ -34,7 +34,7 @@ const contactSchema = z.object({
   phone: z.string().trim().max(20, "Phone must be less than 20 characters").optional().or(z.literal("")),
   company: z.string().trim().max(100, "Company must be less than 100 characters").optional().or(z.literal("")),
   notes: z.string().trim().max(1000, "Notes must be less than 1000 characters").optional().or(z.literal("")),
-  category: z.enum(["client", "lead", "vendor", "partner", "other"]),
+  category: z.string().trim().min(1, "Category is required"),
 });
 
 const categoryLabels: Record<ContactCategory, string> = {
