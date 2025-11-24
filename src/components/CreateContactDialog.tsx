@@ -83,14 +83,30 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
       
+      // Get user's organization
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (!profile?.organization_id) return [];
+      
       const { data, error } = await supabase
         .from('contact_category_options')
         .select('*')
+        .eq('organization_id', profile.organization_id)
         .eq('is_active', true)
         .order('display_order');
       
       if (error) throw error;
-      return data || [];
+      
+      // Remove duplicates by category_value
+      const uniqueCategories = Array.from(
+        new Map(data?.map(item => [item.category_value, item])).values()
+      );
+      
+      return uniqueCategories;
     },
   });
 
@@ -101,14 +117,30 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
       
+      // Get user's organization
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (!profile?.organization_id) return [];
+      
       const { data, error } = await supabase
         .from('vendor_subcategory_options')
         .select('*')
+        .eq('organization_id', profile.organization_id)
         .eq('is_active', true)
         .order('display_order');
       
       if (error) throw error;
-      return data || [];
+      
+      // Remove duplicates by subcategory_value
+      const uniqueVendorTypes = Array.from(
+        new Map(data?.map(item => [item.subcategory_value, item])).values()
+      );
+      
+      return uniqueVendorTypes;
     },
   });
 
