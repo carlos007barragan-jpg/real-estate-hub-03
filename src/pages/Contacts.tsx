@@ -71,6 +71,54 @@ const Contacts = () => {
   const [selectedCategory, setSelectedCategory] = useState<ContactCategory | "all">("all");
   const [vendorFilter, setVendorFilter] = useState<VendorSubcategory | "all">("all");
 
+  // Fetch custom categories
+  const { data: customCategories = [] } = useQuery({
+    queryKey: ['contact-category-options'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('contact_category_options')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch custom vendor types
+  const { data: customVendorTypes = [] } = useQuery({
+    queryKey: ['vendor-subcategory-options'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('vendor_subcategory_options')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Build category labels map (default + custom)
+  const allCategoryLabels: Record<string, string> = {
+    ...categoryLabels,
+    ...Object.fromEntries(customCategories.map(cat => [cat.category_value, cat.category_value]))
+  };
+
+  // Build vendor type labels map (default + custom)
+  const allVendorLabels: Record<string, string> = {
+    ...vendorSubcategoryLabels,
+    ...Object.fromEntries(customVendorTypes.map(vendor => [vendor.subcategory_value, vendor.subcategory_value]))
+  };
+
   // Fetch contacts from database
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ['contacts'],
@@ -228,7 +276,7 @@ const Contacts = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
                   <SelectItem value="all">All Types</SelectItem>
-                  {Object.entries(vendorSubcategoryLabels).map(([key, label]) => (
+                  {Object.entries(allVendorLabels).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -246,7 +294,7 @@ const Contacts = () => {
                 All Contacts
                 <Badge variant="secondary" className="ml-1">{contacts.length}</Badge>
               </TabsTrigger>
-              {Object.entries(categoryLabels).map(([key, label]) => (
+              {Object.entries(allCategoryLabels).map(([key, label]) => (
                 <TabsTrigger key={key} value={key} className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
                   {label}
                   <Badge variant="secondary" className="ml-1">{getCategoryCount(key as ContactCategory)}</Badge>
@@ -328,8 +376,8 @@ const Contacts = () => {
                   {/* Category Badge */}
                   <div className="mb-4 flex items-center gap-2">
                     <Badge variant="outline" className="text-xs font-medium border-primary/20 bg-primary/5">
-                      {categoryLabels[contact.category]}
-                      {contact.vendor_subcategory && ` • ${vendorSubcategoryLabels[contact.vendor_subcategory]}`}
+                      {allCategoryLabels[contact.category] || contact.category}
+                      {contact.vendor_subcategory && ` • ${allVendorLabels[contact.vendor_subcategory] || contact.vendor_subcategory}`}
                     </Badge>
                   </div>
 

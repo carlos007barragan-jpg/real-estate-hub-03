@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -74,6 +74,54 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
     category: "client" as ContactCategory,
     vendor_subcategory: null as VendorSubcategory | null,
   });
+
+  // Fetch custom categories
+  const { data: customCategories = [] } = useQuery({
+    queryKey: ['contact-category-options'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('contact_category_options')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch custom vendor types
+  const { data: customVendorTypes = [] } = useQuery({
+    queryKey: ['vendor-subcategory-options'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('vendor_subcategory_options')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Build category options (default + custom)
+  const availableCategories = [
+    ...Object.entries(categoryLabels).map(([value, label]) => ({ value, label })),
+    ...customCategories.map(cat => ({ value: cat.category_value, label: cat.category_value }))
+  ];
+
+  // Build vendor type options (default + custom)
+  const availableVendorTypes = [
+    ...Object.entries(vendorSubcategoryLabels).map(([value, label]) => ({ value, label })),
+    ...customVendorTypes.map(vendor => ({ value: vendor.subcategory_value, label: vendor.subcategory_value }))
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,8 +272,8 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover">
-                  {Object.entries(categoryLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
+                  {availableCategories.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
                       {label}
                     </SelectItem>
                   ))}
@@ -247,8 +295,8 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
-                    {Object.entries(vendorSubcategoryLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
+                    {availableVendorTypes.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>
                         {label}
                       </SelectItem>
                     ))}
