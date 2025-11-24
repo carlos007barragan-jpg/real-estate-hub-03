@@ -96,11 +96,30 @@ const Dashboard = () => {
 
   useEffect(() => {
     const initializeDashboard = async () => {
-      await Promise.all([
-        checkAdminStatus(),
-        fetchCurrentUserPhone()
-      ]);
-      await fetchDashboardData();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get admin status
+      const { data: adminData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      const isUserAdmin = !!adminData;
+      setIsAdmin(isUserAdmin);
+
+      // Get current user phone
+      const { data: agentData } = await supabase
+        .from("agents")
+        .select("phone_number")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const userPhone = agentData?.phone_number || null;
+      setCurrentUserPhone(userPhone);
+
+      // Fetch dashboard data with the fresh values
+      await fetchDashboardData(isUserAdmin, userPhone);
       setupPresenceTracking();
     };
     
@@ -322,12 +341,16 @@ const Dashboard = () => {
   useEffect(() => {
     setActiveAgents(liveUsers.length);
   }, [liveUsers]);
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (adminStatus?: boolean, userPhone?: string | null) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      console.log('Fetching dashboard data with:', { isAdmin, currentUserPhone });
+      // Use provided values or fall back to state
+      const isUserAdmin = adminStatus !== undefined ? adminStatus : isAdmin;
+      const currentPhone = userPhone !== undefined ? userPhone : currentUserPhone;
+
+      console.log('Fetching dashboard data with:', { isUserAdmin, currentPhone });
 
       const today = new Date();
       const weekStart = startOfWeek(today);
@@ -354,14 +377,14 @@ const Dashboard = () => {
         allShowingsResult
       ] = await Promise.all([
         // For non-admins, filter by assigned agent phone
-        !isAdmin && currentUserPhone 
-          ? supabase.from("call_logs").select("*").eq("to_number", currentUserPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+        !isUserAdmin && currentPhone 
+          ? supabase.from("call_logs").select("*").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("call_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        !isAdmin && currentUserPhone
-          ? supabase.from("sms_logs").select("*").eq("to_number", currentUserPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+        !isUserAdmin && currentPhone
+          ? supabase.from("sms_logs").select("*").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("sms_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        !isAdmin && currentUserPhone
-          ? supabase.from("leads").select("*").eq("status", "new").or(`agent_phone.eq.${currentUserPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+        !isUserAdmin && currentPhone
+          ? supabase.from("leads").select("*").eq("status", "new").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("leads").select("*").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
         supabase.from("tasks").select("*").gte("due_date", weekStart.toISOString()).lte("due_date", weekEnd.toISOString()),
         supabase.from("user_roles").select("user_id, role").in("role", ["agent", "marketing_manager"]),
@@ -369,19 +392,19 @@ const Dashboard = () => {
         supabase.from("profiles").select("*"),
         supabase.from("tasks").select("*").eq("user_id", user.id).gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
         // Fetch all agent data at once (with filtering for non-admins)
-        !isAdmin && currentUserPhone
-          ? supabase.from("call_logs").select("user_id").eq("to_number", currentUserPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+        !isUserAdmin && currentPhone
+          ? supabase.from("call_logs").select("user_id").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("call_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        !isAdmin && currentUserPhone
-          ? supabase.from("sms_logs").select("user_id").eq("to_number", currentUserPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+        !isUserAdmin && currentPhone
+          ? supabase.from("sms_logs").select("user_id").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("sms_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        !isAdmin && currentUserPhone
-          ? supabase.from("leads").select("user_id").eq("status", "new").or(`agent_phone.eq.${currentUserPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+        !isUserAdmin && currentPhone
+          ? supabase.from("leads").select("user_id").eq("status", "new").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("leads").select("user_id").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
         supabase.from("appointments").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
         supabase.from("appointments").select("user_id").eq("status", "completed").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        !isAdmin && currentUserPhone
-          ? supabase.from("leads").select("user_id").or(`agent_phone.eq.${currentUserPhone},agent_phone.is.null`).not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
+        !isUserAdmin && currentPhone
+          ? supabase.from("leads").select("user_id").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("leads").select("user_id").not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
         supabase.from("appointments").select("user_id").ilike("appointment_type", "%showing%").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
       ]);
