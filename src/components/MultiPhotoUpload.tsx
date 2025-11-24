@@ -91,8 +91,13 @@ export default function MultiPhotoUpload({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    console.log('📸 Files selected:', files.length, 'files');
+    console.log('📸 Current photos:', photos.length);
+    console.log('📸 Max photos:', maxPhotos);
+    
     const remainingSlots = maxPhotos - photos.length;
     const filesToAdd = files.slice(0, remainingSlots);
+    console.log('📸 Files to add:', filesToAdd.length);
 
     const newPhotos: PhotoItem[] = filesToAdd.map((file, index) => ({
       id: `new-${Date.now()}-${index}`,
@@ -101,6 +106,7 @@ export default function MultiPhotoUpload({
     }));
 
     const updatedPhotos = [...photos, ...newPhotos];
+    console.log('📸 Updated photos total:', updatedPhotos.length);
     setPhotos(updatedPhotos);
     updateParent(updatedPhotos);
 
