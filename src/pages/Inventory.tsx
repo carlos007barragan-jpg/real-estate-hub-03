@@ -13,6 +13,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
+import MultiPhotoUpload from "@/components/MultiPhotoUpload";
 
 interface InventoryItem {
   id: string;
@@ -94,7 +95,8 @@ export default function Inventory() {
     seller_id: "",
     down_payment: 0,
   });
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
 
   const [sellerFormData, setSellerFormData] = useState({
     name: "",
@@ -238,33 +240,31 @@ export default function Inventory() {
     }
   };
 
-  const uploadPhoto = async (file: File, itemId: string) => {
+  const uploadPhotos = async (files: File[], itemId: string): Promise<string[]> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}/${itemId}.${fileExt}`;
+      const uploadPromises = files.map(async (file, index) => {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${user.id}/${itemId}-${index}-${Date.now()}.${fileExt}`;
 
-      console.log("Uploading photo:", fileName);
+        const { error: uploadError } = await supabase.storage
+          .from("inventory-photos")
+          .upload(fileName, file, { upsert: true });
 
-      const { error: uploadError } = await supabase.storage
-        .from("inventory-photos")
-        .upload(fileName, file, { upsert: true });
+        if (uploadError) throw uploadError;
 
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
-        throw uploadError;
-      }
+        const { data } = supabase.storage
+          .from("inventory-photos")
+          .getPublicUrl(fileName);
 
-      const { data } = supabase.storage
-        .from("inventory-photos")
-        .getPublicUrl(fileName);
+        return data.publicUrl;
+      });
 
-      console.log("Photo uploaded successfully:", data.publicUrl);
-      return data.publicUrl;
+      return await Promise.all(uploadPromises);
     } catch (error) {
-      console.error("Error in uploadPhoto:", error);
+      console.error("Error uploading photos:", error);
       throw error;
     }
   };
@@ -320,12 +320,13 @@ export default function Inventory() {
         return;
       }
 
-      let photoUrl = editingItem?.photo_url || null;
+      let photoUrls: string[] = existingPhotoUrls;
 
       if (editingItem) {
-        // Update existing item
-        if (photoFile) {
-          photoUrl = await uploadPhoto(photoFile, editingItem.id);
+        // Update existing item - upload new photos and combine with existing
+        if (photoFiles.length > 0) {
+          const newPhotoUrls = await uploadPhotos(photoFiles, editingItem.id);
+          photoUrls = [...existingPhotoUrls, ...newPhotoUrls];
         }
 
         const { error } = await supabase
@@ -333,7 +334,8 @@ export default function Inventory() {
           .update({
             ...formData,
             seller_id: formData.seller_id || null,
-            photo_url: photoUrl,
+            photo_urls: photoUrls,
+            photo_url: photoUrls[0] || null, // Maintain backward compatibility
           })
           .eq("id", editingItem.id);
 
@@ -357,11 +359,14 @@ export default function Inventory() {
 
         if (insertError) throw insertError;
 
-        if (photoFile && newItem) {
-          photoUrl = await uploadPhoto(photoFile, newItem.id);
+        if (photoFiles.length > 0 && newItem) {
+          photoUrls = await uploadPhotos(photoFiles, newItem.id);
           await supabase
             .from("inventory")
-            .update({ photo_url: photoUrl })
+            .update({ 
+              photo_urls: photoUrls,
+              photo_url: photoUrls[0] || null, // Maintain backward compatibility
+            })
             .eq("id", newItem.id);
         }
 
@@ -409,6 +414,10 @@ export default function Inventory() {
       seller_id: item.seller_id || "",
       down_payment: item.down_payment || 0,
     });
+    // Load existing photos from photo_urls or fallback to photo_url
+    const existingPhotos = (item as any).photo_urls || (item.photo_url ? [item.photo_url] : []);
+    setExistingPhotoUrls(existingPhotos);
+    setPhotoFiles([]);
     setIsDialogOpen(true);
   };
 
@@ -553,7 +562,8 @@ export default function Inventory() {
       seller_id: "",
       down_payment: 0,
     });
-    setPhotoFile(null);
+    setPhotoFiles([]);
+    setExistingPhotoUrls([]);
     setEditingItem(null);
   };
 
@@ -1020,21 +1030,14 @@ export default function Inventory() {
               </div>
 
               {/* Photo Upload */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Property Photo</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="photo">Upload Photo (Optional - can be added later)</Label>
-                  <Input
-                    id="photo"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-                  />
-                  {editingItem?.photo_url && !photoFile && (
-                    <img src={editingItem.photo_url} alt="Current" className="mt-2 h-32 w-48 object-cover rounded-lg border" />
-                  )}
-                </div>
-              </div>
+              <MultiPhotoUpload
+                existingPhotos={existingPhotoUrls}
+                onPhotosChange={(files, urls) => {
+                  setPhotoFiles(files);
+                  setExistingPhotoUrls(urls);
+                }}
+                maxPhotos={10}
+              />
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>

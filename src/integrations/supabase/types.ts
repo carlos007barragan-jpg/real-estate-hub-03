@@ -386,6 +386,7 @@ export type Database = {
           name: string
           payment: number | null
           photo_url: string | null
+          photo_urls: Json | null
           price: number | null
           property_type: string | null
           quantity: number
@@ -415,6 +416,7 @@ export type Database = {
           name: string
           payment?: number | null
           photo_url?: string | null
+          photo_urls?: Json | null
           price?: number | null
           property_type?: string | null
           quantity?: number
@@ -444,6 +446,7 @@ export type Database = {
           name?: string
           payment?: number | null
           photo_url?: string | null
+          photo_urls?: Json | null
           price?: number | null
           property_type?: string | null
           quantity?: number
