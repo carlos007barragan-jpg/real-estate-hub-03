@@ -205,42 +205,62 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
     if (!ownerToDelete) return;
 
     try {
+      console.log("Deleting owner:", ownerToDelete);
+
       if (ownerToDelete.status === "pending") {
         // Delete pending invitation
+        console.log("Deleting pending invitation...");
         const { error } = await supabase
           .from("owner_invitations")
           .delete()
           .eq("id", ownerToDelete.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error deleting invitation:", error);
+          throw error;
+        }
+        console.log("Invitation deleted successfully");
       } else {
-        // Delete active owner - first delete their properties
+        // Delete active owner
         if (ownerToDelete.user_id) {
+          // Delete their properties first
+          console.log("Deleting properties...");
           const { error: inventoryError } = await supabase
             .from("inventory")
             .delete()
             .eq("user_id", ownerToDelete.user_id);
 
-          if (inventoryError) throw inventoryError;
-
-          // Delete profile
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .delete()
-            .eq("user_id", ownerToDelete.user_id);
-
-          if (profileError) throw profileError;
+          if (inventoryError) {
+            console.error("Error deleting inventory:", inventoryError);
+            throw inventoryError;
+          }
+          console.log("Properties deleted successfully");
 
           // Delete role
+          console.log("Deleting role...");
           const { error: roleError } = await supabase
             .from("user_roles")
             .delete()
             .eq("user_id", ownerToDelete.user_id);
 
-          if (roleError) throw roleError;
+          if (roleError) {
+            console.error("Error deleting role:", roleError);
+            throw roleError;
+          }
+          console.log("Role deleted successfully");
 
-          // Delete auth user (requires admin API - this might fail, that's ok)
-          // The auth user deletion should be handled by admin via Supabase dashboard if needed
+          // Delete profile last
+          console.log("Deleting profile...");
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .delete()
+            .eq("user_id", ownerToDelete.user_id);
+
+          if (profileError) {
+            console.error("Error deleting profile:", profileError);
+            throw profileError;
+          }
+          console.log("Profile deleted successfully");
         }
       }
 
@@ -253,9 +273,10 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
       setDeleteDialogOpen(false);
       setOwnerToDelete(null);
     } catch (error: any) {
+      console.error("Delete owner error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete owner",
         variant: "destructive",
       });
     }
