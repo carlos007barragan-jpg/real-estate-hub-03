@@ -359,12 +359,29 @@ const Dashboard = () => {
       const todayEnd = endOfDay(today);
 
       // Parallelize all initial queries
+      // Get current user's organization
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      const organizationId = currentProfile?.organization_id;
+
+      // Get all profiles in the organization
+      const { data: orgProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, organization_id")
+        .eq("organization_id", organizationId);
+
+      const orgUserIds = (orgProfiles || []).map(p => p.user_id);
+
       const [
         callsResult,
         messagesResult,
         leadsResult,
         appointmentsResult,
-        agentRolesResult,
+        allUserRolesResult,
         agentPhonesResult,
         profilesResult,
         tasksResult,
@@ -387,9 +404,9 @@ const Dashboard = () => {
           ? supabase.from("leads").select("*").eq("status", "new").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("leads").select("*").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
         supabase.from("tasks").select("*").gte("due_date", weekStart.toISOString()).lte("due_date", weekEnd.toISOString()),
-        supabase.from("user_roles").select("user_id, role").in("role", ["agent", "marketing_manager"]),
+        supabase.from("user_roles").select("user_id, role").in("user_id", orgUserIds),
         supabase.from("agents").select("*"),
-        supabase.from("profiles").select("*"),
+        supabase.from("profiles").select("*").in("user_id", orgUserIds),
         supabase.from("tasks").select("*").eq("user_id", user.id).gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
         // Fetch all agent data at once (with filtering for non-admins)
         !isUserAdmin && currentPhone
@@ -437,30 +454,30 @@ const Dashboard = () => {
       const dealsCounts = countByUserId(allDealsResult.data || []);
       const showingsCounts = countByUserId(allShowingsResult.data || []);
 
-      // Count active agents
-      const activeCount = (agentRolesResult.data || []).filter(role => {
+      // Count active team members
+      const activeCount = (allUserRolesResult.data || []).filter(role => {
         const agentPhone = agentPhoneMap.get(role.user_id);
         return agentPhone?.is_active === true;
       }).length;
       setActiveAgents(activeCount);
 
-      // Build agent stats without additional queries
-      const agentStatsData = (agentRolesResult.data || []).map((agentRole) => {
-        const profile = profileMap.get(agentRole.user_id);
-        const name = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown Agent";
-        const agentPhone = agentPhoneMap.get(agentRole.user_id);
+      // Build agent stats without additional queries - now showing ALL team members
+      const agentStatsData = (allUserRolesResult.data || []).map((userRole) => {
+        const profile = profileMap.get(userRole.user_id);
+        const name = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown User";
+        const agentPhone = agentPhoneMap.get(userRole.user_id);
         const isActive = agentPhone?.is_active === true;
 
         return {
-          id: agentRole.user_id,
-          name: name || "Unknown Agent",
-          calls: callsCounts.get(agentRole.user_id) || 0,
-          messages: messagesCounts.get(agentRole.user_id) || 0,
-          newLeads: leadsCounts.get(agentRole.user_id) || 0,
-          appointments: appointmentsCounts.get(agentRole.user_id) || 0,
-          appointmentsCompleted: completedAppointmentsCounts.get(agentRole.user_id) || 0,
-          propertyShowings: showingsCounts.get(agentRole.user_id) || 0,
-          deals: dealsCounts.get(agentRole.user_id) || 0,
+          id: userRole.user_id,
+          name: name || "Unknown User",
+          calls: callsCounts.get(userRole.user_id) || 0,
+          messages: messagesCounts.get(userRole.user_id) || 0,
+          newLeads: leadsCounts.get(userRole.user_id) || 0,
+          appointments: appointmentsCounts.get(userRole.user_id) || 0,
+          appointmentsCompleted: completedAppointmentsCounts.get(userRole.user_id) || 0,
+          propertyShowings: showingsCounts.get(userRole.user_id) || 0,
+          deals: dealsCounts.get(userRole.user_id) || 0,
           status: isActive ? "active" : "offline",
         } as AgentStats;
       });
