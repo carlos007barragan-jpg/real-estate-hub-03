@@ -34,21 +34,43 @@ export default function OwnerLogin() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    setLoading(false);
+      if (error) throw error;
 
-    if (error) {
+      // Verify user has owner_user role
+      if (data.user) {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .eq("role", "owner_user")
+          .maybeSingle();
+
+        if (!roleData) {
+          await supabase.auth.signOut();
+          toast.error("This account is not registered as an owner. Please use the admin login.");
+          setLoading(false);
+          return;
+        }
+      }
+
+      toast.success("Signed in successfully!");
+    } catch (error: any) {
+      console.error("Login error:", error);
       if (error.message.includes("Invalid login credentials")) {
         toast.error("Invalid email or password");
+      } else if (error.message.includes("Email not confirmed")) {
+        toast.error("Please verify your email before logging in");
       } else {
-        toast.error(error.message);
+        toast.error(error.message || "Failed to sign in");
       }
-    } else {
-      toast.success("Signed in successfully!");
+    } finally {
+      setLoading(false);
     }
   };
 
