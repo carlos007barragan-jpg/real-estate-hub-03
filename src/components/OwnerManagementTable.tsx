@@ -8,7 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InviteOwnerDialog } from "@/components/InviteOwnerDialog";
-import { Plus, Search, Mail, RefreshCw, ExternalLink } from "lucide-react";
+import { Plus, Search, Mail, RefreshCw, ExternalLink, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 
 interface OwnerWithStats {
@@ -38,6 +48,8 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [ownerToDelete, setOwnerToDelete] = useState<OwnerWithStats | null>(null);
 
   useEffect(() => {
     fetchOwners();
@@ -189,6 +201,66 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
     }
   };
 
+  const handleDeleteOwner = async () => {
+    if (!ownerToDelete) return;
+
+    try {
+      if (ownerToDelete.status === "pending") {
+        // Delete pending invitation
+        const { error } = await supabase
+          .from("owner_invitations")
+          .delete()
+          .eq("id", ownerToDelete.id);
+
+        if (error) throw error;
+      } else {
+        // Delete active owner - first delete their properties
+        if (ownerToDelete.user_id) {
+          const { error: inventoryError } = await supabase
+            .from("inventory")
+            .delete()
+            .eq("user_id", ownerToDelete.user_id);
+
+          if (inventoryError) throw inventoryError;
+
+          // Delete profile
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .delete()
+            .eq("user_id", ownerToDelete.user_id);
+
+          if (profileError) throw profileError;
+
+          // Delete role
+          const { error: roleError } = await supabase
+            .from("user_roles")
+            .delete()
+            .eq("user_id", ownerToDelete.user_id);
+
+          if (roleError) throw roleError;
+
+          // Delete auth user (requires admin API - this might fail, that's ok)
+          // The auth user deletion should be handled by admin via Supabase dashboard if needed
+        }
+      }
+
+      toast({
+        title: "Owner Deleted",
+        description: `${ownerToDelete.name} and their ${ownerToDelete.propertyCount} properties have been removed.`,
+      });
+
+      fetchOwners();
+      setDeleteDialogOpen(false);
+      setOwnerToDelete(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -312,6 +384,16 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
                             View
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setOwnerToDelete(owner);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -329,6 +411,32 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
           if (!open) fetchOwners();
         }}
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Owner Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{ownerToDelete?.name}</strong>?
+              {ownerToDelete?.status === "active" && ownerToDelete.propertyCount > 0 && (
+                <span className="block mt-2 text-destructive font-semibold">
+                  This will also permanently delete their {ownerToDelete.propertyCount} properties.
+                </span>
+              )}
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOwner}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Owner
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

@@ -95,7 +95,7 @@ export default function OwnerSignup() {
     setLoading(true);
 
     try {
-      // Sign up the user with metadata
+      // Sign up the user with metadata - the trigger will handle role and profile creation
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -114,20 +114,10 @@ export default function OwnerSignup() {
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        // Wait a moment for the trigger to complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for trigger to complete
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
-        // Update role to owner_user (the trigger creates 'admin' by default for first user)
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .update({ role: 'owner_user' })
-          .eq('user_id', data.user.id);
-
-        if (roleError) {
-          console.error("Role update error:", roleError);
-        }
-
-        // Create profile
+        // Create profile (trigger handles role)
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
@@ -158,10 +148,11 @@ export default function OwnerSignup() {
         setTimeout(() => navigate("/owner-login"), 2000);
       }
     } catch (error: any) {
-      if (error.message.includes("already registered")) {
+      console.error("Signup error:", error);
+      if (error.message.includes("already registered") || error.code === "23505") {
         toast.error("This email is already registered. Please sign in.");
       } else {
-        toast.error(error.message);
+        toast.error(error.message || "Failed to create account. Please try again.");
       }
     } finally {
       setLoading(false);
