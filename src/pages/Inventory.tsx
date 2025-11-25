@@ -495,18 +495,29 @@ export default function Inventory() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    // Confirm deletion
-    if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
-      return;
-    }
-
     try {
-      console.log("Attempting to delete inventory item:", id);
-      
+      // Check authentication first
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error("You must be logged in to delete properties");
+        toast({
+          title: "Authentication Required",
+          description: "You must be logged in to delete properties",
+          variant: "destructive",
+        });
+        return;
       }
+
+      // Confirm deletion
+      const confirmed = window.confirm(
+        `Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.`
+      );
+      
+      if (!confirmed) {
+        console.log("Delete cancelled by user");
+        return;
+      }
+
+      console.log("Attempting to delete inventory item:", id);
 
       const { error } = await supabase
         .from("inventory")
@@ -521,14 +532,16 @@ export default function Inventory() {
       console.log("Delete successful");
       toast({
         title: "Success",
-        description: "Property deleted successfully",
+        description: `"${name}" has been deleted successfully`,
       });
-      // Real-time subscription will handle the refresh
+      
+      // Manually refresh the list immediately
+      await fetchInventory();
     } catch (error: any) {
       console.error("Error deleting inventory:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete property",
+        title: "Delete Failed",
+        description: error.message || "Failed to delete property. Please try again.",
         variant: "destructive",
       });
     }
