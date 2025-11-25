@@ -95,7 +95,7 @@ export default function OwnerSignup() {
     setLoading(true);
 
     try {
-      // Sign up the user
+      // Sign up the user with metadata
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -106,6 +106,7 @@ export default function OwnerSignup() {
             last_name: lastName,
             phone_number: phoneNumber,
             type_of_owner: typeOfOwner,
+            is_owner: true,
           }
         }
       });
@@ -113,29 +114,37 @@ export default function OwnerSignup() {
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        // Create owner_user role
+        // Wait a moment for the trigger to complete
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Update role to owner_user (the trigger creates 'admin' by default for first user)
         const { error: roleError } = await supabase
           .from('user_roles')
-          .insert({
-            user_id: data.user.id,
-            role: 'owner_user'
-          });
+          .update({ role: 'owner_user' })
+          .eq('user_id', data.user.id);
 
-        if (roleError) throw roleError;
+        if (roleError) {
+          console.error("Role update error:", roleError);
+        }
 
         // Create profile
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             user_id: data.user.id,
             first_name: firstName,
             last_name: lastName,
             phone_number: phoneNumber,
             email: email,
             type_of_owner: typeOfOwner
+          }, {
+            onConflict: 'user_id'
           });
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error("Profile error:", profileError);
+          throw profileError;
+        }
 
         // Mark invitation as accepted if it exists
         if (invitation) {
@@ -145,8 +154,8 @@ export default function OwnerSignup() {
             .eq("id", invitation.id);
         }
 
-        toast.success("Account created successfully! Please check your email to verify.");
-        navigate("/owner-login");
+        toast.success("Account created successfully! Redirecting to login...");
+        setTimeout(() => navigate("/owner-login"), 2000);
       }
     } catch (error: any) {
       if (error.message.includes("already registered")) {
