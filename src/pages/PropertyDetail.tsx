@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -56,14 +56,29 @@ export default function PropertyDetail() {
   const [loading, setLoading] = useState(true);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-  // Get all photos from photo_urls array
-  const photos = property?.photo_urls 
-    ? (Array.isArray(property.photo_urls) ? property.photo_urls : [])
-    : (property?.photo_url ? [property.photo_url] : []);
+  // Memoize photos array to prevent unnecessary recalculations
+  const photos = useMemo(() => {
+    if (!property) return [];
+    
+    if (property.photo_urls && Array.isArray(property.photo_urls)) {
+      return property.photo_urls;
+    }
+    
+    if (property.photo_url) {
+      return [property.photo_url];
+    }
+    
+    return [];
+  }, [property?.photo_urls, property?.photo_url]);
 
   useEffect(() => {
     fetchProperty();
   }, [id]);
+
+  // Reset photo index when property changes
+  useEffect(() => {
+    setCurrentPhotoIndex(0);
+  }, [property?.id]);
 
   const fetchProperty = async () => {
     try {
@@ -179,6 +194,7 @@ export default function PropertyDetail() {
               {photos.length > 0 ? (
                 <>
                   <img
+                    key={`photo-${currentPhotoIndex}-${photos[currentPhotoIndex]}`}
                     src={photos[currentPhotoIndex]}
                     alt={`${property.name} - Photo ${currentPhotoIndex + 1}`}
                     className="w-full h-full object-cover"
