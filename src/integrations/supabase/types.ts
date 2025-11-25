@@ -377,6 +377,7 @@ export type Database = {
           commission: number | null
           created_at: string
           description: string | null
+          dispo_sheet_link: string | null
           down_payment: number | null
           estimated_repairs: number | null
           finance_type: string | null
@@ -409,6 +410,7 @@ export type Database = {
           commission?: number | null
           created_at?: string
           description?: string | null
+          dispo_sheet_link?: string | null
           down_payment?: number | null
           estimated_repairs?: number | null
           finance_type?: string | null
@@ -441,6 +443,7 @@ export type Database = {
           commission?: number | null
           created_at?: string
           description?: string | null
+          dispo_sheet_link?: string | null
           down_payment?: number | null
           estimated_repairs?: number | null
           finance_type?: string | null
@@ -743,6 +746,42 @@ export type Database = {
           created_by?: string
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      owner_invitations: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          name: string
+          status: string
+          token: string
+          type_of_owner: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          name: string
+          status?: string
+          token: string
+          type_of_owner: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          name?: string
+          status?: string
+          token?: string
+          type_of_owner?: string
         }
         Relationships: []
       }

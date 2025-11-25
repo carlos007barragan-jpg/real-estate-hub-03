@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,10 @@ import { Loader2, Home, Mail } from "lucide-react";
 
 export default function OwnerSignup() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [loadingInvitation, setLoadingInvitation] = useState(true);
+  const [invitation, setInvitation] = useState<any>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -19,6 +22,46 @@ export default function OwnerSignup() {
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [typeOfOwner, setTypeOfOwner] = useState("");
+
+  // Check for invitation token
+  useEffect(() => {
+    const fetchInvitation = async () => {
+      const token = searchParams.get("token");
+      if (!token) {
+        setLoadingInvitation(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("owner_invitations")
+          .select("*")
+          .eq("token", token)
+          .eq("status", "pending")
+          .gt("expires_at", new Date().toISOString())
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          setInvitation(data);
+          const nameParts = data.name.split(" ");
+          setEmail(data.email);
+          setFirstName(nameParts[0] || "");
+          setLastName(nameParts.slice(1).join(" ") || "");
+          setTypeOfOwner(data.type_of_owner);
+        } else {
+          toast.error("Invalid or expired invitation link");
+        }
+      } catch (error: any) {
+        toast.error(error.message);
+      } finally {
+        setLoadingInvitation(false);
+      }
+    };
+
+    fetchInvitation();
+  }, [searchParams]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -94,6 +137,14 @@ export default function OwnerSignup() {
 
         if (profileError) throw profileError;
 
+        // Mark invitation as accepted if it exists
+        if (invitation) {
+          await supabase
+            .from("owner_invitations")
+            .update({ status: "accepted" })
+            .eq("id", invitation.id);
+        }
+
         toast.success("Account created successfully! Please check your email to verify.");
         navigate("/owner-login");
       }
@@ -108,6 +159,14 @@ export default function OwnerSignup() {
     }
   };
 
+  if (loadingInvitation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-md">
@@ -116,7 +175,12 @@ export default function OwnerSignup() {
             <Home className="h-8 w-8 text-primary" />
             <CardTitle className="text-2xl">Owner Registration</CardTitle>
           </div>
-          <CardDescription>Create an account to manage your properties</CardDescription>
+          <CardDescription>
+            {invitation 
+              ? `Complete your registration to join as ${invitation.type_of_owner}`
+              : "Create an account to manage your properties"
+            }
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp} className="space-y-4">
@@ -177,6 +241,7 @@ export default function OwnerSignup() {
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={!!invitation}
                   required
                   className="pl-9"
                 />

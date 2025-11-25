@@ -14,6 +14,7 @@ import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehous
 import { Badge } from "@/components/ui/badge";
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 import MultiPhotoUpload from "@/components/MultiPhotoUpload";
+import { InviteOwnerDialog } from "@/components/InviteOwnerDialog";
 
 interface InventoryItem {
   id: string;
@@ -106,6 +107,8 @@ export default function Inventory() {
     phone: "",
     company: "",
   });
+
+  const [inviteOwnerDialogOpen, setInviteOwnerDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchInventory();
@@ -851,23 +854,35 @@ export default function Inventory() {
           <p className="text-muted-foreground mt-1">Track and manage your active property listings</p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="lg">
-                <Settings className="mr-2 h-4 w-4" />
-                Field Settings
+          {isAdmin && (
+            <>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setInviteOwnerDialogOpen(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Invite Owner
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Customize Fields</DialogTitle>
-                <DialogDescription>
-                  Manage your custom categories, statuses, and property types
-                </DialogDescription>
-              </DialogHeader>
-              <InventoryFieldSettings />
-            </DialogContent>
-          </Dialog>
+              <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="lg">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Field Settings
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Customize Fields</DialogTitle>
+                    <DialogDescription>
+                      Manage your custom categories, statuses, and property types
+                    </DialogDescription>
+                  </DialogHeader>
+                  <InventoryFieldSettings />
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) resetForm();
@@ -1628,6 +1643,12 @@ export default function Inventory() {
           )}
         </CardContent>
       </Card>
+
+      {/* Invite Owner Dialog */}
+      <InviteOwnerDialog
+        open={inviteOwnerDialogOpen}
+        onOpenChange={setInviteOwnerDialogOpen}
+      />
     </div>
   );
 }
