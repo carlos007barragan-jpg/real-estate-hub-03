@@ -351,6 +351,9 @@ export default function Inventory() {
           .update({
             ...formData,
             seller_id: formData.seller_id || null,
+            market_status: formData.market_status || null,
+            transaction_type: formData.transaction_type || null,
+            finance_type: formData.finance_type || null,
             photo_urls: photoUrls,
             photo_url: photoUrls[0] || null, // Maintain backward compatibility
           })
@@ -374,6 +377,9 @@ export default function Inventory() {
           .insert({
             ...formData,
             seller_id: formData.seller_id || null,
+            market_status: formData.market_status || null,
+            transaction_type: formData.transaction_type || null,
+            finance_type: formData.finance_type || null,
             user_id: user.id,
           })
           .select()
