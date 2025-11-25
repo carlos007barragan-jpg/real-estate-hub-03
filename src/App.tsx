@@ -29,6 +29,7 @@ import OwnerLogin from "./pages/OwnerLogin";
 import OwnerSignup from "./pages/OwnerSignup";
 import OwnerPortalDashboard from "./pages/OwnerPortalDashboard";
 import DispoSheet from "./pages/DispoSheet";
+import OwnerManagement from "./pages/OwnerManagement";
 
 const queryClient = new QueryClient();
 
@@ -95,6 +96,7 @@ const App = () => {
             <Route path="/inbox" element={<ProtectedRoute><Layout><Inbox /></Layout></ProtectedRoute>} />
             <Route path="/inventory" element={<ProtectedRoute><Layout><Inventory /></Layout></ProtectedRoute>} />
             <Route path="/inventory/:id" element={<ProtectedRoute><Layout><PropertyDetail /></Layout></ProtectedRoute>} />
+            <Route path="/owner-management" element={<ProtectedRoute><Layout><OwnerManagement /></Layout></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

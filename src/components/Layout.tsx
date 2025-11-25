@@ -1,4 +1,4 @@
-import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming, CalendarDays, Package, Shield } from "lucide-react";
+import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming, CalendarDays, Package, Shield, UserCog } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -15,6 +15,7 @@ const baseNavItems = [
   { title: "Pipelines", url: "/pipelines", icon: Layers },
   { title: "Contacts", url: "/contacts", icon: Phone },
   { title: "Inventory", url: "/inventory", icon: Package },
+  { title: "Owners", url: "/owner-management", icon: UserCog },
 ];
 
 const settingsNavItem = { title: "Settings", url: "/settings", icon: Settings };
