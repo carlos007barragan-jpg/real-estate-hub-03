@@ -18,6 +18,7 @@ interface PropertyDetail {
   category: string | null;
   sku: string | null;
   photo_url: string | null;
+  photo_urls: string[] | null;
   payment: number | null;
   interest_rate: number | null;
   market_status: string | null;
@@ -55,8 +56,10 @@ export default function PropertyDetail() {
   const [loading, setLoading] = useState(true);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
-  // For demo: multiple photos (in real app, you'd have a photos array)
-  const photos = property?.photo_url ? [property.photo_url] : [];
+  // Get all photos from photo_urls array
+  const photos = property?.photo_urls 
+    ? (Array.isArray(property.photo_urls) ? property.photo_urls : [])
+    : (property?.photo_url ? [property.photo_url] : []);
 
   useEffect(() => {
     fetchProperty();

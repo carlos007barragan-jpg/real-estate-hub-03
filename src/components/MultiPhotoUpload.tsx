@@ -90,28 +90,45 @@ export default function MultiPhotoUpload({
   );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    console.log('📸 Files selected:', files.length, 'files');
-    console.log('📸 Current photos:', photos.length);
-    console.log('📸 Max photos:', maxPhotos);
-    
-    const remainingSlots = maxPhotos - photos.length;
-    const filesToAdd = files.slice(0, remainingSlots);
-    console.log('📸 Files to add:', filesToAdd.length);
+    try {
+      const files = Array.from(e.target.files || []);
+      console.log('📸 Files selected:', files.length, 'files');
+      console.log('📸 Current photos:', photos.length);
+      console.log('📸 Max photos:', maxPhotos);
+      
+      if (files.length === 0) {
+        console.log('📸 No files selected');
+        return;
+      }
+      
+      const remainingSlots = maxPhotos - photos.length;
+      if (remainingSlots <= 0) {
+        console.log('📸 No remaining slots');
+        return;
+      }
+      
+      const filesToAdd = files.slice(0, remainingSlots);
+      console.log('📸 Files to add:', filesToAdd.length);
 
-    const newPhotos: PhotoItem[] = filesToAdd.map((file, index) => ({
-      id: `new-${Date.now()}-${index}`,
-      file,
-      preview: URL.createObjectURL(file),
-    }));
+      const newPhotos: PhotoItem[] = filesToAdd.map((file, index) => {
+        console.log('📸 Creating preview for:', file.name);
+        return {
+          id: `new-${Date.now()}-${index}`,
+          file,
+          preview: URL.createObjectURL(file),
+        };
+      });
 
-    const updatedPhotos = [...photos, ...newPhotos];
-    console.log('📸 Updated photos total:', updatedPhotos.length);
-    setPhotos(updatedPhotos);
-    updateParent(updatedPhotos);
+      const updatedPhotos = [...photos, ...newPhotos];
+      console.log('📸 Updated photos total:', updatedPhotos.length);
+      setPhotos(updatedPhotos);
+      updateParent(updatedPhotos);
 
-    // Reset input
-    e.target.value = '';
+      // Reset input
+      e.target.value = '';
+    } catch (error) {
+      console.error('📸 Error handling file selection:', error);
+    }
   };
 
   const handleRemove = (id: string) => {
