@@ -495,10 +495,14 @@ export default function Inventory() {
   };
 
   const handleDelete = async (id: string, name: string) => {
+    console.log("🗑️ Delete button clicked for:", name, "ID:", id);
+    
     try {
       // Check authentication first
+      console.log("🔐 Checking authentication...");
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        console.log("❌ Not authenticated");
         toast({
           title: "Authentication Required",
           description: "You must be logged in to delete properties",
@@ -506,39 +510,70 @@ export default function Inventory() {
         });
         return;
       }
+      console.log("✅ User authenticated:", user.id);
+
+      // Verify item exists before deleting
+      console.log("🔍 Verifying item exists...");
+      const { data: existingItem, error: fetchError } = await supabase
+        .from("inventory")
+        .select("id, name, user_id")
+        .eq("id", id)
+        .single();
+
+      if (fetchError || !existingItem) {
+        console.log("❌ Item not found:", fetchError);
+        toast({
+          title: "Not Found",
+          description: "This property no longer exists",
+          variant: "destructive",
+        });
+        await fetchInventory();
+        return;
+      }
+      console.log("✅ Item exists:", existingItem);
 
       // Confirm deletion
+      console.log("⚠️ Showing confirmation dialog...");
       const confirmed = window.confirm(
         `Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.`
       );
       
       if (!confirmed) {
-        console.log("Delete cancelled by user");
+        console.log("⏹️ Delete cancelled by user");
         return;
       }
+      console.log("✅ User confirmed deletion");
 
-      console.log("Attempting to delete inventory item:", id);
-
-      const { error } = await supabase
+      console.log("🗑️ Executing delete operation...");
+      const { error: deleteError, count } = await supabase
         .from("inventory")
-        .delete()
+        .delete({ count: 'exact' })
         .eq("id", id);
 
-      if (error) {
-        console.error("Supabase delete error:", error);
-        throw error;
+      if (deleteError) {
+        console.log("❌ Delete error:", deleteError);
+        throw deleteError;
       }
 
-      console.log("Delete successful");
+      console.log("✅ Delete successful. Rows affected:", count);
+      
       toast({
         title: "Success",
         description: `"${name}" has been deleted successfully`,
       });
       
       // Manually refresh the list immediately
+      console.log("🔄 Refreshing inventory list...");
       await fetchInventory();
+      console.log("✅ Inventory refreshed");
     } catch (error: any) {
-      console.error("Error deleting inventory:", error);
+      console.error("❌ Error deleting inventory:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       toast({
         title: "Delete Failed",
         description: error.message || "Failed to delete property. Please try again.",
