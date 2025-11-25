@@ -359,20 +359,10 @@ const Dashboard = () => {
       const todayEnd = endOfDay(today);
 
       // Parallelize all initial queries
-      // Get current user's organization
-      const { data: currentProfile } = await supabase
-        .from("profiles")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .single();
-
-      const organizationId = currentProfile?.organization_id;
-
-      // Get all profiles in the organization
+      // Get all profiles in the organization (RLS will handle filtering)
       const { data: orgProfiles } = await supabase
         .from("profiles")
-        .select("user_id, first_name, last_name, organization_id")
-        .eq("organization_id", organizationId);
+        .select("user_id, first_name, last_name, organization_id");
 
       const orgUserIds = (orgProfiles || []).map(p => p.user_id);
 
