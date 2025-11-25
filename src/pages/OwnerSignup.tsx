@@ -144,8 +144,8 @@ export default function OwnerSignup() {
             .eq("id", invitation.id);
         }
 
-        toast.success("Account created successfully! Redirecting to login...");
-        setTimeout(() => navigate("/owner-login"), 2000);
+        toast.success("Account created successfully! You're now logged in.");
+        // Auth state change will automatically redirect to /owner-portal
       }
     } catch (error: any) {
       console.error("Signup error:", error);
