@@ -67,6 +67,9 @@ export default function OwnerPortalDashboard() {
       return;
     }
 
+    // Give a moment for the database trigger to complete role assignment
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // Verify user is an owner
     const { data: roles } = await supabase
       .from('user_roles')

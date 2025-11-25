@@ -23,7 +23,6 @@ export default function OwnerSignup() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [typeOfOwner, setTypeOfOwner] = useState("");
 
-  // Check for invitation token
   useEffect(() => {
     const fetchInvitation = async () => {
       const token = searchParams.get("token");
@@ -62,22 +61,6 @@ export default function OwnerSignup() {
 
     fetchInvitation();
   }, [searchParams]);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/owner-portal");
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        navigate("/owner-portal");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,8 +127,12 @@ export default function OwnerSignup() {
             .eq("id", invitation.id);
         }
 
-        toast.success("Account created successfully! You're now logged in.");
-        // Auth state change will automatically redirect to /owner-portal
+        toast.success("Account created successfully! Redirecting to dashboard...");
+        
+        // Give a moment for the success toast to show, then explicitly navigate
+        setTimeout(() => {
+          navigate("/owner-portal");
+        }, 500);
       }
     } catch (error: any) {
       console.error("Signup error:", error);
