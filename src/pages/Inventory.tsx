@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings } from "lucide-react";
+import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings, FileText, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 import MultiPhotoUpload from "@/components/MultiPhotoUpload";
@@ -1461,17 +1461,38 @@ export default function Inventory() {
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2">
+                  {isAdmin && item.is_wholesale && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const dispoLink = `${window.location.origin}/dispo-sheet?id=${item.id}`;
+                        navigator.clipboard.writeText(dispoLink);
+                        toast({
+                          title: "Link Copied!",
+                          description: "Dispo sheet link copied to clipboard",
+                        });
+                        // Also open in new tab
+                        window.open(dispoLink, '_blank');
+                      }}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Dispo Sheet
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className={isAdmin && item.is_wholesale ? "" : "flex-1"}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleEdit(item);
                     }}
                   >
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
+                    <Edit className={`h-4 w-4 ${isAdmin && item.is_wholesale ? "" : "mr-2"}`} />
+                    {!(isAdmin && item.is_wholesale) && "Edit"}
                   </Button>
                   <Button
                     variant="outline"

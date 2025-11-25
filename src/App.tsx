@@ -25,6 +25,10 @@ import Inventory from "./pages/Inventory";
 import PropertyDetail from "./pages/PropertyDetail";
 import ResetPassword from "./pages/ResetPassword";
 import AcceptInvite from "./pages/AcceptInvite";
+import OwnerLogin from "./pages/OwnerLogin";
+import OwnerSignup from "./pages/OwnerSignup";
+import OwnerPortalDashboard from "./pages/OwnerPortalDashboard";
+import DispoSheet from "./pages/DispoSheet";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +76,14 @@ const App = () => {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
+            
+            {/* Owner Portal Routes */}
+            <Route path="/owner-login" element={<OwnerLogin />} />
+            <Route path="/owner-signup" element={<OwnerSignup />} />
+            <Route path="/owner-portal" element={<ProtectedRoute><OwnerPortalDashboard /></ProtectedRoute>} />
+            <Route path="/dispo-sheet" element={<DispoSheet />} />
+            
+            {/* CRM Routes */}
             <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Layout><CalendarPage /></Layout></ProtectedRoute>} />
             <Route path="/leads" element={<ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute>} />

@@ -369,6 +369,7 @@ export type Database = {
       }
       inventory: {
         Row: {
+          acquisition_price: number | null
           arv: number | null
           bathrooms: number | null
           bedrooms: number | null
@@ -377,6 +378,7 @@ export type Database = {
           created_at: string
           description: string | null
           down_payment: number | null
+          estimated_repairs: number | null
           finance_type: string | null
           id: string
           interest_rate: number | null
@@ -399,6 +401,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          acquisition_price?: number | null
           arv?: number | null
           bathrooms?: number | null
           bedrooms?: number | null
@@ -407,6 +410,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           down_payment?: number | null
+          estimated_repairs?: number | null
           finance_type?: string | null
           id?: string
           interest_rate?: number | null
@@ -429,6 +433,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          acquisition_price?: number | null
           arv?: number | null
           bathrooms?: number | null
           bedrooms?: number | null
@@ -437,6 +442,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           down_payment?: number | null
+          estimated_repairs?: number | null
           finance_type?: string | null
           id?: string
           interest_rate?: number | null
@@ -749,6 +755,7 @@ export type Database = {
           last_name: string | null
           organization_id: string | null
           phone_number: string | null
+          type_of_owner: string | null
           updated_at: string
           user_id: string
         }
@@ -760,6 +767,7 @@ export type Database = {
           last_name?: string | null
           organization_id?: string | null
           phone_number?: string | null
+          type_of_owner?: string | null
           updated_at?: string
           user_id: string
         }
@@ -771,6 +779,7 @@ export type Database = {
           last_name?: string | null
           organization_id?: string | null
           phone_number?: string | null
+          type_of_owner?: string | null
           updated_at?: string
           user_id?: string
         }
