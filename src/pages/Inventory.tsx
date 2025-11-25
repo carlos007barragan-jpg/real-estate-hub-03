@@ -14,10 +14,11 @@ import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehous
 import { Badge } from "@/components/ui/badge";
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 import MultiPhotoUpload from "@/components/MultiPhotoUpload";
-import { InviteOwnerDialog } from "@/components/InviteOwnerDialog";
+import { OwnerManagementTable } from "@/components/OwnerManagementTable";
 
 interface InventoryItem {
   id: string;
+  user_id: string;
   name: string;
   description: string | null;
   quantity: number;
@@ -74,6 +75,7 @@ export default function Inventory() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
+  const [ownerFilter, setOwnerFilter] = useState<string>("all");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -144,8 +146,13 @@ export default function Inventory() {
       filtered = filtered.filter(item => item.property_type === propertyTypeFilter);
     }
 
+    // Owner filter
+    if (ownerFilter !== "all") {
+      filtered = filtered.filter(item => item.user_id === ownerFilter);
+    }
+
     setFilteredItems(filtered);
-  }, [items, searchQuery, categoryFilter, statusFilter, propertyTypeFilter]);
+  }, [items, searchQuery, categoryFilter, statusFilter, propertyTypeFilter, ownerFilter]);
 
   // Real-time subscription with debouncing
   useEffect(() => {
@@ -1526,128 +1533,12 @@ export default function Inventory() {
         )}
       </div>
 
-      {/* Sellers Management Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Property Sellers</CardTitle>
-              <CardDescription>Manage sellers for your property inventory</CardDescription>
-            </div>
-            <Dialog open={isSellerDialogOpen} onOpenChange={(open) => {
-              setIsSellerDialogOpen(open);
-              if (!open) resetSellerForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Seller
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{editingSeller ? "Edit" : "Add"} Seller</DialogTitle>
-                  <DialogDescription>
-                    {editingSeller ? "Update" : "Add"} seller contact information
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSellerSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="seller_name">Name *</Label>
-                    <Input
-                      id="seller_name"
-                      required
-                      value={sellerFormData.name}
-                      onChange={(e) => setSellerFormData({ ...sellerFormData, name: e.target.value })}
-                      placeholder="e.g., John Smith"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="seller_company">Company</Label>
-                    <Input
-                      id="seller_company"
-                      value={sellerFormData.company}
-                      onChange={(e) => setSellerFormData({ ...sellerFormData, company: e.target.value })}
-                      placeholder="e.g., ABC Realty"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="seller_email">Email</Label>
-                    <Input
-                      id="seller_email"
-                      type="email"
-                      value={sellerFormData.email}
-                      onChange={(e) => setSellerFormData({ ...sellerFormData, email: e.target.value })}
-                      placeholder="e.g., john@example.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="seller_phone">Phone</Label>
-                    <Input
-                      id="seller_phone"
-                      type="tel"
-                      value={sellerFormData.phone}
-                      onChange={(e) => setSellerFormData({ ...sellerFormData, phone: e.target.value })}
-                      placeholder="e.g., (555) 123-4567"
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsSellerDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">
-                      {editingSeller ? "Update" : "Add"} Seller
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {sellers.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No sellers added yet. Add your first seller to get started.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {sellers.map((seller) => (
-                <div key={seller.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50">
-                  <div className="flex-1">
-                    <div className="font-medium">{seller.name}</div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      {seller.company && <div>Company: {seller.company}</div>}
-                      {seller.email && <div>Email: {seller.email}</div>}
-                      {seller.phone && <div>Phone: {seller.phone}</div>}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditSeller(seller)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteSeller(seller.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Invite Owner Dialog */}
-      <InviteOwnerDialog
-        open={inviteOwnerDialogOpen}
-        onOpenChange={setInviteOwnerDialogOpen}
+      {/* Owner Management Section */}
+      <OwnerManagementTable 
+        onOwnerClick={(userId) => {
+          setOwnerFilter(userId);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       />
     </div>
   );
