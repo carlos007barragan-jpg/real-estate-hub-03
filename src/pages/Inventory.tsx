@@ -24,6 +24,7 @@ interface InventoryItem {
   category: string | null;
   sku: string | null;
   photo_url: string | null;
+  photo_urls?: string[] | any;
   payment: number | null;
   interest_rate: number | null;
   market_status: string | null;
@@ -1294,17 +1295,24 @@ export default function Inventory() {
               onClick={() => navigate(`/inventory/${item.id}`)}
             >
               <div className="relative h-48 bg-muted">
-                {item.photo_url ? (
-                  <img
-                    src={item.photo_url}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Building2 className="h-16 w-16 text-muted-foreground" />
-                  </div>
-                )}
+                {(() => {
+                  // Try to get photo from photo_urls array first, then fall back to photo_url
+                  const photoUrl = item.photo_urls && Array.isArray(item.photo_urls) && item.photo_urls.length > 0
+                    ? item.photo_urls[0]
+                    : item.photo_url;
+                  
+                  return photoUrl ? (
+                    <img
+                      src={photoUrl}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Building2 className="h-16 w-16 text-muted-foreground" />
+                    </div>
+                  );
+                })()}
                 <div className="absolute top-2 right-2 flex gap-2">
                   <Badge variant={getStatusBadgeVariant(item.status)}>
                     {item.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
@@ -1313,19 +1321,25 @@ export default function Inventory() {
                     <Badge variant="outline" className="bg-background">Wholesale</Badge>
                   )}
                 </div>
-                {item.photo_url && (
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute bottom-2 right-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      downloadPhoto(item.photo_url!, item.name);
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                )}
+                {(() => {
+                  const photoUrl = item.photo_urls && Array.isArray(item.photo_urls) && item.photo_urls.length > 0
+                    ? item.photo_urls[0]
+                    : item.photo_url;
+                  
+                  return photoUrl ? (
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      className="absolute bottom-2 right-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        downloadPhoto(photoUrl, item.name);
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  ) : null;
+                })()}
               </div>
               
               <CardHeader>
