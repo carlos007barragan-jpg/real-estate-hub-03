@@ -110,8 +110,6 @@ export default function Inventory() {
     company: "",
   });
 
-  const [inviteOwnerDialogOpen, setInviteOwnerDialogOpen] = useState(false);
-
   useEffect(() => {
     fetchInventory();
     fetchSellers();
@@ -863,14 +861,6 @@ export default function Inventory() {
         <div className="flex gap-2">
           {isAdmin && (
             <>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => setInviteOwnerDialogOpen(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Invite Owner
-              </Button>
               <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="lg">
