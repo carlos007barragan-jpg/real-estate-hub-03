@@ -360,14 +360,8 @@ export default function Inventory() {
 
       if (editingItem) {
         console.log('📝 Updating existing item:', editingItem.id);
-        // Update existing item - upload new photos and combine with existing
-        if (photoFiles.length > 0) {
-          console.log('📤 Uploading', photoFiles.length, 'new photos...');
-          const newPhotoUrls = await uploadPhotos(photoFiles, editingItem.id);
-          photoUrls = [...existingPhotoUrls, ...newPhotoUrls];
-          console.log('✅ Photos uploaded. Total photos:', photoUrls.length);
-        }
-
+        
+        // Update database immediately with existing photo URLs
         console.log('💾 Updating database...');
         const { error } = await supabase
           .from("inventory")
@@ -377,8 +371,8 @@ export default function Inventory() {
             market_status: formData.market_status || null,
             transaction_type: formData.transaction_type || null,
             finance_type: formData.finance_type || null,
-            photo_urls: photoUrls,
-            photo_url: photoUrls[0] || null, // Maintain backward compatibility
+            photo_urls: existingPhotoUrls,
+            photo_url: existingPhotoUrls[0] || null,
           })
           .eq("id", editingItem.id);
 
@@ -388,10 +382,50 @@ export default function Inventory() {
         }
         console.log('✅ Item updated successfully');
 
-        toast({
-          title: "Success",
-          description: "Inventory item updated successfully",
-        });
+        // Upload new photos in the background if any
+        if (photoFiles.length > 0) {
+          console.log('📤 Starting background photo upload for', photoFiles.length, 'new photos...');
+          
+          toast({
+            title: "Property Updated",
+            description: `Uploading ${photoFiles.length} new photo${photoFiles.length > 1 ? 's' : ''}...`,
+          });
+
+          // Upload photos in background
+          uploadPhotos(photoFiles, editingItem.id)
+            .then((newPhotoUrls) => {
+              console.log('✅ Background upload complete:', newPhotoUrls.length, 'photos');
+              const allPhotoUrls = [...existingPhotoUrls, ...newPhotoUrls];
+              
+              // Update with all photos
+              return supabase
+                .from("inventory")
+                .update({ 
+                  photo_urls: allPhotoUrls,
+                  photo_url: allPhotoUrls[0] || null,
+                })
+                .eq("id", editingItem.id);
+            })
+            .then(() => {
+              toast({
+                title: "Photos Uploaded",
+                description: "All new photos have been successfully uploaded",
+              });
+            })
+            .catch((error) => {
+              console.error('❌ Background photo upload error:', error);
+              toast({
+                title: "Photo Upload Failed",
+                description: "Some photos failed to upload. Please try editing the property again.",
+                variant: "destructive",
+              });
+            });
+        } else {
+          toast({
+            title: "Success",
+            description: "Inventory item updated successfully",
+          });
+        }
       } else {
         console.log('➕ Creating new item...');
         // Create new item
@@ -414,31 +448,50 @@ export default function Inventory() {
         }
         console.log('✅ Item created:', newItem?.id);
 
+        // Upload photos in the background without blocking
         if (photoFiles.length > 0 && newItem) {
-          console.log('📤 Uploading', photoFiles.length, 'photos...');
-          photoUrls = await uploadPhotos(photoFiles, newItem.id);
-          console.log('✅ Photos uploaded:', photoUrls.length);
+          console.log('📤 Starting background photo upload for', photoFiles.length, 'photos...');
           
-          console.log('💾 Updating item with photo URLs...');
-          const { error: updateError } = await supabase
-            .from("inventory")
-            .update({ 
-              photo_urls: photoUrls,
-              photo_url: photoUrls[0] || null, // Maintain backward compatibility
-            })
-            .eq("id", newItem.id);
-          
-          if (updateError) {
-            console.log('❌ Photo URL update error:', updateError);
-            throw updateError;
-          }
-          console.log('✅ Photos linked to item');
-        }
+          // Show immediate success message
+          toast({
+            title: "Property Created",
+            description: `Uploading ${photoFiles.length} photo${photoFiles.length > 1 ? 's' : ''}...`,
+          });
 
-        toast({
-          title: "Success",
-          description: "Inventory item added successfully",
-        });
+          // Upload photos in background
+          uploadPhotos(photoFiles, newItem.id)
+            .then((uploadedUrls) => {
+              console.log('✅ Background upload complete:', uploadedUrls.length, 'photos');
+              
+              // Update the item with photo URLs
+              return supabase
+                .from("inventory")
+                .update({ 
+                  photo_urls: uploadedUrls,
+                  photo_url: uploadedUrls[0] || null,
+                })
+                .eq("id", newItem.id);
+            })
+            .then(() => {
+              toast({
+                title: "Photos Uploaded",
+                description: "All photos have been successfully uploaded",
+              });
+            })
+            .catch((error) => {
+              console.error('❌ Background photo upload error:', error);
+              toast({
+                title: "Photo Upload Failed",
+                description: "Some photos failed to upload. Please try editing the property to add them again.",
+                variant: "destructive",
+              });
+            });
+        } else {
+          toast({
+            title: "Success",
+            description: "Inventory item added successfully",
+          });
+        }
       }
 
       console.log('🎉 Operation completed successfully');
