@@ -58,6 +58,7 @@ export default function Inventory() {
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSellerDialogOpen, setIsSellerDialogOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -142,8 +143,10 @@ export default function Inventory() {
     setFilteredItems(filtered);
   }, [items, searchQuery, categoryFilter, statusFilter, propertyTypeFilter]);
 
-  // Real-time subscription
+  // Real-time subscription with debouncing
   useEffect(() => {
+    let debounceTimer: NodeJS.Timeout;
+    
     const inventoryChannel = supabase
       .channel('inventory-changes')
       .on(
@@ -154,7 +157,12 @@ export default function Inventory() {
           table: 'inventory'
         },
         () => {
-          fetchInventory();
+          // Debounce to prevent multiple rapid fetches
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            console.log('🔄 Real-time update detected, refreshing inventory...');
+            fetchInventory();
+          }, 500);
         }
       )
       .subscribe();
@@ -175,6 +183,7 @@ export default function Inventory() {
       .subscribe();
 
     return () => {
+      clearTimeout(debounceTimer);
       supabase.removeChannel(inventoryChannel);
       supabase.removeChannel(fieldOptionsChannel);
     };
@@ -271,6 +280,14 @@ export default function Inventory() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('⚠️ Form already submitting, ignoring duplicate submission');
+      return;
+    }
+    
+    setIsSubmitting(true);
     console.log('🏠 Form submitted');
     console.log('🏠 Form data:', formData);
     console.log('🏠 Photo files:', photoFiles.length);
@@ -279,6 +296,7 @@ export default function Inventory() {
     // Validate required fields
     if (!formData.name.trim()) {
       console.log('❌ Validation failed: name required');
+      setIsSubmitting(false);
       toast({
         title: "Validation Error",
         description: "Property name is required",
@@ -289,6 +307,7 @@ export default function Inventory() {
 
     if (!formData.status) {
       console.log('❌ Validation failed: status required');
+      setIsSubmitting(false);
       toast({
         title: "Validation Error",
         description: "Status is required",
@@ -299,6 +318,7 @@ export default function Inventory() {
 
     if (!formData.property_type) {
       console.log('❌ Validation failed: property_type required');
+      setIsSubmitting(false);
       toast({
         title: "Validation Error",
         description: "Property type is required. Please select a property type.",
@@ -309,6 +329,7 @@ export default function Inventory() {
 
     if (!formData.category) {
       console.log('❌ Validation failed: category required');
+      setIsSubmitting(false);
       toast({
         title: "Validation Error",
         description: "Property category is required. Please select a category.",
@@ -324,6 +345,7 @@ export default function Inventory() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.log('❌ No authenticated user');
+        setIsSubmitting(false);
         toast({
           title: "Authentication Error",
           description: "You must be logged in to add properties",
@@ -421,8 +443,10 @@ export default function Inventory() {
       console.log('🎉 Operation completed successfully');
       setIsDialogOpen(false);
       resetForm();
+      setIsSubmitting(false);
       // Real-time subscription will handle the refresh
     } catch (error: any) {
+      setIsSubmitting(false);
       console.error("❌ Error saving inventory:", error);
       console.error("Error details:", {
         message: error.message,
@@ -1089,11 +1113,16 @@ export default function Inventory() {
               />
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsDialogOpen(false)}
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {editingItem ? "Update" : "Add"} Property
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Saving..." : (editingItem ? "Update" : "Add") + " Property"}
                 </Button>
               </DialogFooter>
             </form>
