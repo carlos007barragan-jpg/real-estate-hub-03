@@ -20,6 +20,7 @@ export default function OwnerSignup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [typeOfOwner, setTypeOfOwner] = useState("");
 
@@ -212,6 +213,24 @@ export default function OwnerSignup() {
 
       console.log("Profile created successfully");
 
+      // Create seller record with company name if provided
+      if (companyName.trim()) {
+        const { error: sellerError } = await supabase
+          .from('sellers')
+          .insert({
+            user_id: data.user.id,
+            name: `${firstName} ${lastName}`,
+            email: email,
+            phone: phoneNumber,
+            company: companyName
+          });
+
+        if (sellerError) {
+          console.error("Seller record error:", sellerError);
+          // Don't fail signup if seller record fails
+        }
+      }
+
       // Mark invitation as accepted and link to user
       if (invitation) {
         const { error: invitationError } = await supabase
@@ -227,6 +246,24 @@ export default function OwnerSignup() {
         } else {
           console.log("Invitation marked as accepted");
         }
+      }
+
+      // Notify admins that owner completed registration
+      const { data: adminRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+
+      if (adminRoles && adminRoles.length > 0) {
+        const notifications = adminRoles.map(admin => ({
+          user_id: admin.user_id,
+          type: 'owner_registered',
+          title: 'New Owner Registered',
+          description: `${firstName} ${lastName} (${typeOfOwner}) completed registration${companyName ? ` - ${companyName}` : ''}`,
+          link: '/owner-management'
+        }));
+
+        await supabase.from('notifications').insert(notifications);
       }
 
       toast.success("Account created successfully! Redirecting to dashboard...");
@@ -300,6 +337,15 @@ export default function OwnerSignup() {
                   required
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="companyName">Company Name (Optional)</Label>
+              <Input
+                id="companyName"
+                placeholder="Your Company LLC"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phoneNumber">Phone Number</Label>
