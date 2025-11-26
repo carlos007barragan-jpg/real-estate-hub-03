@@ -169,6 +169,22 @@ export default function OwnerPortalDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Fetch user's organization_id and seller_id from profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // Fetch seller_id for this user
+      const { data: seller, error: sellerError } = await supabase
+        .from('sellers')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
       const propertyData = {
         name: formData.name,
         description: formData.description,
@@ -183,7 +199,9 @@ export default function OwnerPortalDashboard() {
         estimated_repairs: formData.estimated_repairs,
         arv: formData.arv,
         user_id: user.id,
+        seller_id: seller?.id || null,
         quantity: 1,
+        is_wholesale: formData.property_type === "Wholesale",
       };
 
       if (editingProperty) {
@@ -198,12 +216,13 @@ export default function OwnerPortalDashboard() {
           .from('inventory')
           .insert(propertyData);
         if (error) throw error;
-        toast.success("Property added!");
+        toast.success("Property added! Admins will be notified.");
       }
 
       setIsDialogOpen(false);
       fetchProperties();
     } catch (error: any) {
+      console.error("Property submit error:", error);
       toast.error(error.message);
     }
   };
