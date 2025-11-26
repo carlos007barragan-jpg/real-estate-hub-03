@@ -44,6 +44,8 @@ export default function PublicProperties() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
+  const [allCategories, setAllCategories] = useState<string[]>([]);
+  const [allPropertyTypes, setAllPropertyTypes] = useState<string[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -59,19 +61,44 @@ export default function PublicProperties() {
         .from("organization_branding")
         .select("*")
         .eq("organization_id", orgId)
-        .single();
+        .maybeSingle();
 
       if (brandingError) console.error("Error fetching branding:", brandingError);
       else setBranding(brandingData);
 
-      // Fetch public properties for this organization
-      const { data: orgProfiles } = await supabase
+      // Fetch ALL users in this organization
+      const { data: orgProfiles, error: profilesError } = await supabase
         .from("profiles")
         .select("user_id")
         .eq("organization_id", orgId);
 
-      const userIds = orgProfiles?.map(p => p.user_id) || [];
+      if (profilesError) {
+        console.error("Error fetching org profiles:", profilesError);
+        throw profilesError;
+      }
 
+      if (!orgProfiles || orgProfiles.length === 0) {
+        console.log("No users found for organization:", orgId);
+        setProperties([]);
+        setLoading(false);
+        return;
+      }
+
+      const userIds = orgProfiles.map(p => p.user_id);
+      console.log(`Fetching properties for ${userIds.length} users in org ${orgId}`);
+
+      // Fetch ALL inventory for this organization (for category/type filters)
+      // But only display approved public properties
+      const { data: allOrgProperties, error: allPropsError } = await supabase
+        .from("inventory")
+        .select("category, property_type")
+        .in("user_id", userIds);
+
+      if (allPropsError) {
+        console.error("Error fetching all properties:", allPropsError);
+      }
+
+      // Fetch public-approved properties for display
       const { data: propertiesData, error: propertiesError } = await supabase
         .from("inventory")
         .select("*")
@@ -80,8 +107,30 @@ export default function PublicProperties() {
         .eq("public_approval_status", "approved")
         .order("created_at", { ascending: false });
 
-      if (propertiesError) throw propertiesError;
+      if (propertiesError) {
+        console.error("Error fetching properties:", propertiesError);
+        throw propertiesError;
+      }
+
+      console.log(`Found ${propertiesData?.length || 0} public properties`);
       setProperties((propertiesData as any) || []);
+
+      // Extract all unique categories and types from ALL org inventory
+      // This ensures filters show all CRM categories, not just approved ones
+      if (allOrgProperties && allOrgProperties.length > 0) {
+        const extractedCategories = Array.from(
+          new Set(allOrgProperties.map(p => p.category).filter(Boolean))
+        );
+        const extractedTypes = Array.from(
+          new Set(allOrgProperties.map(p => p.property_type).filter(Boolean))
+        );
+        console.log("Available categories:", extractedCategories);
+        console.log("Available property types:", extractedTypes);
+        
+        // Set state for filters to use
+        setAllCategories(extractedCategories);
+        setAllPropertyTypes(extractedTypes);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({
@@ -106,8 +155,14 @@ export default function PublicProperties() {
     return matchesSearch && matchesCategory && matchesType;
   });
 
-  const categories = Array.from(new Set(properties.map(p => p.category).filter(Boolean)));
-  const propertyTypes = Array.from(new Set(properties.map(p => p.property_type).filter(Boolean)));
+  // Extract categories and types from displayed properties for now
+  // This will be replaced when we fetch all org inventory
+  const categories = allCategories.length > 0 
+    ? allCategories 
+    : Array.from(new Set(properties.map(p => p.category).filter(Boolean)));
+  const propertyTypes = allPropertyTypes.length > 0
+    ? allPropertyTypes
+    : Array.from(new Set(properties.map(p => p.property_type).filter(Boolean)));
 
   if (loading) {
     return (
