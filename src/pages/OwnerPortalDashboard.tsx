@@ -67,18 +67,29 @@ export default function OwnerPortalDashboard() {
       return;
     }
 
-    // Give a moment for the database trigger to complete role assignment
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Retry logic to wait for role assignment (up to 5 seconds)
+    let attempts = 0;
+    const maxAttempts = 10;
+    let roleFound = false;
 
-    // Verify user is an owner
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .eq('role', 'owner_user')
-      .maybeSingle();
+    while (attempts < maxAttempts && !roleFound) {
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', session.user.id)
+        .eq('role', 'owner_user')
+        .maybeSingle();
 
-    if (!roles) {
+      if (roles) {
+        roleFound = true;
+        break;
+      }
+
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    if (!roleFound) {
       toast.error("Access denied. Owner account required.");
       await supabase.auth.signOut();
       navigate("/owner-login");

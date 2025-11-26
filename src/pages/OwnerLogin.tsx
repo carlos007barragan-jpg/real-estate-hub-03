@@ -42,16 +42,32 @@ export default function OwnerLogin() {
 
       if (error) throw error;
 
-      // Verify user has owner_user role
+      // Verify user has owner_user role with retry logic
       if (data.user) {
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id)
-          .eq("role", "owner_user")
-          .maybeSingle();
+        let roleFound = false;
+        let attempts = 0;
+        const maxAttempts = 5;
 
-        if (!roleData) {
+        while (attempts < maxAttempts && !roleFound) {
+          const { data: roleData } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", data.user.id)
+            .eq("role", "owner_user")
+            .maybeSingle();
+
+          if (roleData) {
+            roleFound = true;
+            break;
+          }
+
+          attempts++;
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+
+        if (!roleFound) {
           await supabase.auth.signOut();
           toast.error("This account is not registered as an owner. Please use the admin login.");
           setLoading(false);
