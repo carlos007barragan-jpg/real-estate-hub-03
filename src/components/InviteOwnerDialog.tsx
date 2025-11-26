@@ -31,12 +31,25 @@ export function InviteOwnerDialog({ open, onOpenChange }: InviteOwnerDialogProps
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Validate input
+      if (!formData.name.trim() || !formData.email.trim()) {
+        throw new Error("Name and email are required");
+      }
+
       // Generate unique token
       const token = crypto.randomUUID();
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
-      const { error } = await supabase
+      console.log("Creating owner invitation:", {
+        email: formData.email,
+        name: formData.name,
+        type: formData.type_of_owner,
+        token,
+        expiresAt: expiresAt.toISOString()
+      });
+
+      const { data: invitation, error } = await supabase
         .from("owner_invitations")
         .insert({
           invited_by: user.id,
@@ -45,9 +58,17 @@ export function InviteOwnerDialog({ open, onOpenChange }: InviteOwnerDialogProps
           type_of_owner: formData.type_of_owner,
           token,
           expires_at: expiresAt.toISOString(),
-        });
+          status: "pending"
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Invitation creation error:", error);
+        throw error;
+      }
+
+      console.log("Invitation created successfully:", invitation);
 
       const link = `${window.location.origin}/owner-signup?token=${token}`;
       setInviteLink(link);
@@ -57,6 +78,7 @@ export function InviteOwnerDialog({ open, onOpenChange }: InviteOwnerDialogProps
         description: "Share the link below with the owner to complete registration.",
       });
     } catch (error: any) {
+      console.error("Error creating invitation:", error);
       toast({
         title: "Error",
         description: error.message,
