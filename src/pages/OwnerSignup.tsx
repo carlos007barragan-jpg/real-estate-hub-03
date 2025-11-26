@@ -27,32 +27,52 @@ export default function OwnerSignup() {
   useEffect(() => {
     const fetchInvitation = async () => {
       const token = searchParams.get("token");
+      console.log("OwnerSignup useEffect - token from URL:", token);
       
       if (!token) {
-        console.log("No invitation token provided");
+        console.log("No invitation token provided - showing empty form");
         setLoadingInvitation(false);
         return;
       }
 
       try {
+        console.log("Fetching invitation for token:", token);
         const { data, error } = await supabase
           .from("owner_invitations")
           .select("*")
           .eq("token", token)
           .maybeSingle();
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching invitation:", error);
+          throw error;
+        }
+
+        console.log("Invitation data received:", data);
 
         if (data) {
-          console.log("Invitation loaded:", data);
           setInvitation(data);
           
           // Auto-populate fields
           const nameParts = data.name.trim().split(/\s+/);
+          const parsedFirstName = nameParts[0] || "";
+          const parsedLastName = nameParts.slice(1).join(" ") || "";
+          
+          console.log("Setting form fields:", {
+            email: data.email,
+            firstName: parsedFirstName,
+            lastName: parsedLastName,
+            typeOfOwner: data.type_of_owner
+          });
+          
           setEmail(data.email);
-          setFirstName(nameParts[0] || "");
-          setLastName(nameParts.slice(1).join(" ") || "");
+          setFirstName(parsedFirstName);
+          setLastName(parsedLastName);
           setTypeOfOwner(data.type_of_owner);
+          
+          console.log("Form fields set successfully");
+        } else {
+          console.log("No invitation found for token");
         }
       } catch (error: any) {
         console.error("Error loading invitation:", error);
