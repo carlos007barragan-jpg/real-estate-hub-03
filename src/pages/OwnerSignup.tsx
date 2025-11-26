@@ -31,32 +31,56 @@ export default function OwnerSignup() {
         return;
       }
 
-      try {
-        const { data, error } = await supabase
-          .from("owner_invitations")
-          .select("*")
-          .eq("token", token)
-          .eq("status", "pending")
-          .gt("expires_at", new Date().toISOString())
-          .maybeSingle();
+      // Retry mechanism for database consistency
+      const maxRetries = 3;
+      let retryCount = 0;
+      
+      while (retryCount < maxRetries) {
+        try {
+          const { data, error } = await supabase
+            .from("owner_invitations")
+            .select("*")
+            .eq("token", token)
+            .eq("status", "pending")
+            .gt("expires_at", new Date().toISOString())
+            .maybeSingle();
 
-        if (error) throw error;
+          if (error) throw error;
 
-        if (data) {
-          setInvitation(data);
-          const nameParts = data.name.split(" ");
-          setEmail(data.email);
-          setFirstName(nameParts[0] || "");
-          setLastName(nameParts.slice(1).join(" ") || "");
-          setTypeOfOwner(data.type_of_owner);
-        } else {
+          if (data) {
+            setInvitation(data);
+            const nameParts = data.name.trim().split(" ");
+            setEmail(data.email);
+            setFirstName(nameParts[0] || "");
+            setLastName(nameParts.slice(1).join(" ") || "");
+            setTypeOfOwner(data.type_of_owner);
+            setLoadingInvitation(false);
+            return; // Success - exit early
+          }
+          
+          // If no data and we haven't exhausted retries, wait and retry
+          if (!data && retryCount < maxRetries - 1) {
+            retryCount++;
+            await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+            continue;
+          }
+          
+          // Final attempt failed
           toast.error("Invalid or expired invitation link");
+          break;
+        } catch (error: any) {
+          console.error("Invitation fetch error:", error);
+          if (retryCount < maxRetries - 1) {
+            retryCount++;
+            await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+          } else {
+            toast.error(error.message);
+            break;
+          }
         }
-      } catch (error: any) {
-        toast.error(error.message);
-      } finally {
-        setLoadingInvitation(false);
       }
+      
+      setLoadingInvitation(false);
     };
 
     fetchInvitation();
