@@ -34,85 +34,35 @@ export default function OwnerSignup() {
         return;
       }
 
-      console.log("Fetching invitation with token:", token);
+      try {
+        const { data, error } = await supabase
+          .from("owner_invitations")
+          .select("*")
+          .eq("token", token)
+          .maybeSingle();
 
-      // Retry mechanism for database consistency
-      const maxRetries = 3;
-      let retryCount = 0;
-      
-      while (retryCount < maxRetries) {
-        try {
-          // First check if invitation exists at all (without status filter)
-          const { data: checkData, error: checkError } = await supabase
-            .from("owner_invitations")
-            .select("*")
-            .eq("token", token)
-            .maybeSingle();
+        if (error) throw error;
 
-          if (checkError) throw checkError;
-
-          console.log("Invitation lookup result:", checkData);
-
-          if (!checkData) {
-            // Token doesn't exist at all
-            if (retryCount < maxRetries - 1) {
-              retryCount++;
-              console.log(`Token not found, retry ${retryCount}/${maxRetries}`);
-              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-              continue;
-            }
-            toast.error("Invalid invitation link. Please request a new invitation.");
-            break;
-          }
-
-          // Check if already accepted
-          if (checkData.status === "accepted") {
-            toast.error("This invitation has already been used. Please sign in instead.");
-            setTimeout(() => navigate("/owner-login"), 2000);
-            break;
-          }
-
-          // Check if expired
-          const expiresAt = new Date(checkData.expires_at);
-          if (expiresAt < new Date()) {
-            toast.error("This invitation has expired. Please request a new invitation.");
-            break;
-          }
-
-          // Valid invitation found
-          setInvitation(checkData);
-          const nameParts = checkData.name.trim().split(/\s+/);
-          setEmail(checkData.email);
+        if (data) {
+          console.log("Invitation loaded:", data);
+          setInvitation(data);
+          
+          // Auto-populate fields
+          const nameParts = data.name.trim().split(/\s+/);
+          setEmail(data.email);
           setFirstName(nameParts[0] || "");
           setLastName(nameParts.slice(1).join(" ") || "");
-          setTypeOfOwner(checkData.type_of_owner);
-          
-          console.log("Invitation loaded successfully:", {
-            email: checkData.email,
-            name: checkData.name,
-            type: checkData.type_of_owner
-          });
-
-          setLoadingInvitation(false);
-          return;
-          
-        } catch (error: any) {
-          console.error("Invitation fetch error:", error);
-          if (retryCount < maxRetries - 1) {
-            retryCount++;
-            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-          } else {
-            toast.error("Failed to load invitation. Please try again or request a new invitation.");
-            break;
-          }
+          setTypeOfOwner(data.type_of_owner);
         }
+      } catch (error: any) {
+        console.error("Error loading invitation:", error);
+      } finally {
+        setLoadingInvitation(false);
       }
-      
-      setLoadingInvitation(false);
     };
 
     fetchInvitation();
-  }, [searchParams, navigate]);
+  }, [searchParams]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,6 +83,11 @@ export default function OwnerSignup() {
       return;
     }
 
+    if (!companyName.trim()) {
+      toast.error("Company name is required");
+      return;
+    }
+
     if (!phoneNumber.trim()) {
       toast.error("Phone number is required");
       return;
@@ -146,26 +101,9 @@ export default function OwnerSignup() {
     setLoading(true);
 
     try {
-      console.log("Starting owner signup process...", { email, firstName, lastName, typeOfOwner });
+      console.log("Starting owner signup...", { email, firstName, lastName, companyName, typeOfOwner });
 
-      // Check if invitation is still valid before proceeding
-      if (invitation) {
-        const { data: currentInvitation } = await supabase
-          .from("owner_invitations")
-          .select("status")
-          .eq("id", invitation.id)
-          .maybeSingle();
-
-        if (!currentInvitation) {
-          throw new Error("Invitation no longer exists. Please request a new invitation.");
-        }
-
-        if (currentInvitation.status !== "pending") {
-          throw new Error("This invitation has already been used.");
-        }
-      }
-
-      // Sign up the user with metadata
+      // Sign up the user
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -187,12 +125,12 @@ export default function OwnerSignup() {
         throw new Error("Failed to create user account");
       }
 
-      console.log("User created, user_id:", data.user.id);
+      console.log("User created:", data.user.id);
 
       // Wait for auth trigger to complete
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Create/update profile with owner information
+      // Create owner profile
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -211,44 +149,30 @@ export default function OwnerSignup() {
         throw new Error("Failed to create profile: " + profileError.message);
       }
 
-      console.log("Profile created successfully");
+      // Create seller record with company
+      const { error: sellerError } = await supabase
+        .from('sellers')
+        .insert({
+          user_id: data.user.id,
+          name: `${firstName} ${lastName}`,
+          email: email,
+          phone: phoneNumber,
+          company: companyName
+        });
 
-      // Create seller record with company name if provided
-      if (companyName.trim()) {
-        const { error: sellerError } = await supabase
-          .from('sellers')
-          .insert({
-            user_id: data.user.id,
-            name: `${firstName} ${lastName}`,
-            email: email,
-            phone: phoneNumber,
-            company: companyName
-          });
-
-        if (sellerError) {
-          console.error("Seller record error:", sellerError);
-          // Don't fail signup if seller record fails
-        }
+      if (sellerError) {
+        console.error("Seller record error:", sellerError);
       }
 
-      // Mark invitation as accepted and link to user
+      // Mark invitation as accepted
       if (invitation) {
-        const { error: invitationError } = await supabase
+        await supabase
           .from("owner_invitations")
-          .update({ 
-            status: "accepted"
-          })
+          .update({ status: "accepted" })
           .eq("id", invitation.id);
-
-        if (invitationError) {
-          console.error("Failed to mark invitation as accepted:", invitationError);
-          // Don't fail the signup if this fails, just log it
-        } else {
-          console.log("Invitation marked as accepted");
-        }
       }
 
-      // Notify admins that owner completed registration
+      // Notify admins
       const { data: adminRoles } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -259,28 +183,25 @@ export default function OwnerSignup() {
           user_id: admin.user_id,
           type: 'owner_registered',
           title: 'New Owner Registered',
-          description: `${firstName} ${lastName} (${typeOfOwner}) completed registration${companyName ? ` - ${companyName}` : ''}`,
+          description: `${firstName} ${lastName} (${typeOfOwner}) from ${companyName} completed registration`,
           link: '/owner-management'
         }));
 
         await supabase.from('notifications').insert(notifications);
       }
 
-      toast.success("Account created successfully! Redirecting to dashboard...");
+      toast.success("Account created! Redirecting to your dashboard...");
       
-      // Navigate to owner portal
+      // Redirect to owner portal immediately
       setTimeout(() => {
         navigate("/owner-portal");
-      }, 1000);
+      }, 500);
 
     } catch (error: any) {
       console.error("Signup error:", error);
       
       if (error.message.includes("already registered") || error.code === "23505") {
         toast.error("This email is already registered. Please sign in instead.");
-        setTimeout(() => navigate("/owner-login"), 2000);
-      } else if (error.message.includes("invitation")) {
-        toast.error(error.message);
       } else {
         toast.error(error.message || "Failed to create account. Please try again.");
       }
@@ -339,12 +260,13 @@ export default function OwnerSignup() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyName">Company Name (Optional)</Label>
+              <Label htmlFor="companyName">Company Name</Label>
               <Input
                 id="companyName"
                 placeholder="Your Company LLC"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
+                required
               />
             </div>
             <div className="space-y-2">
