@@ -130,43 +130,6 @@ export default function PublicProperties() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header 
-        className="border-b py-6"
-        style={{ borderColor: branding?.secondary_color || undefined }}
-      >
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {branding?.logo_url && (
-                <img src={branding.logo_url} alt="Logo" className="h-12 w-auto" />
-              )}
-              <div>
-                <h1 
-                  className="text-3xl font-bold"
-                  style={{ color: branding?.primary_color || undefined }}
-                >
-                  {branding?.public_page_title || "Properties"}
-                </h1>
-                {branding?.public_page_description && (
-                  <p className="text-muted-foreground mt-1">{branding.public_page_description}</p>
-                )}
-              </div>
-            </div>
-            {(branding?.contact_phone || branding?.contact_email) && (
-              <div className="text-right">
-                {branding.contact_phone && (
-                  <p className="text-sm font-medium">{branding.contact_phone}</p>
-                )}
-                {branding.contact_email && (
-                  <p className="text-sm text-muted-foreground">{branding.contact_email}</p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
       {/* Search and Filters */}
       <div className="border-b py-6 bg-muted/30">
         <div className="container mx-auto px-4">
