@@ -370,10 +370,15 @@ export type Database = {
       inventory: {
         Row: {
           acquisition_price: number | null
+          admin_notes: string | null
           arv: number | null
+          arv_entered: boolean | null
+          assigned_agent_id: string | null
           bathrooms: number | null
           bedrooms: number | null
+          calculated_rehab_budget: number | null
           category: string | null
+          claimed_by_admin_id: string | null
           commission: number | null
           created_at: string
           description: string | null
@@ -385,28 +390,38 @@ export type Database = {
           interest_rate: number | null
           is_demo_data: boolean | null
           is_wholesale: boolean | null
+          market_comps_completed: boolean | null
           market_status: string | null
+          max_loan_amount: number | null
           name: string
           payment: number | null
           photo_url: string | null
           photo_urls: Json | null
           price: number | null
+          property_approved_at: string | null
           property_type: string | null
           quantity: number
           seller_id: string | null
+          share_token: string | null
           sku: string | null
           sqft: number | null
           status: string | null
           transaction_type: string | null
           updated_at: string
           user_id: string
+          wholesale_approval_status: string | null
         }
         Insert: {
           acquisition_price?: number | null
+          admin_notes?: string | null
           arv?: number | null
+          arv_entered?: boolean | null
+          assigned_agent_id?: string | null
           bathrooms?: number | null
           bedrooms?: number | null
+          calculated_rehab_budget?: number | null
           category?: string | null
+          claimed_by_admin_id?: string | null
           commission?: number | null
           created_at?: string
           description?: string | null
@@ -418,28 +433,38 @@ export type Database = {
           interest_rate?: number | null
           is_demo_data?: boolean | null
           is_wholesale?: boolean | null
+          market_comps_completed?: boolean | null
           market_status?: string | null
+          max_loan_amount?: number | null
           name: string
           payment?: number | null
           photo_url?: string | null
           photo_urls?: Json | null
           price?: number | null
+          property_approved_at?: string | null
           property_type?: string | null
           quantity?: number
           seller_id?: string | null
+          share_token?: string | null
           sku?: string | null
           sqft?: number | null
           status?: string | null
           transaction_type?: string | null
           updated_at?: string
           user_id: string
+          wholesale_approval_status?: string | null
         }
         Update: {
           acquisition_price?: number | null
+          admin_notes?: string | null
           arv?: number | null
+          arv_entered?: boolean | null
+          assigned_agent_id?: string | null
           bathrooms?: number | null
           bedrooms?: number | null
+          calculated_rehab_budget?: number | null
           category?: string | null
+          claimed_by_admin_id?: string | null
           commission?: number | null
           created_at?: string
           description?: string | null
@@ -451,23 +476,42 @@ export type Database = {
           interest_rate?: number | null
           is_demo_data?: boolean | null
           is_wholesale?: boolean | null
+          market_comps_completed?: boolean | null
           market_status?: string | null
+          max_loan_amount?: number | null
           name?: string
           payment?: number | null
           photo_url?: string | null
           photo_urls?: Json | null
           price?: number | null
+          property_approved_at?: string | null
           property_type?: string | null
           quantity?: number
           seller_id?: string | null
+          share_token?: string | null
           sku?: string | null
           sqft?: number | null
           status?: string | null
           transaction_type?: string | null
           updated_at?: string
           user_id?: string
+          wholesale_approval_status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "inventory_claimed_by_admin_id_fkey"
+            columns: ["claimed_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "inventory_seller_id_fkey"
             columns: ["seller_id"]
