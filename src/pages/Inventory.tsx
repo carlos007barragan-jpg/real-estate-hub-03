@@ -201,13 +201,57 @@ export default function Inventory() {
 
   const fetchInventory = async () => {
     try {
-      const { data, error } = await supabase
-        .from("inventory")
-        .select("*")
-        .order("created_at", { ascending: false });
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setItems([]);
+        setLoading(false);
+        return;
+      }
 
-      if (error) throw error;
-      setItems((data as any) || []);
+      // Get current user's organization
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      
+      const currentOrgId = profileData?.organization_id;
+      
+      if (!currentOrgId) {
+        console.warn("User has no organization, showing only their own inventory");
+        // If no organization, show only user's own inventory
+        const { data, error } = await supabase
+          .from("inventory")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+        
+        if (error) throw error;
+        setItems((data as any) || []);
+      } else {
+        // Fetch inventory for all users in the same organization
+        const { data: orgProfiles, error: orgProfilesError } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("organization_id", currentOrgId);
+
+        if (orgProfilesError) throw orgProfilesError;
+        
+        const orgUserIds = orgProfiles?.map(p => p.user_id) || [];
+        
+        // Fetch inventory only for users in the same organization
+        const { data, error } = await supabase
+          .from("inventory")
+          .select("*")
+          .in("user_id", orgUserIds)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+        setItems((data as any) || []);
+      }
     } catch (error) {
       console.error("Error fetching inventory:", error);
       toast({
