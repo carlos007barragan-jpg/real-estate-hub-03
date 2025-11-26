@@ -97,8 +97,8 @@ export default function OwnerSignup() {
       if (signUpError) throw signUpError;
 
       if (data.user) {
-        // Wait for trigger to complete
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Wait longer for trigger to complete role assignment
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Create profile (trigger handles role)
         const { error: profileError } = await supabase
@@ -129,10 +129,10 @@ export default function OwnerSignup() {
 
         toast.success("Account created successfully! Redirecting to dashboard...");
         
-        // Give a moment for the success toast to show, then explicitly navigate
+        // Navigate after brief delay
         setTimeout(() => {
           navigate("/owner-portal");
-        }, 500);
+        }, 800);
       }
     } catch (error: any) {
       console.error("Signup error:", error);
