@@ -100,6 +100,18 @@ export default function OwnerSignup() {
         // Wait longer for trigger to complete role assignment
         await new Promise(resolve => setTimeout(resolve, 2000));
 
+        // Get the inviting admin's organization_id
+        let organizationId = null;
+        if (invitation) {
+          const { data: inviterProfile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('user_id', invitation.invited_by)
+            .maybeSingle();
+          
+          organizationId = inviterProfile?.organization_id;
+        }
+
         // Create profile (trigger handles role)
         const { error: profileError } = await supabase
           .from('profiles')
@@ -109,7 +121,8 @@ export default function OwnerSignup() {
             last_name: lastName,
             phone_number: phoneNumber,
             email: email,
-            type_of_owner: typeOfOwner
+            type_of_owner: typeOfOwner,
+            organization_id: organizationId
           }, {
             onConflict: 'user_id'
           });
