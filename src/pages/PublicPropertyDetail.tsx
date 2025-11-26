@@ -42,19 +42,40 @@ export default function PublicPropertyDetail() {
         .from("organization_branding")
         .select("*")
         .eq("organization_id", orgId)
-        .single();
+        .maybeSingle();
 
       setBranding(brandingData);
 
+      // First, verify the property belongs to this organization
+      const { data: orgProfiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("organization_id", orgId);
+
+      if (profilesError) throw profilesError;
+
+      const userIds = orgProfiles?.map(p => p.user_id) || [];
+
+      if (userIds.length === 0) {
+        throw new Error("Organization not found");
+      }
+
+      // Fetch property with organization validation
       const { data: propertyData, error } = await supabase
         .from("inventory")
         .select("*, profiles!inventory_assigned_agent_id_fkey(first_name, last_name, phone_number, email)")
         .eq("id", id)
+        .in("user_id", userIds)
         .eq("show_on_public_page", true)
         .eq("public_approval_status", "approved")
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      
+      if (!propertyData) {
+        throw new Error("Property not found or not available");
+      }
+
       setProperty(propertyData);
     } catch (error) {
       console.error("Error fetching property:", error);
