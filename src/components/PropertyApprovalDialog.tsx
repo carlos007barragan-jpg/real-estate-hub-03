@@ -27,7 +27,7 @@ export function PropertyApprovalDialog({ property, open, onOpenChange, onSuccess
     marketCompsCompleted: property?.market_comps_completed || false,
     arvEntered: property?.arv_entered || false,
     adminNotes: property?.admin_notes || "",
-    showOnPublicPage: property?.show_on_public_page || false,
+    showOnPublicPage: property?.show_on_public_page !== false, // Default to true
   });
 
   // Calculate 65% rule values
