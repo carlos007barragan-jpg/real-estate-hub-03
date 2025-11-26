@@ -1522,7 +1522,7 @@ export default function Inventory() {
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2">
-                  {isAdmin && item.is_wholesale && item.public_approval_status !== 'approved' && (
+                  {isAdmin && item.public_approval_status !== 'approved' && (
                     <Button
                       variant="default"
                       size="sm"
@@ -1560,14 +1560,14 @@ export default function Inventory() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className={isAdmin && item.is_wholesale ? "" : "flex-1"}
+                    className={isAdmin && item.public_approval_status !== 'approved' ? "" : "flex-1"}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleEdit(item);
                     }}
                   >
-                    <Edit className={`h-4 w-4 ${isAdmin && item.is_wholesale ? "" : "mr-2"}`} />
-                    {!(isAdmin && item.is_wholesale) && "Edit"}
+                    <Edit className={`h-4 w-4 ${isAdmin && item.public_approval_status !== 'approved' ? "" : "mr-2"}`} />
+                    {!(isAdmin && item.public_approval_status !== 'approved') && "Edit"}
                   </Button>
                   <Button
                     variant="outline"
