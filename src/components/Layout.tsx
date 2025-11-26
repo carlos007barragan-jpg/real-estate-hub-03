@@ -38,7 +38,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <GlobalCallManager />
       
       {/* Desktop Header Navigation */}
-      <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-md hidden md:block">
+      <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-md hidden md:flex">
         <div className="flex h-16 items-center px-4 md:px-6">
           <div className="flex items-center gap-2 mr-6">
             <Building2 className="h-6 w-6 text-primary-foreground" />
