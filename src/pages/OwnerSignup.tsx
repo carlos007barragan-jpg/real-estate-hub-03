@@ -150,6 +150,19 @@ export default function OwnerSignup() {
       // Wait for auth trigger to complete
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // Get the organization_id from the inviter
+      const { data: inviterProfile, error: inviterError } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', invitation?.invited_by || '')
+        .single();
+
+      if (inviterError) {
+        console.error("Failed to fetch inviter organization:", inviterError);
+      }
+
+      const organizationId = inviterProfile?.organization_id || null;
+
       // Create owner profile
       const { error: profileError } = await supabase
         .from('profiles')
@@ -159,7 +172,8 @@ export default function OwnerSignup() {
           last_name: lastName,
           phone_number: phoneNumber,
           email: email,
-          type_of_owner: typeOfOwner
+          type_of_owner: typeOfOwner,
+          organization_id: organizationId
         }, {
           onConflict: 'user_id'
         });
@@ -184,12 +198,16 @@ export default function OwnerSignup() {
         console.error("Seller record error:", sellerError);
       }
 
-      // Mark invitation as accepted
+      // Mark invitation as accepted (using service role for permissions)
       if (invitation) {
-        await supabase
+        const { error: inviteError } = await supabase
           .from("owner_invitations")
           .update({ status: "accepted" })
           .eq("id", invitation.id);
+        
+        if (inviteError) {
+          console.error("Failed to update invitation status:", inviteError);
+        }
       }
 
       // Notify admins
