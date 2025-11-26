@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 import MultiPhotoUpload from "@/components/MultiPhotoUpload";
 import { OwnerManagementTable } from "@/components/OwnerManagementTable";
+import { PropertyApprovalDialog } from "@/components/PropertyApprovalDialog";
 
 interface InventoryItem {
   id: string;
@@ -44,6 +45,8 @@ interface InventoryItem {
   down_payment: number | null;
   created_at: string;
   updated_at: string;
+  public_approval_status?: string;
+  show_on_public_page?: boolean;
 }
 
 interface Seller {
@@ -68,6 +71,8 @@ export default function Inventory() {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [customFieldOptions, setCustomFieldOptions] = useState<any[]>([]);
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [selectedPropertyForApproval, setSelectedPropertyForApproval] = useState<any>(null);
   const { toast } = useToast();
 
   // Filter states
@@ -1517,7 +1522,21 @@ export default function Inventory() {
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2">
-                  {isAdmin && item.is_wholesale && (
+                  {isAdmin && item.is_wholesale && item.public_approval_status !== 'approved' && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPropertyForApproval(item);
+                        setApprovalDialogOpen(true);
+                      }}
+                    >
+                      Review & Approve
+                    </Button>
+                  )}
+                  {isAdmin && item.is_wholesale && item.public_approval_status === 'approved' && (
                     <Button
                       variant="default"
                       size="sm"
@@ -1574,6 +1593,19 @@ export default function Inventory() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
+
+      {/* Property Approval Dialog */}
+      {selectedPropertyForApproval && (
+        <PropertyApprovalDialog
+          property={selectedPropertyForApproval}
+          open={approvalDialogOpen}
+          onOpenChange={setApprovalDialogOpen}
+          onSuccess={() => {
+            fetchInventory();
+            setSelectedPropertyForApproval(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -371,6 +371,8 @@ export type Database = {
         Row: {
           acquisition_price: number | null
           admin_notes: string | null
+          admin_reviewed_at: string | null
+          admin_reviewed_by: string | null
           arv: number | null
           arv_entered: boolean | null
           assigned_agent_id: string | null
@@ -400,9 +402,11 @@ export type Database = {
           price: number | null
           property_approved_at: string | null
           property_type: string | null
+          public_approval_status: string | null
           quantity: number
           seller_id: string | null
           share_token: string | null
+          show_on_public_page: boolean | null
           sku: string | null
           sqft: number | null
           status: string | null
@@ -414,6 +418,8 @@ export type Database = {
         Insert: {
           acquisition_price?: number | null
           admin_notes?: string | null
+          admin_reviewed_at?: string | null
+          admin_reviewed_by?: string | null
           arv?: number | null
           arv_entered?: boolean | null
           assigned_agent_id?: string | null
@@ -443,9 +449,11 @@ export type Database = {
           price?: number | null
           property_approved_at?: string | null
           property_type?: string | null
+          public_approval_status?: string | null
           quantity?: number
           seller_id?: string | null
           share_token?: string | null
+          show_on_public_page?: boolean | null
           sku?: string | null
           sqft?: number | null
           status?: string | null
@@ -457,6 +465,8 @@ export type Database = {
         Update: {
           acquisition_price?: number | null
           admin_notes?: string | null
+          admin_reviewed_at?: string | null
+          admin_reviewed_by?: string | null
           arv?: number | null
           arv_entered?: boolean | null
           assigned_agent_id?: string | null
@@ -486,9 +496,11 @@ export type Database = {
           price?: number | null
           property_approved_at?: string | null
           property_type?: string | null
+          public_approval_status?: string | null
           quantity?: number
           seller_id?: string | null
           share_token?: string | null
+          show_on_public_page?: boolean | null
           sku?: string | null
           sqft?: number | null
           status?: string | null
@@ -772,6 +784,56 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_branding: {
+        Row: {
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          logo_url: string | null
+          organization_id: string
+          primary_color: string | null
+          public_page_description: string | null
+          public_page_title: string | null
+          secondary_color: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          organization_id: string
+          primary_color?: string | null
+          public_page_description?: string | null
+          public_page_title?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          organization_id?: string
+          primary_color?: string | null
+          public_page_description?: string | null
+          public_page_title?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_branding_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
@@ -869,6 +931,107 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_inquiries: {
+        Row: {
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          lead_id: string | null
+          message: string | null
+          organization_id: string
+          phone: string
+          preferred_date: string | null
+          property_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          lead_id?: string | null
+          message?: string | null
+          organization_id: string
+          phone: string
+          preferred_date?: string | null
+          property_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          lead_id?: string | null
+          message?: string | null
+          organization_id?: string
+          phone?: string
+          preferred_date?: string | null
+          property_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_inquiries_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_inquiries_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_field_settings: {
+        Row: {
+          created_at: string
+          display_order: number | null
+          field_name: string
+          id: string
+          is_visible: boolean | null
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number | null
+          field_name: string
+          id?: string
+          is_visible?: boolean | null
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number | null
+          field_name?: string
+          id?: string
+          is_visible?: boolean | null
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_field_settings_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"

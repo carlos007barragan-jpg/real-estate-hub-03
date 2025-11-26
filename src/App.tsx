@@ -30,6 +30,9 @@ import OwnerSignup from "./pages/OwnerSignup";
 import OwnerPortalDashboard from "./pages/OwnerPortalDashboard";
 import DispoSheet from "./pages/DispoSheet";
 import OwnerManagement from "./pages/OwnerManagement";
+import PublicProperties from "./pages/PublicProperties";
+import PublicPropertyDetail from "./pages/PublicPropertyDetail";
+import PublicPageSettings from "./pages/PublicPageSettings";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +87,10 @@ const App = () => {
             <Route path="/owner-portal" element={<ProtectedRoute><OwnerPortalDashboard /></ProtectedRoute>} />
             <Route path="/dispo-sheet" element={<DispoSheet />} />
             
+            {/* Public Property Pages */}
+            <Route path="/public-properties" element={<PublicProperties />} />
+            <Route path="/public-property/:id" element={<PublicPropertyDetail />} />
+            
             {/* CRM Routes */}
             <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><Layout><CalendarPage /></Layout></ProtectedRoute>} />
@@ -97,6 +104,7 @@ const App = () => {
             <Route path="/inventory" element={<ProtectedRoute><Layout><Inventory /></Layout></ProtectedRoute>} />
             <Route path="/inventory/:id" element={<ProtectedRoute><Layout><PropertyDetail /></Layout></ProtectedRoute>} />
             <Route path="/owner-management" element={<ProtectedRoute><Layout><OwnerManagement /></Layout></ProtectedRoute>} />
+            <Route path="/public-page-settings" element={<ProtectedRoute><Layout><PublicPageSettings /></Layout></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
