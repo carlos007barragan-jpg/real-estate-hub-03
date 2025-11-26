@@ -142,6 +142,7 @@ const Settings = () => {
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {isAdmin && <TabsTrigger value="lead-fields">Lead Form</TabsTrigger>}
           {isAdmin && <TabsTrigger value="contact-fields">Contact Form</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="public-page">Public Page</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
         </TabsList>
@@ -213,6 +214,20 @@ const Settings = () => {
         {isAdmin && (
           <TabsContent value="contact-fields">
             <ContactFieldsManager />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="public-page">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold text-foreground mb-4">Public Property Page</h2>
+              <p className="text-muted-foreground mb-4">
+                Manage your public-facing property listings page for clients and investors.
+              </p>
+              <Button onClick={() => window.location.href = '/public-page-settings'}>
+                Configure Public Page Settings
+              </Button>
+            </Card>
           </TabsContent>
         )}
 
