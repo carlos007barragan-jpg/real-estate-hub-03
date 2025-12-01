@@ -45,7 +45,6 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
-  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: "",
@@ -72,7 +71,6 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     if (open) {
       fetchCustomFields();
       fetchTransactionTypes();
-      fetchAvailableUsers();
     }
   }, [open]);
 
@@ -137,45 +135,6 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     }
   };
 
-  const fetchAvailableUsers = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get current user's organization
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!profile?.organization_id) return;
-
-      // Fetch all users in the same organization
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(`
-          user_id,
-          first_name,
-          last_name,
-          phone_number,
-          agents(phone_number)
-        `)
-        .eq("organization_id", profile.organization_id);
-
-      if (error) throw error;
-
-      const users = (data || []).map((profile: any) => ({
-        id: profile.user_id,
-        name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User",
-        phone: profile.agents?.[0]?.phone_number || profile.phone_number || null,
-      }));
-
-      setAvailableUsers(users);
-    } catch (error) {
-      console.error("Error fetching available users:", error);
-    }
-  };
 
   const renderCustomField = (field: CustomField) => {
     const value = customFieldValues[field.field_name] || "";
@@ -279,10 +238,22 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         throw new Error("User not authenticated");
       }
 
-      // Get first assigned user for legacy assigned_to field
-      const firstAssignedUser = selectedAgents.length > 0 
-        ? availableUsers.find(u => u.id === selectedAgents[0])
-        : null;
+      // Get first assigned user's profile for legacy assigned_to field
+      let firstAssignedUser: { name: string; phone: string | null } | null = null;
+      if (selectedAgents.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, phone_number")
+          .in("user_id", selectedAgents);
+        
+        const firstProfile = profiles?.find(p => p.user_id === selectedAgents[0]);
+        if (firstProfile) {
+          firstAssignedUser = {
+            name: `${firstProfile.first_name || ''} ${firstProfile.last_name || ''}`.trim() || "Unknown",
+            phone: firstProfile.phone_number || null
+          };
+        }
+      }
 
       const { data: leadData, error } = await supabase.from("leads").insert({
         user_id: user.id,
