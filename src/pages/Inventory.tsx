@@ -219,9 +219,12 @@ export default function Inventory() {
         .from("profiles")
         .select("organization_id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("Error fetching profile:", profileError);
+        throw profileError;
+      }
       
       const currentOrgId = profileData?.organization_id;
       
