@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.call-status-callback]
 verify_jwt = false
+
+[functions.public-properties]
+verify_jwt = false
+
+[functions.public-property-detail]
+verify_jwt = false
