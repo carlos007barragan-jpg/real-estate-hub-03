@@ -11,23 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, RefreshCw } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
-
-interface Agent {
-  user_id: string;
-  phone_number: string;
-  email: string;
-  name: string;
-}
+import { MultiAgentSelect } from "@/components/MultiAgentSelect";
 
 interface ForwardLeadDialogProps {
   leadId: string;
@@ -37,79 +24,22 @@ interface ForwardLeadDialogProps {
 }
 
 export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: ForwardLeadDialogProps) {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<string>("");
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [forwardType, setForwardType] = useState<'agent' | 'roundrobin'>('agent');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   const { isAdmin } = useUserRole();
 
-  useEffect(() => {
-    if (open) {
-      fetchAgents();
-    }
-  }, [open]);
-
-  const fetchAgents = async () => {
-    try {
-      // Get current user and their organization
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!profile?.organization_id) return;
-
-      // Fetch all team members in the same organization
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select(`
-          user_id,
-          first_name,
-          last_name,
-          phone_number
-        `)
-        .eq('organization_id', profile.organization_id);
-
-      if (profilesError) throw profilesError;
-
-      // Map profiles to agent format
-      const teamMembers = (profiles || []).map((p: any) => {
-        const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim();
-        return {
-          user_id: p.user_id,
-          phone_number: p.phone_number || '',
-          email: '',
-          name: fullName || 'Unknown User',
-        };
-      });
-
-      setAgents(teamMembers);
-    } catch (error: any) {
-      console.error('Error fetching team members:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load team members",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleForward = async () => {
     setLoading(true);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       if (forwardType === 'roundrobin') {
         // Round-robin assignment
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Not authenticated");
-
-        // Get or create settings
         let { data: settings } = await supabase
           .from('crm_settings')
           .select('*')
@@ -171,6 +101,14 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
 
         if (updateError) throw updateError;
 
+        // Clear existing assignments and add new one
+        await supabase.from('lead_assignments').delete().eq('lead_id', leadId);
+        await supabase.from('lead_assignments').insert({
+          lead_id: leadId,
+          user_id: nextAgent.user_id,
+          assigned_by: user.id,
+        });
+
         // Update round-robin index
         await supabase
           .from('crm_settings')
@@ -179,39 +117,84 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
 
         toast({
           title: "Success",
-          description: `Lead assigned via round-robin`,
+          description: `Lead assigned via round-robin to ${agentName}`,
         });
       } else {
-        // Direct agent assignment
-        if (!selectedAgent) {
+        // Direct multi-agent assignment
+        if (selectedAgents.length === 0) {
           toast({
             title: "Error",
-            description: "Please select an agent",
+            description: "Please select at least one team member",
             variant: "destructive",
           });
           return;
         }
 
-        const selectedAgentData = agents.find(a => a.user_id === selectedAgent);
-        
-        const { error } = await supabase
+        // Get profiles for selected agents
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, first_name, last_name, phone_number')
+          .in('user_id', selectedAgents);
+
+        const firstAgent = profiles?.find(p => p.user_id === selectedAgents[0]);
+        const firstAgentName = firstAgent 
+          ? `${firstAgent.first_name || ''} ${firstAgent.last_name || ''}`.trim() 
+          : 'Agent';
+
+        // Update lead with first assigned agent for legacy field
+        const { error: updateError } = await supabase
           .from('leads')
           .update({ 
-            assigned_to: selectedAgentData?.name || 'Agent',
-            agent_phone: selectedAgentData?.phone_number,
+            assigned_to: firstAgentName,
+            agent_phone: firstAgent?.phone_number || null,
           })
           .eq('id', leadId);
 
-        if (error) throw error;
+        if (updateError) throw updateError;
+
+        // Clear existing assignments and add new ones
+        await supabase.from('lead_assignments').delete().eq('lead_id', leadId);
+        
+        const assignments = selectedAgents.map(agentId => ({
+          lead_id: leadId,
+          user_id: agentId,
+          assigned_by: user.id,
+        }));
+
+        const { error: assignError } = await supabase
+          .from('lead_assignments')
+          .insert(assignments);
+
+        if (assignError) throw assignError;
+
+        // Send notifications to assigned agents
+        const notifications = selectedAgents
+          .filter(agentId => agentId !== user.id)
+          .map(agentId => ({
+            user_id: agentId,
+            type: "lead_assignment",
+            title: "Lead Assigned to You",
+            description: `You have been assigned a lead`,
+            link: `/lead/${leadId}`,
+          }));
+
+        if (notifications.length > 0) {
+          await supabase.from("notifications").insert(notifications);
+        }
+
+        const assignedNames = profiles
+          ?.filter(p => selectedAgents.includes(p.user_id))
+          .map(p => `${p.first_name || ''} ${p.last_name || ''}`.trim())
+          .join(', ');
 
         toast({
           title: "Success",
-          description: `Lead forwarded to ${selectedAgentData?.name}`,
+          description: `Lead assigned to ${assignedNames || 'selected team members'}`,
         });
       }
 
       setOpen(false);
-      setSelectedAgent("");
+      setSelectedAgents([]);
       
       if (onSuccess) {
         onSuccess();
@@ -234,15 +217,15 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
         {trigger || (
           <Button variant="outline" size="sm" className="gap-2">
             <UserPlus className="w-4 h-4" />
-            Forward
+            Assign
           </Button>
         )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Forward Lead to Agent</DialogTitle>
+          <DialogTitle>Assign Lead</DialogTitle>
           <DialogDescription>
-            {isAdmin ? "Choose to forward to a specific agent or use round-robin" : "Select an agent to forward this lead to"}
+            {isAdmin ? "Choose to assign to specific team members or use round-robin" : "Select team members to assign this lead to"}
             {currentAgent && (
               <span className="block mt-1 text-sm">
                 Currently assigned to: <strong>{currentAgent}</strong>
@@ -261,7 +244,7 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
                 type="button"
               >
                 <UserPlus className="h-4 w-4" />
-                Specific Agent
+                Select Team Members
               </Button>
               <Button
                 variant={forwardType === 'roundrobin' ? 'default' : 'outline'}
@@ -277,25 +260,12 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
 
           {forwardType === 'agent' && (
             <div className="space-y-2">
-              <Label htmlFor="agent">Select Agent</Label>
-              <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                <SelectTrigger id="agent">
-                  <SelectValue placeholder="Choose an agent..." />
-                </SelectTrigger>
-                <SelectContent className="z-50 bg-popover">
-                  {agents.length === 0 ? (
-                    <SelectItem value="none" disabled>
-                      No active agents found
-                    </SelectItem>
-                  ) : (
-                    agents.map((agent) => (
-                      <SelectItem key={agent.user_id} value={agent.user_id}>
-                        {agent.name} ({agent.phone_number})
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <Label>Select Team Members</Label>
+              <MultiAgentSelect
+                selectedIds={selectedAgents}
+                onSelectionChange={setSelectedAgents}
+                placeholder="Choose team members..."
+              />
             </div>
           )}
 
@@ -314,9 +284,9 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
           </Button>
           <Button 
             onClick={handleForward} 
-            disabled={loading || (forwardType === 'agent' && !selectedAgent)}
+            disabled={loading || (forwardType === 'agent' && selectedAgents.length === 0)}
           >
-            {loading ? 'Forwarding...' : 'Forward Lead'}
+            {loading ? 'Assigning...' : 'Assign Lead'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { nameSchema, emailSchema, phoneSchema } from "@/lib/validation";
+import { MultiAgentSelect } from "@/components/MultiAgentSelect";
 
 interface CustomField {
   id: string;
@@ -45,6 +46,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -55,7 +57,6 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     source: "",
     value: "",
     status: "new",
-    assigned_to: "",
     down_payment: "",
     financing_type: "",
     area: "",
@@ -278,8 +279,10 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         throw new Error("User not authenticated");
       }
 
-      // Get agent phone if user is assigned
-      const assignedUser = availableUsers.find(u => u.id === formData.assigned_to);
+      // Get first assigned user for legacy assigned_to field
+      const firstAssignedUser = selectedAgents.length > 0 
+        ? availableUsers.find(u => u.id === selectedAgents[0])
+        : null;
 
       const { data: leadData, error } = await supabase.from("leads").insert({
         user_id: user.id,
@@ -292,8 +295,8 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         source: formData.source,
         value: formData.value,
         status: formData.status,
-        assigned_to: assignedUser?.name || null,
-        agent_phone: assignedUser?.phone || null,
+        assigned_to: firstAssignedUser?.name || null,
+        agent_phone: firstAssignedUser?.phone || null,
         pipeline_stage: "New Lead",
         lead_lifecycle: "Contact",
         down_payment: formData.down_payment || null,
@@ -310,15 +313,36 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
 
       if (error) throw error;
 
-      // Send notification if lead is assigned to someone else
-      if (formData.assigned_to && formData.assigned_to !== user.id) {
-        await supabase.from("notifications").insert({
-          user_id: formData.assigned_to,
-          type: "lead_assignment",
-          title: "New Lead Assigned",
-          description: `You have been assigned a new lead: ${formData.name}`,
-          link: `/lead/${leadData?.id}`,
-        });
+      // Create lead assignments for all selected agents
+      if (leadData && selectedAgents.length > 0) {
+        const assignments = selectedAgents.map(agentId => ({
+          lead_id: leadData.id,
+          user_id: agentId,
+          assigned_by: user.id,
+        }));
+
+        const { error: assignError } = await supabase
+          .from("lead_assignments")
+          .insert(assignments);
+
+        if (assignError) {
+          console.error("Error creating assignments:", assignError);
+        }
+
+        // Send notifications to all assigned agents
+        const notifications = selectedAgents
+          .filter(agentId => agentId !== user.id)
+          .map(agentId => ({
+            user_id: agentId,
+            type: "lead_assignment",
+            title: "New Lead Assigned",
+            description: `You have been assigned a new lead: ${formData.name}`,
+            link: `/lead/${leadData.id}`,
+          }));
+
+        if (notifications.length > 0) {
+          await supabase.from("notifications").insert(notifications);
+        }
       }
 
       toast({
@@ -336,7 +360,6 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         source: "",
         value: "",
         status: "new",
-        assigned_to: "",
         down_payment: "",
         financing_type: "",
         area: "",
@@ -347,6 +370,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         preferred_contact_method: "phone",
         social_status: "",
       });
+      setSelectedAgents([]);
       setCustomFieldValues({});
       setOpen(false);
       onLeadCreated();
@@ -632,26 +656,12 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="assigned_to">Assigned To</Label>
-            <Select
-              value={formData.assigned_to}
-              onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select user" />
-              </SelectTrigger>
-              <SelectContent className="z-50 bg-popover">
-                {availableUsers.length === 0 ? (
-                  <SelectItem value="none" disabled>No team members found</SelectItem>
-                ) : (
-                  availableUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            <Label>Assigned To</Label>
+            <MultiAgentSelect
+              selectedIds={selectedAgents}
+              onSelectionChange={setSelectedAgents}
+              placeholder="Select team members..."
+            />
           </div>
 
           {/* Custom Fields Section */}
