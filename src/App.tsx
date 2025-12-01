@@ -30,8 +30,6 @@ import OwnerSignup from "./pages/OwnerSignup";
 import OwnerPortalDashboard from "./pages/OwnerPortalDashboard";
 import DispoSheet from "./pages/DispoSheet";
 import OwnerManagement from "./pages/OwnerManagement";
-import PublicProperties from "./pages/PublicProperties";
-import PublicPropertyDetail from "./pages/PublicPropertyDetail";
 import PublicPageSettings from "./pages/PublicPageSettings";
 
 const queryClient = new QueryClient();
@@ -86,10 +84,6 @@ const App = () => {
             <Route path="/owner-signup" element={<OwnerSignup />} />
             <Route path="/owner-portal" element={<ProtectedRoute><OwnerPortalDashboard /></ProtectedRoute>} />
             <Route path="/dispo-sheet" element={<DispoSheet />} />
-            
-            {/* Public Property Pages */}
-            <Route path="/public-properties" element={<PublicProperties />} />
-            <Route path="/public-property/:id" element={<PublicPropertyDetail />} />
             
             {/* CRM Routes */}
             <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
