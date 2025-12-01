@@ -53,38 +53,48 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
 
   const fetchAgents = async () => {
     try {
-      // Get current user
+      // Get current user and their organization
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('agents')
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!profile?.organization_id) return;
+
+      // Fetch all team members in the same organization
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
         .select(`
           user_id,
-          phone_number,
-          profiles!inner(first_name, last_name)
+          first_name,
+          last_name,
+          phone_number
         `)
-        .eq('is_active', true);
+        .eq('organization_id', profile.organization_id);
 
-      if (agentsError) throw agentsError;
+      if (profilesError) throw profilesError;
 
-      // Map agents with their profile names
-      const agentsWithDetails = (agentsData || []).map((agent: any) => {
-        const fullName = `${agent.profiles.first_name || ''} ${agent.profiles.last_name || ''}`.trim();
+      // Map profiles to agent format
+      const teamMembers = (profiles || []).map((p: any) => {
+        const fullName = `${p.first_name || ''} ${p.last_name || ''}`.trim();
         return {
-          user_id: agent.user_id,
-          phone_number: agent.phone_number,
-          email: '', // Not needed for display
-          name: fullName || 'Unknown Agent',
+          user_id: p.user_id,
+          phone_number: p.phone_number || '',
+          email: '',
+          name: fullName || 'Unknown User',
         };
       });
 
-      setAgents(agentsWithDetails);
+      setAgents(teamMembers);
     } catch (error: any) {
-      console.error('Error fetching agents:', error);
+      console.error('Error fetching team members:', error);
       toast({
         title: "Error",
-        description: "Failed to load agents",
+        description: "Failed to load team members",
         variant: "destructive",
       });
     }
@@ -272,7 +282,7 @@ export function ForwardLeadDialog({ leadId, currentAgent, onSuccess, trigger }: 
                 <SelectTrigger id="agent">
                   <SelectValue placeholder="Choose an agent..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-popover">
                   {agents.length === 0 ? (
                     <SelectItem value="none" disabled>
                       No active agents found
