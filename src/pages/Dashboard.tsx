@@ -320,22 +320,25 @@ const Dashboard = () => {
   };
 
   const updateLiveUsers = async (presenceState: any) => {
-    const users: LiveUser[] = [];
+    const usersMap = new Map<string, LiveUser>();
     
-    for (const userId in presenceState) {
-      const presences = presenceState[userId];
+    for (const key in presenceState) {
+      const presences = presenceState[key];
       if (presences && presences.length > 0) {
         const presence = presences[0];
-        users.push({
-          user_id: presence.user_id,
-          name: presence.name,
-          role: presence.role,
-          last_seen: new Date(presence.online_at),
-        });
+        // Deduplicate by user_id to prevent showing same user multiple times
+        if (presence.user_id && !usersMap.has(presence.user_id)) {
+          usersMap.set(presence.user_id, {
+            user_id: presence.user_id,
+            name: presence.name,
+            role: presence.role,
+            last_seen: new Date(presence.online_at),
+          });
+        }
       }
     }
     
-    setLiveUsers(users);
+    setLiveUsers(Array.from(usersMap.values()));
   };
 
   useEffect(() => {
