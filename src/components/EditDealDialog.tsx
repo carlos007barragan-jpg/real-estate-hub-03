@@ -5,11 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+interface TeamMember {
+  user_id: string;
+  name: string;
+}
 
 interface EditDealDialogProps {
   open: boolean;
@@ -27,12 +33,49 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
   const [commission, setCommission] = useState("");
   const [propertyOfInterest, setPropertyOfInterest] = useState("");
   const [titleOffice, setTitleOffice] = useState("");
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   useEffect(() => {
-    if (open && leadId) {
-      fetchLeadData();
+    if (open) {
+      fetchTeamMembers();
+      if (leadId) {
+        fetchLeadData();
+      }
     }
   }, [open, leadId]);
+
+  const fetchTeamMembers = async () => {
+    try {
+      // Get current user's organization
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!profile?.organization_id) return;
+
+      // Fetch all profiles in the organization
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name")
+        .eq("organization_id", profile.organization_id);
+
+      if (error) throw error;
+
+      const members = (profiles || []).map((p) => ({
+        user_id: p.user_id,
+        name: [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unknown",
+      }));
+
+      setTeamMembers(members);
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+    }
+  };
 
   const fetchLeadData = async () => {
     if (!leadId) return;
@@ -154,12 +197,19 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
 
           <div>
             <Label htmlFor="agent">Agent</Label>
-            <Input
-              id="agent"
-              value={agent}
-              onChange={(e) => setAgent(e.target.value)}
-              placeholder="Assigned agent"
-            />
+            <Select value={agent} onValueChange={setAgent}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select agent" />
+              </SelectTrigger>
+              <SelectContent className="z-50 bg-popover">
+                <SelectItem value="not_assigned">Not Assigned</SelectItem>
+                {teamMembers.map((member) => (
+                  <SelectItem key={member.user_id} value={member.name}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
