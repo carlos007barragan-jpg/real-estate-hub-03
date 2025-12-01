@@ -1,19 +1,23 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+type AppRole = 'admin' | 'agent' | 'marketing_manager' | 'marketing' | 'owner_user';
+
 export const useUserRole = () => {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAdminStatus();
+    checkUserRole();
   }, []);
 
-  const checkAdminStatus = async () => {
+  const checkUserRole = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setIsAdmin(false);
+        setRole(null);
         setLoading(false);
         return;
       }
@@ -22,18 +26,21 @@ export const useUserRole = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .eq('role', 'admin')
         .maybeSingle();
 
       if (error) throw error;
-      setIsAdmin(!!data);
+      
+      const userRole = data?.role as AppRole | null;
+      setRole(userRole);
+      setIsAdmin(userRole === 'admin');
     } catch (error) {
-      console.error('Error checking admin status:', error);
+      console.error('Error checking user role:', error);
       setIsAdmin(false);
+      setRole(null);
     } finally {
       setLoading(false);
     }
   };
 
-  return { isAdmin, loading };
+  return { isAdmin, role, loading };
 };
