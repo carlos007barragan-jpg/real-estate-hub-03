@@ -757,6 +757,7 @@ export type Database = {
           description: string
           id: string
           link: string | null
+          organization_id: string | null
           read: boolean
           title: string
           type: string
@@ -767,6 +768,7 @@ export type Database = {
           description: string
           id?: string
           link?: string | null
+          organization_id?: string | null
           read?: boolean
           title: string
           type: string
@@ -777,12 +779,21 @@ export type Database = {
           description?: string
           id?: string
           link?: string | null
+          organization_id?: string | null
           read?: boolean
           title?: string
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organization_branding: {
         Row: {

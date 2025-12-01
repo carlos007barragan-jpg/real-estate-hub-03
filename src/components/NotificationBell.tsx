@@ -59,12 +59,30 @@ export function NotificationBell() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data, error } = await supabase
+      // Get user's organization
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', session.user.id)
+        .single();
+
+      const userOrgId = profile?.organization_id;
+
+      // Fetch notifications for this user, filtered by their organization
+      let query = supabase
         .from('notifications')
         .select('*')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
         .limit(20);
+
+      // If user has an organization, also filter by org (to exclude cross-org notifications)
+      // This handles legacy notifications that don't have organization_id set
+      if (userOrgId) {
+        query = query.or(`organization_id.eq.${userOrgId},organization_id.is.null`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
