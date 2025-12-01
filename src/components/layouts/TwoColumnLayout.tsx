@@ -29,6 +29,7 @@ import { AppointmentsSection } from "@/components/AppointmentsSection";
 import { DocumentsSection } from "@/components/DocumentsSection";
 import { MessagingSection } from "@/components/MessagingSection";
 import { ActivitySection } from "@/components/ActivitySection";
+import { MultiAgentSelect } from "@/components/MultiAgentSelect";
 
 export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const { toast } = useToast();
@@ -37,23 +38,19 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
   const [editPropertyDialogOpen, setEditPropertyDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
-  const [members, setMembers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
   const [createdByName, setCreatedByName] = useState<string>("Loading...");
-  const [assignedMemberId, setAssignedMemberId] = useState<string>("unassigned");
+  const [assignedAgentIds, setAssignedAgentIds] = useState<string[]>([]);
   const [transactionType, setTransactionType] = useState<string>(leadData.leadTemperature || "Unassigned");
 
   useEffect(() => {
-    const fetchCreatorAndAgents = async () => {
+    const fetchCreatorAndAssignments = async () => {
       // Fetch creator's name
       if (leadData.user_id) {
-        console.log("Fetching creator for user_id:", leadData.user_id);
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from("profiles")
           .select("first_name, last_name")
           .eq("user_id", leadData.user_id)
           .maybeSingle();
-        
-        console.log("Profile data:", profile, "Error:", error);
         
         if (profile) {
           const fullName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
@@ -65,81 +62,94 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         setCreatedByName("Unknown User");
       }
 
-      // Fetch members (all profiles) and optional agent phones
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select(`
-          user_id,
-          first_name,
-          last_name,
-          agents(phone_number)
-        `);
-
-      if (profilesData) {
-        const formattedMembers = profilesData.map((p: any) => ({
-          id: p.user_id,
-          name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || "Unknown User",
-          phone: p.agents?.phone_number || null,
-        }));
-        setMembers(formattedMembers);
+      // Fetch existing lead assignments
+      if (id) {
+        const { data: assignments } = await supabase
+          .from("lead_assignments")
+          .select("user_id")
+          .eq("lead_id", id);
+        
+        if (assignments && assignments.length > 0) {
+          setAssignedAgentIds(assignments.map(a => a.user_id));
+        }
       }
     };
 
-    fetchCreatorAndAgents();
-  }, [leadData.user_id]);
+    fetchCreatorAndAssignments();
+  }, [leadData.user_id, id]);
 
-  // Sync assigned member selection when leadData or members change
-  useEffect(() => {
-    // Try match by phone first
-    const byPhone = members.find((m) => m.phone && m.phone === leadData.agent_phone);
-    if (byPhone) {
-      setAssignedMemberId(byPhone.id);
-      return;
-    }
-    // Fallback: match by assigned name
-    if ((leadData as any).assignedTo) {
-      const byName = members.find((m) => m.name === (leadData as any).assignedTo);
-      if (byName) {
-        setAssignedMemberId(byName.id);
-        return;
-      }
-    }
-    setAssignedMemberId("unassigned");
-  }, [leadData.agent_phone, (leadData as any).assignedTo, members]);
 
   // Sync transaction type when leadData changes
   useEffect(() => {
     setTransactionType(leadData.leadTemperature || "Unassigned");
   }, [leadData.leadTemperature]);
 
-  const handleAssignmentChange = async (memberId: string) => {
-    const isUnassigned = memberId === "unassigned";
-    const selectedMember = members.find((m) => m.id === memberId);
-    
+  const handleAssignmentChange = async (selectedIds: string[]) => {
     const { data: { user } } = await supabase.auth.getUser();
-    
-    const { error } = await supabase
-      .from("leads")
-      .update({
-        agent_phone: isUnassigned ? null : (selectedMember?.phone || null),
-        assigned_to: isUnassigned ? "Unassigned" : (selectedMember?.name || "Unassigned"),
-        last_modified_by: user?.id,
-      })
-      .eq("id", id);
+    if (!user) return;
 
-    if (error) {
+    try {
+      // Get profiles for selected agents
+      let firstAgentName = "Unassigned";
+      let firstAgentPhone: string | null = null;
+      
+      if (selectedIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, phone_number")
+          .in("user_id", selectedIds);
+        
+        const firstProfile = profiles?.find(p => p.user_id === selectedIds[0]);
+        if (firstProfile) {
+          firstAgentName = `${firstProfile.first_name || ''} ${firstProfile.last_name || ''}`.trim() || "Unknown";
+          firstAgentPhone = firstProfile.phone_number || null;
+        }
+      }
+
+      // Update lead with first assigned agent for legacy field
+      const { error: updateError } = await supabase
+        .from("leads")
+        .update({
+          agent_phone: firstAgentPhone,
+          assigned_to: firstAgentName,
+          last_modified_by: user.id,
+        })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      // Clear existing assignments and add new ones
+      await supabase.from("lead_assignments").delete().eq("lead_id", id);
+      
+      if (selectedIds.length > 0) {
+        const assignments = selectedIds.map(agentId => ({
+          lead_id: id,
+          user_id: agentId,
+          assigned_by: user.id,
+        }));
+        
+        const { error: assignError } = await supabase
+          .from("lead_assignments")
+          .insert(assignments);
+        
+        if (assignError) throw assignError;
+      }
+
+      setAssignedAgentIds(selectedIds);
+      toast({
+        title: "Success",
+        description: selectedIds.length > 0 
+          ? `Lead assigned to ${selectedIds.length} team member(s)`
+          : "Lead unassigned",
+      });
+      onLeadUpdate?.();
+    } catch (error: any) {
+      console.error("Error updating assignment:", error);
       toast({
         title: "Error",
         description: "Failed to update assignment",
         variant: "destructive",
       });
-    } else {
-      setAssignedMemberId(memberId);
-      toast({
-        title: "Success",
-        description: "Lead assignment updated",
-      });
-      onLeadUpdate?.();
     }
   };
 
@@ -344,19 +354,11 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                 <User className="h-3 w-3" />
                 <span>Assigned To:</span>
               </div>
-              <Select value={assignedMemberId} onValueChange={handleAssignmentChange}>
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Select member..." />
-                </SelectTrigger>
-                <SelectContent className="z-50 bg-popover">
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MultiAgentSelect
+                selectedIds={assignedAgentIds}
+                onSelectionChange={handleAssignmentChange}
+                placeholder="Select team members..."
+              />
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="h-3 w-3 text-muted-foreground" />
