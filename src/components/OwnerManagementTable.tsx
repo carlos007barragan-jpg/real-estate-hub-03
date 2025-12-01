@@ -63,19 +63,42 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
     try {
       setLoading(true);
 
-      // Fetch pending owners from invitations
+      // Get current user's organization
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setOwners([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      const currentOrgId = currentProfile?.organization_id;
+
+      // Fetch pending owners from invitations (filtered by inviter's org)
       const { data: invitations, error: invError } = await supabase
         .from("owner_invitations")
         .select("*")
-        .eq("status", "pending");
+        .eq("status", "pending")
+        .eq("invited_by", user.id);
 
       if (invError) throw invError;
 
-      // Fetch active owners from profiles
-      const { data: profiles, error: profError } = await supabase
+      // Fetch active owners from profiles - only from same organization
+      let profilesQuery = supabase
         .from("profiles")
         .select("*")
         .not("type_of_owner", "is", null);
+      
+      if (currentOrgId) {
+        profilesQuery = profilesQuery.eq("organization_id", currentOrgId);
+      }
+
+      const { data: profiles, error: profError } = await profilesQuery;
 
       if (profError) throw profError;
 
@@ -85,17 +108,25 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
       const { data: roles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id")
-        .in("user_id", userIds)
+        .in("user_id", userIds.length > 0 ? userIds : ['no-match'])
         .eq("role", "owner_user");
 
       if (rolesError) throw rolesError;
 
       const ownerUserIds = new Set(roles?.map(r => r.user_id) || []);
 
-      // Fetch inventory counts for each owner
-      const { data: inventory, error: invtError } = await supabase
+      // Fetch inventory counts for each owner - only from same organization
+      let inventoryQuery = supabase
         .from("inventory")
         .select("user_id, price, status");
+      
+      if (userIds.length > 0) {
+        inventoryQuery = inventoryQuery.in("user_id", userIds);
+      } else {
+        inventoryQuery = inventoryQuery.eq("user_id", "no-match");
+      }
+
+      const { data: inventory, error: invtError } = await inventoryQuery;
 
       if (invtError) throw invtError;
 
