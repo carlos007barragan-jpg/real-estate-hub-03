@@ -146,7 +146,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         .from("profiles")
         .select("organization_id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (!profile?.organization_id) return;
 
@@ -640,12 +640,16 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
               <SelectTrigger>
                 <SelectValue placeholder="Select user" />
               </SelectTrigger>
-              <SelectContent>
-                {availableUsers.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name}
-                  </SelectItem>
-                ))}
+              <SelectContent className="z-50 bg-popover">
+                {availableUsers.length === 0 ? (
+                  <SelectItem value="none" disabled>No team members found</SelectItem>
+                ) : (
+                  availableUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
