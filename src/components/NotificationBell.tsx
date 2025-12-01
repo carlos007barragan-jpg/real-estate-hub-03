@@ -13,27 +13,63 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Notification {
   id: string;
-  type: "pipeline" | "task" | "call" | "message";
+  type: string;
   title: string;
   description: string;
   timestamp: Date;
   read: boolean;
   link?: string;
+  user_role?: string;
+  event_type?: string;
+  entity_type?: string;
 }
+
+// Define which event types each role can see
+const ROLE_EVENT_PERMISSIONS: Record<string, string[]> = {
+  admin: [
+    'lead_created', 'lead_assigned', 'pipeline_movement', 'task_created', 
+    'task_completed', 'deal_closed', 'property_update', 'wholesale_submission',
+    'property_inquiry', 'appointment_created', 'appointment_reminder',
+    'missed_call', 'inventory_update'
+  ],
+  agent: [
+    'lead_assigned', 'pipeline_movement', 'task_assigned', 'task_reminder',
+    'deal_closed', 'appointment_created', 'appointment_reminder', 'missed_call'
+  ],
+  marketing_manager: [
+    'property_update', 'wholesale_submission', 'task_assigned', 'task_reminder',
+    'inventory_update'
+  ],
+  marketing: [
+    'property_update', 'wholesale_submission', 'task_assigned', 'task_reminder',
+    'inventory_update'
+  ],
+  owner_user: [
+    'property_update', 'property_approved', 'property_rejected'
+  ]
+};
+
+// Legacy type mapping for backwards compatibility
+const LEGACY_TYPE_MAPPING: Record<string, string[]> = {
+  admin: ['pipeline', 'task', 'call', 'message', 'property_update', 'wholesale_submission', 'property_inquiry'],
+  agent: ['pipeline', 'task', 'call', 'message'],
+  marketing_manager: ['property_update', 'wholesale_submission'],
+  marketing: ['property_update', 'wholesale_submission'],
+  owner_user: ['property_update']
+};
 
 export function NotificationBell() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { role } = useUserRole();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     fetchNotifications();
 
-    // Set up realtime subscription
     const channel = supabase
       .channel('notifications-changes')
       .on(
@@ -52,7 +88,7 @@ export function NotificationBell() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [role]);
 
   const fetchNotifications = async () => {
     try {
@@ -68,16 +104,15 @@ export function NotificationBell() {
 
       const userOrgId = profile?.organization_id;
 
-      // Fetch notifications for this user, filtered by their organization
+      // Fetch notifications for this user
       let query = supabase
         .from('notifications')
         .select('*')
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50);
 
-      // If user has an organization, also filter by org (to exclude cross-org notifications)
-      // This handles legacy notifications that don't have organization_id set
+      // Filter by organization
       if (userOrgId) {
         query = query.or(`organization_id.eq.${userOrgId},organization_id.is.null`);
       }
@@ -86,20 +121,51 @@ export function NotificationBell() {
 
       if (error) throw error;
 
+      // Filter notifications based on user role
+      const filteredData = filterNotificationsByRole(data || [], role);
+
       setNotifications(
-        data.map((n) => ({
+        filteredData.map((n: any) => ({
           id: n.id,
-          type: n.type as Notification['type'],
+          type: n.type,
           title: n.title,
           description: n.description,
           timestamp: new Date(n.created_at),
           read: n.read,
           link: n.link,
+          user_role: n.user_role,
+          event_type: n.event_type,
+          entity_type: n.entity_type,
         }))
       );
     } catch (error: any) {
       console.error('Error fetching notifications:', error);
     }
+  };
+
+  const filterNotificationsByRole = (notifications: any[], userRole: string | null): any[] => {
+    if (!userRole) return [];
+    
+    // Admin sees everything
+    if (userRole === 'admin') return notifications;
+
+    const allowedEventTypes = ROLE_EVENT_PERMISSIONS[userRole] || [];
+    const allowedLegacyTypes = LEGACY_TYPE_MAPPING[userRole] || [];
+
+    return notifications.filter(n => {
+      // If notification has user_role set, check if it matches or is for this role
+      if (n.user_role && n.user_role !== userRole && n.user_role !== 'all') {
+        return false;
+      }
+
+      // Check event_type if present (new system)
+      if (n.event_type) {
+        return allowedEventTypes.includes(n.event_type);
+      }
+
+      // Fallback to legacy type checking
+      return allowedLegacyTypes.includes(n.type);
+    });
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -147,16 +213,33 @@ export function NotificationBell() {
     }
   };
 
-  const getNotificationIcon = (type: Notification["type"]) => {
+  const getNotificationIcon = (type: string) => {
     switch (type) {
       case "pipeline":
+      case "pipeline_movement":
         return "📊";
       case "task":
+      case "task_created":
+      case "task_assigned":
         return "✓";
       case "call":
+      case "missed_call":
         return "📞";
       case "message":
         return "💬";
+      case "property_update":
+      case "wholesale_submission":
+      case "inventory_update":
+        return "🏠";
+      case "property_inquiry":
+        return "📝";
+      case "appointment_created":
+      case "appointment_reminder":
+        return "📅";
+      case "deal_closed":
+        return "🎉";
+      default:
+        return "🔔";
     }
   };
 
@@ -223,7 +306,7 @@ export function NotificationBell() {
               >
                 <div className="flex items-start gap-2 w-full">
                   <span className="text-lg mt-0.5">
-                    {getNotificationIcon(notification.type)}
+                    {getNotificationIcon(notification.event_type || notification.type)}
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">

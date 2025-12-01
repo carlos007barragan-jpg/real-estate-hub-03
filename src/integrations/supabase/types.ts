@@ -754,7 +754,11 @@ export type Database = {
       notifications: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string
+          entity_id: string | null
+          entity_type: string | null
+          event_type: string | null
           id: string
           link: string | null
           organization_id: string | null
@@ -762,10 +766,15 @@ export type Database = {
           title: string
           type: string
           user_id: string
+          user_role: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
           id?: string
           link?: string | null
           organization_id?: string | null
@@ -773,10 +782,15 @@ export type Database = {
           title: string
           type: string
           user_id: string
+          user_role?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
           id?: string
           link?: string | null
           organization_id?: string | null
@@ -784,6 +798,7 @@ export type Database = {
           title?: string
           type?: string
           user_id?: string
+          user_role?: string | null
         }
         Relationships: [
           {
