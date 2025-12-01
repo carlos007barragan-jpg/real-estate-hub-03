@@ -634,29 +634,54 @@ const LeadProfile = () => {
         )}
 
         {/* Show Pipeline Progress only when lead is in pipeline */}
-        {leadData?.leadLifecycle === "Moved to Pipeline" && (currentPipeline || leadData?.pipeline) && (
+        {leadData?.leadLifecycle === "Moved to Pipeline" && (
           <>
-            <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
-              <Building2 className="h-4 w-4 text-primary" />
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium">Pipeline Progress</span>
-                  <span className="text-xs text-muted-foreground">{Math.round(getStageProgress())}%</span>
+            {(currentPipeline || leadData?.pipeline) ? (
+              <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
+                <Building2 className="h-4 w-4 text-primary" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium">Pipeline Progress</span>
+                    <span className="text-xs text-muted-foreground">{Math.round(getStageProgress())}%</span>
+                  </div>
+                  <Progress value={getStageProgress()} className="h-1.5" />
                 </div>
-                <Progress value={getStageProgress()} className="h-1.5" />
+                <Select value={currentStage} onValueChange={handleStageChange}>
+                  <SelectTrigger className="w-[140px] h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                   <SelectContent className="z-50 bg-popover">
+                     <SelectItem value="Back to Lifecycle">← Back to Lifecycle</SelectItem>
+                     {pipelineStages.map((stage) => (
+                       <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                     ))}
+                   </SelectContent>
+                </Select>
               </div>
-              <Select value={currentStage} onValueChange={handleStageChange}>
-                <SelectTrigger className="w-[140px] h-7 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                 <SelectContent className="z-50 bg-popover">
-                   <SelectItem value="Back to Lifecycle">← Back to Lifecycle</SelectItem>
-                   {pipelineStages.map((stage) => (
-                     <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                   ))}
-                 </SelectContent>
-              </Select>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
+                <Layers className="h-4 w-4 text-warning" />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-warning">No pipeline assigned</span>
+                  <p className="text-xs text-muted-foreground">Assign a pipeline or move back to lifecycle</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleStageChange("Back to Lifecycle")}
+                  >
+                    ← Back to Lifecycle
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    onClick={() => setPipelineDialogOpen(true)}
+                  >
+                    Assign Pipeline
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
