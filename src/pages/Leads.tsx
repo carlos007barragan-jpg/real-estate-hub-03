@@ -194,21 +194,23 @@ const Leads = () => {
 
   const fetchAvailableUsers = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(`
-          user_id,
-          first_name,
-          last_name,
-          agents!inner(phone_number)
-        `);
+      // Fetch profiles and agents separately since there's no FK relationship
+      const [profilesResult, agentsResult] = await Promise.all([
+        supabase.from("profiles").select("user_id, first_name, last_name, phone_number"),
+        supabase.from("agents").select("user_id, phone_number")
+      ]);
 
-      if (error) throw error;
+      if (profilesResult.error) throw profilesResult.error;
 
-      const users = (data || []).map((profile: any) => ({
+      // Create a map of user_id to agent phone
+      const agentPhoneMap = new Map(
+        (agentsResult.data || []).map(a => [a.user_id, a.phone_number])
+      );
+
+      const users = (profilesResult.data || []).map((profile: any) => ({
         id: profile.user_id,
         name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User",
-        phone: profile.agents?.phone_number || null,
+        phone: agentPhoneMap.get(profile.user_id) || profile.phone_number || null,
       }));
 
       setAvailableUsers(users);
