@@ -377,17 +377,9 @@ function DroppableStage({
 
 const Pipelines = () => {
   const navigate = useNavigate();
-  const [selectedPipeline, setSelectedPipeline] = useState<string>("real-estate");
-  // Initialize with empty deals to prevent flash of mock data
-const [pipelines, setPipelines] = useState<Pipeline[]>(() =>
-  mockPipelines.map(pipeline => ({
-    ...pipeline,
-    stages: pipeline.stages.map(stage => ({
-      ...stage,
-      deals: []
-    }))
-  }))
-);
+  const [selectedPipeline, setSelectedPipeline] = useState<string>("");
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const [pipelinesLoaded, setPipelinesLoaded] = useState(false);
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
@@ -399,8 +391,163 @@ const [pipelines, setPipelines] = useState<Pipeline[]>(() =>
   const [pipelineManagerOpen, setPipelineManagerOpen] = useState(false);
   const { toast } = useToast();
 
+  // Fetch pipelines from database
+  const fetchPipelines = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userProfile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!userProfile?.organization_id) return;
+
+      const { data: dbPipelines, error } = await supabase
+        .from("pipelines")
+        .select("*")
+        .eq("organization_id", userProfile.organization_id)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+
+      if (!dbPipelines || dbPipelines.length === 0) {
+        // Create default pipelines if none exist
+        const defaultPipelines = mockPipelines.map((mp, index) => ({
+          user_id: user.id,
+          organization_id: userProfile.organization_id,
+          name: mp.name,
+          stages: mp.stages.map(s => ({ id: s.id, name: s.name })),
+          display_order: index,
+        }));
+
+        const { data: created, error: createError } = await supabase
+          .from("pipelines")
+          .insert(defaultPipelines)
+          .select();
+
+        if (createError) throw createError;
+
+        const pipelinesWithDeals = (created || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          stages: (p.stages as any[]).map(s => ({ ...s, deals: [] })),
+        }));
+
+        setPipelines(pipelinesWithDeals);
+        if (pipelinesWithDeals.length > 0) {
+          setSelectedPipeline(pipelinesWithDeals[0].id);
+        }
+      } else {
+        const pipelinesWithDeals = dbPipelines.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          stages: (p.stages as any[]).map(s => ({ ...s, deals: [] })),
+        }));
+
+        setPipelines(pipelinesWithDeals);
+        if (!selectedPipeline && pipelinesWithDeals.length > 0) {
+          setSelectedPipeline(pipelinesWithDeals[0].id);
+        }
+      }
+
+      setPipelinesLoaded(true);
+    } catch (error) {
+      console.error("Error fetching pipelines:", error);
+      // Fall back to mock pipelines
+      setPipelines(mockPipelines.map(p => ({ ...p, stages: p.stages.map(s => ({ ...s, deals: [] })) })));
+      setSelectedPipeline("real-estate");
+      setPipelinesLoaded(true);
+    }
+  };
+
+  // Save pipeline changes to database
+  const handlePipelinesUpdate = async (updatedPipelines: Pipeline[]) => {
+    setPipelines(updatedPipelines);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userProfile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!userProfile?.organization_id) return;
+
+      // Get current pipelines from DB to identify new ones
+      const { data: existingPipelines } = await supabase
+        .from("pipelines")
+        .select("id")
+        .eq("organization_id", userProfile.organization_id);
+
+      const existingIds = new Set((existingPipelines || []).map(p => p.id));
+
+      for (let i = 0; i < updatedPipelines.length; i++) {
+        const pipeline = updatedPipelines[i];
+        const stagesData = pipeline.stages.map(s => ({ id: s.id, name: s.name }));
+
+        if (existingIds.has(pipeline.id)) {
+          // Update existing pipeline
+          await supabase
+            .from("pipelines")
+            .update({ name: pipeline.name, stages: stagesData, display_order: i })
+            .eq("id", pipeline.id);
+        } else {
+          // Insert new pipeline
+          const { data: newPipeline } = await supabase
+            .from("pipelines")
+            .insert({
+              user_id: user.id,
+              organization_id: userProfile.organization_id,
+              name: pipeline.name,
+              stages: stagesData,
+              display_order: i,
+            })
+            .select()
+            .single();
+
+          // Update local state with real DB id
+          if (newPipeline) {
+            setPipelines(prev => prev.map(p => 
+              p.id === pipeline.id ? { ...p, id: newPipeline.id } : p
+            ));
+            if (selectedPipeline === pipeline.id) {
+              setSelectedPipeline(newPipeline.id);
+            }
+          }
+        }
+      }
+
+      // Delete removed pipelines
+      const currentIds = new Set(updatedPipelines.map(p => p.id));
+      for (const existingId of existingIds) {
+        if (!currentIds.has(existingId)) {
+          await supabase.from("pipelines").delete().eq("id", existingId);
+        }
+      }
+    } catch (error) {
+      console.error("Error saving pipelines:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save pipeline changes",
+        variant: "destructive",
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchPipelines();
+  }, []);
+
   // Fetch leads from database and sync with pipelines
   useEffect(() => {
+    if (!pipelinesLoaded || pipelines.length === 0) return;
+
     const fetchLeads = async () => {
       try {
         const { data: leads, error } = await supabase
@@ -441,7 +588,7 @@ const [pipelines, setPipelines] = useState<Pipeline[]>(() =>
         });
 
         // Update pipelines with real data
-        const updatedPipelines = mockPipelines.map((pipeline) => {
+        const updatedPipelines = pipelines.map((pipeline) => {
           const pipelineDeals = pipelineMap.get(pipeline.id);
 
           const updatedStages = pipeline.stages.map((stage) => ({
@@ -486,7 +633,7 @@ const [pipelines, setPipelines] = useState<Pipeline[]>(() =>
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [pipelinesLoaded, pipelines.length]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -847,7 +994,7 @@ const [pipelines, setPipelines] = useState<Pipeline[]>(() =>
             </Select>
             <PipelineManager
               pipelines={pipelines}
-              onUpdate={setPipelines}
+              onUpdate={handlePipelinesUpdate}
               currentPipelineId={selectedPipeline}
               onSelectPipeline={setSelectedPipeline}
             />
