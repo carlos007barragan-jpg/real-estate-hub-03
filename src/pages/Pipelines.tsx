@@ -377,8 +377,17 @@ function DroppableStage({
 
 const Pipelines = () => {
   const navigate = useNavigate();
-  const [selectedPipeline, setSelectedPipeline] = useState<string>("");
+  const [selectedPipeline, setSelectedPipeline] = useState<string>(() => {
+    // Restore selected pipeline from localStorage
+    return localStorage.getItem("selectedPipelineId") || "";
+  });
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  
+  // Persist selected pipeline to localStorage
+  const handleSelectPipeline = (pipelineId: string) => {
+    setSelectedPipeline(pipelineId);
+    localStorage.setItem("selectedPipelineId", pipelineId);
+  };
   const [pipelinesLoaded, setPipelinesLoaded] = useState(false);
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -438,7 +447,7 @@ const Pipelines = () => {
 
         setPipelines(pipelinesWithDeals);
         if (pipelinesWithDeals.length > 0) {
-          setSelectedPipeline(pipelinesWithDeals[0].id);
+          handleSelectPipeline(pipelinesWithDeals[0].id);
         }
       } else {
         const pipelinesWithDeals = dbPipelines.map((p: any) => ({
@@ -451,7 +460,7 @@ const Pipelines = () => {
         // Always ensure selectedPipeline is valid - check if current selection exists in loaded pipelines
         const pipelineIds = pipelinesWithDeals.map(p => p.id);
         if (!selectedPipeline || !pipelineIds.includes(selectedPipeline)) {
-          setSelectedPipeline(pipelinesWithDeals[0].id);
+          handleSelectPipeline(pipelinesWithDeals[0].id);
         }
       }
 
@@ -521,7 +530,7 @@ const Pipelines = () => {
               p.id === pipeline.id ? { ...p, id: newPipeline.id } : p
             ));
             if (selectedPipeline === pipeline.id) {
-              setSelectedPipeline(newPipeline.id);
+              handleSelectPipeline(newPipeline.id);
             }
           }
         }
@@ -995,7 +1004,7 @@ const Pipelines = () => {
                 className="pl-9 w-[200px]"
               />
             </div>
-            <Select value={selectedPipeline} onValueChange={setSelectedPipeline}>
+            <Select value={selectedPipeline} onValueChange={handleSelectPipeline}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
               </SelectTrigger>
@@ -1011,7 +1020,7 @@ const Pipelines = () => {
               pipelines={pipelines}
               onUpdate={handlePipelinesUpdate}
               currentPipelineId={selectedPipeline}
-              onSelectPipeline={setSelectedPipeline}
+              onSelectPipeline={handleSelectPipeline}
             />
           </div>
         </div>
