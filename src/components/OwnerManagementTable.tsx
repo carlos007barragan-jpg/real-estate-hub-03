@@ -75,7 +75,7 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
         .from("profiles")
         .select("organization_id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       const currentOrgId = currentProfile?.organization_id;
 
@@ -212,7 +212,7 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
         .from("owner_invitations")
         .select("token")
         .eq("id", ownerId)
-        .single();
+        .maybeSingle();
 
       if (invitation) {
         const link = `${window.location.origin}/owner-signup?token=${invitation.token}`;
