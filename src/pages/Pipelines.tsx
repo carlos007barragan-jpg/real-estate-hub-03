@@ -944,7 +944,7 @@ const Pipelines = () => {
     }
   };
 
-  const filteredPipeline = searchQuery
+  const filteredPipeline = searchQuery && currentPipeline
     ? {
         ...currentPipeline,
         stages: currentPipeline.stages.map((stage) => ({
@@ -957,6 +957,17 @@ const Pipelines = () => {
         })),
       }
     : currentPipeline;
+
+  // Show loading state if pipelines haven't loaded yet
+  if (!currentPipeline) {
+    return (
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading pipelines...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
