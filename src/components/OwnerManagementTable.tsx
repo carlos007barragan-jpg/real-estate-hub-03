@@ -105,30 +105,31 @@ export function OwnerManagementTable({ onOwnerClick }: OwnerManagementTableProps
       // Get user IDs for active owners to check roles
       const userIds = profiles?.map(p => p.user_id) || [];
       
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .in("user_id", userIds.length > 0 ? userIds : ['no-match'])
-        .eq("role", "owner_user");
-
-      if (rolesError) throw rolesError;
-
-      const ownerUserIds = new Set(roles?.map(r => r.user_id) || []);
-
-      // Fetch inventory counts for each owner - only from same organization
-      let inventoryQuery = supabase
-        .from("inventory")
-        .select("user_id, price, status");
-      
+      let roles: { user_id: string }[] = [];
       if (userIds.length > 0) {
-        inventoryQuery = inventoryQuery.in("user_id", userIds);
-      } else {
-        inventoryQuery = inventoryQuery.eq("user_id", "no-match");
+        const { data: rolesData, error: rolesError } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .in("user_id", userIds)
+          .eq("role", "owner_user");
+
+        if (rolesError) throw rolesError;
+        roles = rolesData || [];
       }
 
-      const { data: inventory, error: invtError } = await inventoryQuery;
+      const ownerUserIds = new Set(roles.map(r => r.user_id));
 
-      if (invtError) throw invtError;
+      // Fetch inventory counts for each owner - only from same organization
+      let inventory: { user_id: string; price: number | null; status: string | null }[] = [];
+      if (userIds.length > 0) {
+        const { data: invData, error: invtError } = await supabase
+          .from("inventory")
+          .select("user_id, price, status")
+          .in("user_id", userIds);
+
+        if (invtError) throw invtError;
+        inventory = invData || [];
+      }
 
       // Calculate stats per owner
       const ownerStats = new Map<string, { count: number; totalValue: number; available: number; sold: number }>();
