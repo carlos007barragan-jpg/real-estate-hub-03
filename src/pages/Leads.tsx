@@ -194,9 +194,27 @@ const Leads = () => {
 
   const fetchAvailableUsers = useCallback(async () => {
     try {
-      // Fetch profiles and agents separately since there's no FK relationship
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get current user's organization
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!currentProfile?.organization_id) {
+        console.error("No organization found for current user");
+        return;
+      }
+
+      // Fetch profiles filtered by organization and agents separately
       const [profilesResult, agentsResult] = await Promise.all([
-        supabase.from("profiles").select("user_id, first_name, last_name, phone_number"),
+        supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, phone_number")
+          .eq("organization_id", currentProfile.organization_id),
         supabase.from("agents").select("user_id, phone_number")
       ]);
 
