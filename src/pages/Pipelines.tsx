@@ -448,7 +448,9 @@ const Pipelines = () => {
         }));
 
         setPipelines(pipelinesWithDeals);
-        if (!selectedPipeline && pipelinesWithDeals.length > 0) {
+        // Always ensure selectedPipeline is valid - check if current selection exists in loaded pipelines
+        const pipelineIds = pipelinesWithDeals.map(p => p.id);
+        if (!selectedPipeline || !pipelineIds.includes(selectedPipeline)) {
           setSelectedPipeline(pipelinesWithDeals[0].id);
         }
       }
@@ -456,9 +458,11 @@ const Pipelines = () => {
       setPipelinesLoaded(true);
     } catch (error) {
       console.error("Error fetching pipelines:", error);
-      // Fall back to mock pipelines
-      setPipelines(mockPipelines.map(p => ({ ...p, stages: p.stages.map(s => ({ ...s, deals: [] })) })));
-      setSelectedPipeline("real-estate");
+      toast({
+        title: "Error",
+        description: "Failed to load pipelines. Please refresh the page.",
+        variant: "destructive",
+      });
       setPipelinesLoaded(true);
     }
   };
