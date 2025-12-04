@@ -478,11 +478,16 @@ const Pipelines = () => {
 
   // Save pipeline changes to database
   const handlePipelinesUpdate = async (updatedPipelines: Pipeline[]) => {
+    // Store previous state for rollback
+    const previousPipelines = [...pipelines];
+    
+    // Optimistic update
     setPipelines(updatedPipelines);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        setPipelines(previousPipelines); // Rollback
         toast({
           title: "Error",
           description: "You must be logged in to save pipelines",
@@ -498,6 +503,7 @@ const Pipelines = () => {
         .single();
 
       if (!userProfile?.organization_id) {
+        setPipelines(previousPipelines); // Rollback
         toast({
           title: "Error",
           description: "Organization not found",
@@ -507,12 +513,18 @@ const Pipelines = () => {
       }
 
       // Get current pipelines from DB to identify new ones
-      const { data: existingPipelines } = await supabase
+      const { data: existingPipelines, error: fetchError } = await supabase
         .from("pipelines")
         .select("id")
         .eq("organization_id", userProfile.organization_id);
 
+      if (fetchError) {
+        console.error("Error fetching existing pipelines:", fetchError);
+        throw fetchError;
+      }
+
       const existingIds = new Set((existingPipelines || []).map(p => p.id));
+      const savedPipelines: Pipeline[] = [];
 
       for (let i = 0; i < updatedPipelines.length; i++) {
         const pipeline = updatedPipelines[i];
@@ -529,6 +541,7 @@ const Pipelines = () => {
             console.error("Error updating pipeline:", updateError);
             throw updateError;
           }
+          savedPipelines.push(pipeline);
         } else {
           // Insert new pipeline
           const { data: newPipeline, error: insertError } = await supabase
@@ -548,12 +561,12 @@ const Pipelines = () => {
             throw insertError;
           }
 
-          // Update local state with real DB id
+          // Use the real DB id
           if (newPipeline) {
-            setPipelines(prev => prev.map(p => 
-              p.id === pipeline.id ? { ...p, id: newPipeline.id } : p
-            ));
-            // Update localStorage with new ID
+            const savedPipeline = { ...pipeline, id: newPipeline.id };
+            savedPipelines.push(savedPipeline);
+            
+            // Update localStorage with new ID if this was the selected pipeline
             const storedPipelineId = localStorage.getItem("selectedPipelineId");
             if (storedPipelineId === pipeline.id) {
               localStorage.setItem("selectedPipelineId", newPipeline.id);
@@ -567,9 +580,15 @@ const Pipelines = () => {
       const currentIds = new Set(updatedPipelines.map(p => p.id));
       for (const existingId of existingIds) {
         if (!currentIds.has(existingId)) {
-          await supabase.from("pipelines").delete().eq("id", existingId);
+          const { error: deleteError } = await supabase.from("pipelines").delete().eq("id", existingId);
+          if (deleteError) {
+            console.error("Error deleting pipeline:", deleteError);
+          }
         }
       }
+
+      // Update state with real DB IDs
+      setPipelines(savedPipelines);
 
       toast({
         title: "Success",
@@ -577,9 +596,11 @@ const Pipelines = () => {
       });
     } catch (error) {
       console.error("Error saving pipelines:", error);
+      // Rollback to previous state on error
+      setPipelines(previousPipelines);
       toast({
         title: "Error",
-        description: "Failed to save pipeline changes. You may not have permission.",
+        description: "Failed to save pipeline changes. Please try again.",
         variant: "destructive",
       });
     }
