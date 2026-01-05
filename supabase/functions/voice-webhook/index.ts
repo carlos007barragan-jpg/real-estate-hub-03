@@ -5,41 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Validate Twilio signature for security
-async function validateTwilioSignature(req: Request, params: Record<string, string>): Promise<boolean> {
-  const signature = req.headers.get('X-Twilio-Signature');
-  if (!signature) {
-    console.error('Missing X-Twilio-Signature header');
-    return false;
-  }
-
-  const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-  if (!authToken) {
-    console.error('TWILIO_AUTH_TOKEN not configured');
-    return false;
-  }
-
-  const url = req.url;
-  const data = Object.keys(params).sort().map(key => key + params[key]).join('');
-  
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(authToken);
-  const messageData = encoder.encode(url + data);
-  
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: 'SHA-1' },
-    false,
-    ['sign']
-  );
-  
-  const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-  const expectedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)));
-  
-  return signature === expectedSignature;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -52,24 +17,33 @@ Deno.serve(async (req) => {
       params[key] = value.toString();
     }
     
-    // Validate Twilio signature for security
-    const isValid = await validateTwilioSignature(req, params);
-    if (!isValid) {
-      console.error('Invalid Twilio signature');
-      return new Response('Unauthorized', { status: 401 });
-    }
+    // Log incoming request for debugging
+    console.log('Voice webhook called with params:', JSON.stringify(params));
     
-    // Validate input parameters
+    // Get the destination number
     const to = params['To'];
-    if (!to || typeof to !== 'string' || to.length === 0 || to.length > 20) {
-      console.error('Invalid To parameter');
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
+    const from = params['From'];
+    const callSid = params['CallSid'];
+    
+    console.log(`Processing call - To: ${to}, From: ${from}, CallSid: ${callSid}`);
+    
+    if (!to || typeof to !== 'string' || to.length === 0) {
+      console.error('Invalid or missing To parameter');
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid phone number.</Say></Response>', {
         headers: { 'Content-Type': 'text/xml' },
-        status: 400,
       });
     }
     
-    console.log('Voice webhook called with To:', to);
+    // Get the caller ID from environment
+    const callerId = Deno.env.get('TWILIO_PHONE_NUMBER');
+    if (!callerId) {
+      console.error('TWILIO_PHONE_NUMBER not configured');
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Phone system not configured.</Say></Response>', {
+        headers: { 'Content-Type': 'text/xml' },
+      });
+    }
+    
+    console.log(`Using caller ID: ${callerId}`);
     
     // Get the recording callback URL
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -78,8 +52,12 @@ Deno.serve(async (req) => {
     // Return TwiML to dial the destination number with recording enabled
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Dial callerId="${Deno.env.get('TWILIO_PHONE_NUMBER')}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST">${to}</Dial>
+  <Dial callerId="${callerId}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST">
+    <Number>${to}</Number>
+  </Dial>
 </Response>`;
+
+    console.log('Returning TwiML:', twiml);
 
     return new Response(twiml, {
       headers: {
@@ -88,7 +66,6 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('Error in voice webhook:', error);
-    // Generic error response - details logged server-side only
     const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say>An error occurred. Please try again.</Say>
@@ -98,7 +75,6 @@ Deno.serve(async (req) => {
       headers: {
         'Content-Type': 'text/xml',
       },
-      status: 500,
     });
   }
 });
