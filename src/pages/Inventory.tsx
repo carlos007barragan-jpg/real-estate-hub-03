@@ -14,7 +14,7 @@ import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehous
 import { Badge } from "@/components/ui/badge";
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 import MultiPhotoUpload from "@/components/MultiPhotoUpload";
-import { OwnerManagementTable } from "@/components/OwnerManagementTable";
+
 import { PropertyApprovalDialog } from "@/components/PropertyApprovalDialog";
 
 interface InventoryItem {
@@ -1589,13 +1589,6 @@ export default function Inventory() {
         )}
       </div>
 
-      {/* Owner Management Section */}
-      <OwnerManagementTable 
-        onOwnerClick={(userId) => {
-          setOwnerFilter(userId);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
 
       {/* Property Approval Dialog */}
       {selectedPropertyForApproval && (
