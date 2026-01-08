@@ -165,9 +165,19 @@ export const CreateContactDialog = ({ trigger }: CreateContactDialogProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Get user's organization
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile?.organization_id) throw new Error("User not in an organization");
+
       // Prepare contact data
       const contactData: any = {
         user_id: user.id,
+        organization_id: profile.organization_id,
         name: validatedData.name,
         category: validatedData.category,
         email: validatedData.email || null,
