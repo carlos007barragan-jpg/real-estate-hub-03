@@ -156,10 +156,10 @@ const Contacts = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // RLS handles organization filtering - just fetch all contacts user has access to
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
-        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
