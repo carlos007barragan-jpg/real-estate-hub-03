@@ -112,11 +112,10 @@ const CalendarPage = () => {
         appointmentQuery = appointmentQuery.eq("user_id", user.id);
       }
 
-      // Fetch tasks - organization-wide
+      // Fetch tasks - RLS handles organization filtering
       const tasksQuery = supabase
         .from("tasks")
         .select("*")
-        .in("user_id", orgUserIds)
         .not("due_date", "is", null)
         .order("due_date", { ascending: true });
 

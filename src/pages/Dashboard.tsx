@@ -410,10 +410,10 @@ const Dashboard = () => {
         supabase.from("user_roles").select("user_id, role").in("user_id", orgUserIds),
         supabase.from("agents").select("*"),
         supabase.from("profiles").select("*").in("user_id", orgUserIds),
-        // Fetch today's tasks - organization-wide
-        supabase.from("tasks").select("*").in("user_id", orgUserIds).gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
-        // Fetch past due tasks - organization-wide tasks with due_date before today that are not completed
-        supabase.from("tasks").select("*").in("user_id", orgUserIds).not("due_date", "is", null).lt("due_date", todayStart.toISOString()).neq("status", "completed").order("due_date", { ascending: true }),
+        // Fetch today's tasks - RLS handles organization filtering
+        supabase.from("tasks").select("*").gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
+        // Fetch past due tasks - RLS handles organization filtering
+        supabase.from("tasks").select("*").not("due_date", "is", null).lt("due_date", todayStart.toISOString()).neq("status", "completed").order("due_date", { ascending: true }),
         // Fetch all agent data at once (with filtering for non-admins)
         !isUserAdmin && currentPhone
           ? supabase.from("call_logs").select("user_id").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
