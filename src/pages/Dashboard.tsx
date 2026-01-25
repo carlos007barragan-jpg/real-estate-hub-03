@@ -403,8 +403,8 @@ const Dashboard = () => {
         supabase.from("agents").select("*"),
         supabase.from("profiles").select("*").in("user_id", orgUserIds),
         supabase.from("tasks").select("*").eq("user_id", user.id).gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
-        // Fetch past due tasks - tasks with due_date before today that are not completed
-        supabase.from("tasks").select("*").eq("user_id", user.id).lt("due_date", todayStart.toISOString()).neq("status", "completed").order("due_date", { ascending: false }),
+        // Fetch past due tasks - tasks with due_date before today that are not completed (no date restriction on how far back)
+        supabase.from("tasks").select("*").eq("user_id", user.id).not("due_date", "is", null).lt("due_date", todayStart.toISOString()).neq("status", "completed").order("due_date", { ascending: true }),
         // Fetch all agent data at once (with filtering for non-admins)
         !isUserAdmin && currentPhone
           ? supabase.from("call_logs").select("user_id").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
