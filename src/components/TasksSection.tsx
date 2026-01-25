@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PlusCircle, Calendar, CheckCircle2, Circle, Trash2 } from "lucide-react";
+import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, X, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Task {
   id: string;
@@ -30,6 +29,10 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -142,14 +145,62 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "text-green-600 dark:text-green-400";
-      case "in_progress":
-        return "text-blue-600 dark:text-blue-400";
-      default:
-        return "text-muted-foreground";
+  const startEditing = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditTitle(task.title);
+    setEditDescription(task.description || "");
+    // Format date for input[type="date"] - needs YYYY-MM-DD format
+    if (task.due_date) {
+      const date = new Date(task.due_date);
+      setEditDueDate(date.toISOString().split('T')[0]);
+    } else {
+      setEditDueDate("");
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingTaskId(null);
+    setEditTitle("");
+    setEditDescription("");
+    setEditDueDate("");
+  };
+
+  const handleUpdateTask = async (taskId: string) => {
+    if (!editTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Task title is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          title: editTitle,
+          description: editDescription || null,
+          due_date: editDueDate || null,
+        })
+        .eq("id", taskId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Task updated",
+        description: "Task has been updated successfully",
+      });
+
+      cancelEditing();
+      fetchTasks();
+    } catch (error: any) {
+      console.error("Error updating task:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -223,39 +274,97 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
                     task.status === "completed" ? "bg-muted/20" : "bg-card"
                   }`}
                 >
-                  <div className="flex items-start gap-2">
-                    <Checkbox
-                      checked={task.status === "completed"}
-                      onCheckedChange={() => handleToggleTask(task.id, task.status)}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-sm font-medium ${
-                          task.status === "completed" ? "line-through text-muted-foreground" : ""
-                        }`}
-                      >
-                        {task.title}
-                      </p>
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground mt-1">{task.description}</p>
-                      )}
-                      {task.due_date && (
-                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                        </div>
-                      )}
+                  {editingTaskId === task.id ? (
+                    // Edit mode
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="Task title..."
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="text-sm h-8"
+                        autoFocus
+                      />
+                      <Textarea
+                        placeholder="Description (optional)..."
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        className="text-sm min-h-[60px] resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="date"
+                          value={editDueDate}
+                          onChange={(e) => setEditDueDate(e.target.value)}
+                          className="text-sm h-8 flex-1"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => handleUpdateTask(task.id)} 
+                          size="sm" 
+                          className="h-7 text-xs flex-1"
+                        >
+                          <Save className="h-3 w-3 mr-1" />
+                          Save
+                        </Button>
+                        <Button
+                          onClick={cancelEditing}
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Cancel
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteTask(task.id)}
-                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
+                  ) : (
+                    // View mode
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        checked={task.status === "completed"}
+                        onCheckedChange={() => handleToggleTask(task.id, task.status)}
+                        className="mt-0.5"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm font-medium ${
+                            task.status === "completed" ? "line-through text-muted-foreground" : ""
+                          }`}
+                        >
+                          {task.title}
+                        </p>
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mt-1">{task.description}</p>
+                        )}
+                        {task.due_date && (
+                          <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => startEditing(task)}
+                          className="h-6 w-6 text-muted-foreground hover:text-primary"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteTask(task.id)}
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             )}
