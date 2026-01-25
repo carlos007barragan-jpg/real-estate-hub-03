@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer, View } from "react-big-calendar";
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
-import { format, parse, startOfWeek, getDay } from "date-fns";
+import { format, parse, startOfWeek, getDay, startOfDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, CheckSquare, AlertTriangle } from "lucide-react";
 import { AddAppointmentDialog } from "@/components/AddAppointmentDialog";
 import { CalendarFilters } from "@/components/CalendarFilters";
 import { UpcomingAppointments } from "@/components/UpcomingAppointments";
@@ -37,6 +37,7 @@ interface CalendarEvent {
   title: string;
   start: Date;
   end: Date;
+  type: 'appointment' | 'task';
   resource: {
     leadId: string;
     userId: string;
@@ -46,9 +47,20 @@ interface CalendarEvent {
   };
 }
 
+interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  status: string;
+  lead_id: string;
+  user_id: string;
+}
+
 const CalendarPage = () => {
   const { isAdmin } = useUserRole();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [view, setView] = useState<'team' | 'individual'>('individual');
   const [calendarView, setCalendarView] = useState<View>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -59,15 +71,35 @@ const CalendarPage = () => {
   const [agents, setAgents] = useState<Array<{ userId: string; agentName: string }>>([]);
 
   useEffect(() => {
-    fetchAppointments();
+    fetchData();
   }, [view]);
 
-  const fetchAppointments = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      let query = supabase
+      // Get user's organization
+      const { data: userProfile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const orgId = userProfile?.organization_id;
+
+      // Get org user IDs for organization-wide queries
+      let orgUserIds: string[] = [user.id];
+      if (orgId) {
+        const { data: orgProfiles } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("organization_id", orgId);
+        orgUserIds = orgProfiles?.map(p => p.user_id) || [user.id];
+      }
+
+      // Fetch appointments
+      let appointmentQuery = supabase
         .from("appointments")
         .select(`
           *,
@@ -77,25 +109,46 @@ const CalendarPage = () => {
 
       // If not admin or viewing individual calendar, filter by user
       if (!isAdmin || view === 'individual') {
-        query = query.eq("user_id", user.id);
+        appointmentQuery = appointmentQuery.eq("user_id", user.id);
       }
 
-      const { data: appointments, error } = await query;
+      // Fetch tasks - organization-wide
+      const tasksQuery = supabase
+        .from("tasks")
+        .select("*")
+        .in("user_id", orgUserIds)
+        .not("due_date", "is", null)
+        .order("due_date", { ascending: true });
 
-      if (error) throw error;
+      const [appointmentsResult, tasksResult] = await Promise.all([
+        appointmentQuery,
+        tasksQuery
+      ]);
+
+      if (appointmentsResult.error) throw appointmentsResult.error;
+      if (tasksResult.error) throw tasksResult.error;
+
+      const appointments = appointmentsResult.data || [];
+      const tasksData = tasksResult.data || [];
+      setTasks(tasksData);
 
       // Fetch user profiles for agent names
-      const userIds = [...new Set(appointments?.map(a => a.user_id) || [])];
+      const allUserIds = [...new Set([
+        ...appointments.map(a => a.user_id),
+        ...tasksData.map(t => t.user_id)
+      ])];
+      
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, first_name, last_name")
-        .in("user_id", userIds);
+        .in("user_id", allUserIds);
 
       const profileMap = new Map(
-        (profiles || []).map(p => [p.user_id, `${p.first_name} ${p.last_name}`.trim()])
+        (profiles || []).map(p => [p.user_id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Unknown'])
       );
 
-      const calendarEvents: CalendarEvent[] = (appointments || []).map(appointment => {
+      // Create appointment events
+      const appointmentEvents: CalendarEvent[] = appointments.map(appointment => {
         const appointmentDate = new Date(appointment.appointment_date);
         const duration = appointment.duration || 60;
         return {
@@ -103,6 +156,7 @@ const CalendarPage = () => {
           title: appointment.title,
           start: appointmentDate,
           end: new Date(appointmentDate.getTime() + duration * 60 * 1000),
+          type: 'appointment' as const,
           resource: {
             leadId: appointment.lead_id,
             userId: appointment.user_id,
@@ -113,18 +167,40 @@ const CalendarPage = () => {
         };
       });
 
-      setEvents(calendarEvents);
+      // Create task events
+      const taskEvents: CalendarEvent[] = tasksData
+        .filter(task => task.due_date)
+        .map(task => {
+          const dueDate = new Date(task.due_date!);
+          return {
+            id: `task-${task.id}`,
+            title: `📋 ${task.title}`,
+            start: dueDate,
+            end: new Date(dueDate.getTime() + 30 * 60 * 1000), // 30 min duration for display
+            type: 'task' as const,
+            resource: {
+              leadId: task.lead_id,
+              userId: task.user_id,
+              agentName: profileMap.get(task.user_id) || "Unknown",
+              description: task.description || undefined,
+              status: task.status,
+            },
+          };
+        });
+
+      const allEvents = [...appointmentEvents, ...taskEvents];
+      setEvents(allEvents);
       
       // Extract unique agents
       const uniqueAgents = Array.from(
         new Map(
-          calendarEvents.map((e) => [e.resource.userId, { userId: e.resource.userId, agentName: e.resource.agentName }])
+          allEvents.map((e) => [e.resource.userId, { userId: e.resource.userId, agentName: e.resource.agentName }])
         ).values()
       );
       setAgents(uniqueAgents);
     } catch (error) {
-      console.error("Error fetching appointments:", error);
-      toast.error("Failed to load appointments");
+      console.error("Error fetching data:", error);
+      toast.error("Failed to load calendar data");
     } finally {
       setLoading(false);
     }
@@ -155,6 +231,19 @@ const CalendarPage = () => {
 
     return filtered;
   }, [events, searchQuery, selectedAgent, selectedStatus]);
+
+  // Task stats
+  const taskStats = useMemo(() => {
+    const today = startOfDay(new Date());
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.status === 'completed').length;
+    const pending = tasks.filter(t => t.status !== 'completed').length;
+    const pastDue = tasks.filter(t => {
+      if (!t.due_date || t.status === 'completed') return false;
+      return new Date(t.due_date) < today;
+    }).length;
+    return { total, completed, pending, pastDue };
+  }, [tasks]);
 
   const handleEventClick = (event: CalendarEvent) => {
     window.location.href = `/leads/${event.resource.leadId}`;
@@ -188,6 +277,12 @@ const CalendarPage = () => {
   };
 
   const handleEventDrop = useCallback(async ({ event, start, end }: any) => {
+    // Only allow dragging appointments, not tasks
+    if (event.type === 'task') {
+      toast.error("Tasks cannot be rescheduled from the calendar");
+      return;
+    }
+
     try {
       // Optimistically update UI
       setEvents(prevEvents => 
@@ -209,11 +304,17 @@ const CalendarPage = () => {
     } catch (error) {
       console.error('Error rescheduling appointment:', error);
       toast.error('Failed to reschedule appointment');
-      fetchAppointments(); // Refetch only on error
+      fetchData();
     }
   }, []);
 
   const handleEventResize = useCallback(async ({ event, start, end }: any) => {
+    // Only allow resizing appointments, not tasks
+    if (event.type === 'task') {
+      toast.error("Tasks cannot be resized");
+      return;
+    }
+
     try {
       const durationMinutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
       
@@ -240,7 +341,7 @@ const CalendarPage = () => {
     } catch (error) {
       console.error('Error updating appointment:', error);
       toast.error('Failed to update appointment');
-      fetchAppointments(); // Refetch only on error
+      fetchData();
     }
   }, []);
 
@@ -278,7 +379,7 @@ const CalendarPage = () => {
               </TabsList>
             </Tabs>
           )}
-          <AddAppointmentDialog onSuccess={fetchAppointments} />
+          <AddAppointmentDialog onSuccess={fetchData} />
         </div>
       </div>
 
@@ -286,23 +387,25 @@ const CalendarPage = () => {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search appointments by title or agent..."
+          placeholder="Search appointments and tasks by title or agent..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-9"
         />
       </div>
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Stats Bar - Appointments */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
         <Card className="p-4 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
               <CalendarIcon className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{filteredEvents.length}</p>
-              <p className="text-xs text-muted-foreground">Total Appointments</p>
+              <p className="text-2xl font-bold text-foreground">
+                {filteredEvents.filter(e => e.type === 'appointment').length}
+              </p>
+              <p className="text-xs text-muted-foreground">Appointments</p>
             </div>
           </div>
         </Card>
@@ -314,7 +417,7 @@ const CalendarPage = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">
-                {filteredEvents.filter(e => e.resource.status === 'completed').length}
+                {filteredEvents.filter(e => e.type === 'appointment' && e.resource.status === 'completed').length}
               </p>
               <p className="text-xs text-muted-foreground">Completed</p>
             </div>
@@ -328,7 +431,7 @@ const CalendarPage = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">
-                {filteredEvents.filter(e => e.resource.status === 'pending').length}
+                {filteredEvents.filter(e => e.type === 'appointment' && e.resource.status === 'pending').length}
               </p>
               <p className="text-xs text-muted-foreground">Pending</p>
             </div>
@@ -350,6 +453,75 @@ const CalendarPage = () => {
             </div>
           </Card>
         )}
+
+        {/* Task Stats */}
+        <Card className="p-4 bg-gradient-to-br from-violet-500/10 to-violet-500/5 border-violet-500/20">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-violet-500/20 flex items-center justify-center">
+              <CheckSquare className="h-5 w-5 text-violet-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{taskStats.total}</p>
+              <p className="text-xs text-muted-foreground">Total Tasks</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <CheckSquare className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{taskStats.completed}</p>
+              <p className="text-xs text-muted-foreground">Tasks Done</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-500/20">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+              <CheckSquare className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{taskStats.pending}</p>
+              <p className="text-xs text-muted-foreground">Tasks Pending</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-destructive/20 flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{taskStats.pastDue}</p>
+              <p className="text-xs text-muted-foreground">Past Due</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-sm">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-primary"></div>
+          <span className="text-muted-foreground">Appointments</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-violet-500"></div>
+          <span className="text-muted-foreground">Tasks</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-success"></div>
+          <span className="text-muted-foreground">Completed</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-destructive"></div>
+          <span className="text-muted-foreground">Past Due Tasks</span>
+        </div>
       </div>
 
       {/* Main Calendar Layout */}
@@ -363,7 +535,11 @@ const CalendarPage = () => {
             selectedStatus={selectedStatus}
             onStatusChange={setSelectedStatus}
           />
-          <UpcomingAppointments events={filteredEvents} onEventClick={handleEventClick} onRefresh={fetchAppointments} />
+          <UpcomingAppointments 
+            events={filteredEvents.filter(e => e.type === 'appointment')} 
+            onEventClick={handleEventClick} 
+            onRefresh={fetchData} 
+          />
         </div>
 
         {/* Calendar Card */}
@@ -428,17 +604,32 @@ const CalendarPage = () => {
               onSelectEvent={handleEventClick}
               onEventDrop={handleEventDrop}
               onEventResize={handleEventResize}
-              draggableAccessor={() => true}
+              draggableAccessor={(event) => event.type === 'appointment'}
               resizable
               views={['month', 'week', 'day', 'agenda']}
               toolbar={false}
               eventPropGetter={(event) => {
+                const isTask = event.type === 'task';
                 const isCompleted = event.resource.status === 'completed';
+                const isPastDue = isTask && !isCompleted && new Date(event.start) < startOfDay(new Date());
+                
+                let backgroundColor = 'hsl(var(--primary))'; // Default appointment color
+                
+                if (isTask) {
+                  if (isPastDue) {
+                    backgroundColor = 'hsl(var(--destructive))';
+                  } else if (isCompleted) {
+                    backgroundColor = 'hsl(var(--success))';
+                  } else {
+                    backgroundColor = 'hsl(262 83% 58%)'; // Violet for tasks
+                  }
+                } else if (isCompleted) {
+                  backgroundColor = 'hsl(var(--success))';
+                }
+                
                 return {
                   style: {
-                    backgroundColor: isCompleted 
-                      ? 'hsl(var(--success))' 
-                      : 'hsl(var(--primary))',
+                    backgroundColor,
                     borderRadius: '6px',
                     opacity: isCompleted ? 0.7 : 0.9,
                     color: 'white',
