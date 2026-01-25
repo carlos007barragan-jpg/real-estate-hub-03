@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle } from "lucide-react";
+import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -84,6 +84,7 @@ const Dashboard = () => {
   const [activeAgents, setActiveAgents] = useState(0);
   const [agentStats, setAgentStats] = useState<AgentStats[]>([]);
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
+  const [pastDueTasks, setPastDueTasks] = useState<Task[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -378,6 +379,7 @@ const Dashboard = () => {
         agentPhonesResult,
         profilesResult,
         tasksResult,
+        pastDueTasksResult,
         allCallsResult,
         allMessagesResult,
         allLeadsResult,
@@ -401,6 +403,8 @@ const Dashboard = () => {
         supabase.from("agents").select("*"),
         supabase.from("profiles").select("*").in("user_id", orgUserIds),
         supabase.from("tasks").select("*").eq("user_id", user.id).gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
+        // Fetch past due tasks - tasks with due_date before today that are not completed
+        supabase.from("tasks").select("*").eq("user_id", user.id).lt("due_date", todayStart.toISOString()).neq("status", "completed").order("due_date", { ascending: false }),
         // Fetch all agent data at once (with filtering for non-admins)
         !isUserAdmin && currentPhone
           ? supabase.from("call_logs").select("user_id").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
@@ -425,6 +429,7 @@ const Dashboard = () => {
       setTotalNewLeads(leadsResult.data?.length || 0);
       setTotalAppointments(appointmentsResult.data?.length || 0);
       setTodayTasks(tasksResult.data || []);
+      setPastDueTasks(pastDueTasksResult.data || []);
 
       // Create maps
       const agentPhoneMap = new Map((agentPhonesResult.data || []).map((a) => [a.user_id, a]));
@@ -545,7 +550,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleToggleTask = async (taskId: string, currentStatus: string) => {
+  const handleToggleTask = async (taskId: string, currentStatus: string, isPastDue: boolean = false) => {
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
     const { error } = await supabase
       .from("tasks")
@@ -560,11 +565,18 @@ const Dashboard = () => {
       return;
     }
 
-    setTodayTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      )
-    );
+    if (isPastDue) {
+      // Remove from past due tasks when completed
+      if (newStatus === "completed") {
+        setPastDueTasks((prev) => prev.filter((task) => task.id !== taskId));
+      }
+    } else {
+      setTodayTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId ? { ...task, status: newStatus } : task
+        )
+      );
+    }
     toast.success(`Task ${newStatus === "completed" ? "completed" : "reopened"}`);
   };
 
@@ -668,6 +680,48 @@ const Dashboard = () => {
         </Card>
       </div>
 
+      {/* Past Due Tasks */}
+      {pastDueTasks.length > 0 && (
+        <div className="mb-8">
+          <Card className="p-6 border-destructive/50 bg-destructive/5">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <h2 className="text-xl font-semibold text-destructive">Past Due Tasks</h2>
+              <Badge variant="destructive" className="ml-2">{pastDueTasks.length}</Badge>
+            </div>
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {pastDueTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-start gap-3 p-3 rounded-lg border border-destructive/30 bg-card hover:bg-destructive/10 transition-colors"
+                >
+                  <Checkbox
+                    checked={task.status === "completed"}
+                    onCheckedChange={() => handleToggleTask(task.id, task.status, true)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-foreground">
+                      {task.title}
+                    </p>
+                    {task.description && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {task.description}
+                      </p>
+                    )}
+                    {task.due_date && (
+                      <p className="text-xs text-destructive mt-1">
+                        Was due: {format(new Date(task.due_date), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Calendar with Today's Tasks */}
       <div className="mb-8">
         <Card className="p-6">
@@ -688,7 +742,7 @@ const Dashboard = () => {
                     >
                       <Checkbox
                         checked={task.status === "completed"}
-                        onCheckedChange={() => handleToggleTask(task.id, task.status)}
+                        onCheckedChange={() => handleToggleTask(task.id, task.status, false)}
                         className="mt-1"
                       />
                       <div className="flex-1 min-w-0">
