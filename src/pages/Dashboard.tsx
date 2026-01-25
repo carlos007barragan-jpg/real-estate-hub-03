@@ -38,6 +38,13 @@ interface Task {
   due_date: string | null;
   status: string;
   lead_id: string;
+  user_id: string;
+}
+
+interface PastDueTasksByMember {
+  userId: string;
+  memberName: string;
+  tasks: Task[];
 }
 
 interface Appointment {
@@ -85,6 +92,7 @@ const Dashboard = () => {
   const [agentStats, setAgentStats] = useState<AgentStats[]>([]);
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
   const [pastDueTasks, setPastDueTasks] = useState<Task[]>([]);
+  const [pastDueTasksByMember, setPastDueTasksByMember] = useState<PastDueTasksByMember[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -403,8 +411,8 @@ const Dashboard = () => {
         supabase.from("agents").select("*"),
         supabase.from("profiles").select("*").in("user_id", orgUserIds),
         supabase.from("tasks").select("*").eq("user_id", user.id).gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
-        // Fetch past due tasks - tasks with due_date before today that are not completed (no date restriction on how far back)
-        supabase.from("tasks").select("*").eq("user_id", user.id).not("due_date", "is", null).lt("due_date", todayStart.toISOString()).neq("status", "completed").order("due_date", { ascending: true }),
+        // Fetch past due tasks - organization-wide tasks with due_date before today that are not completed
+        supabase.from("tasks").select("*").in("user_id", orgUserIds).not("due_date", "is", null).lt("due_date", todayStart.toISOString()).neq("status", "completed").order("due_date", { ascending: true }),
         // Fetch all agent data at once (with filtering for non-admins)
         !isUserAdmin && currentPhone
           ? supabase.from("call_logs").select("user_id").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
@@ -434,6 +442,27 @@ const Dashboard = () => {
       // Create maps
       const agentPhoneMap = new Map((agentPhonesResult.data || []).map((a) => [a.user_id, a]));
       const profileMap = new Map((profilesResult.data || []).map((p) => [p.user_id, p]));
+
+      // Group past due tasks by member
+      const pastDueTasksData = pastDueTasksResult.data || [];
+      const tasksByMember = new Map<string, Task[]>();
+      pastDueTasksData.forEach((task: Task) => {
+        const existing = tasksByMember.get(task.user_id) || [];
+        existing.push(task);
+        tasksByMember.set(task.user_id, existing);
+      });
+
+      const groupedTasks: PastDueTasksByMember[] = Array.from(tasksByMember.entries()).map(([userId, tasks]) => {
+        const profile = profileMap.get(userId);
+        const memberName = profile 
+          ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Unknown User"
+          : "Unknown User";
+        return { userId, memberName, tasks };
+      });
+      
+      // Sort by member name
+      groupedTasks.sort((a, b) => a.memberName.localeCompare(b.memberName));
+      setPastDueTasksByMember(groupedTasks);
       
       // Count occurrences for each agent
       const countByUserId = (data: any[]) => {
@@ -680,8 +709,8 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Past Due Tasks */}
-      {pastDueTasks.length > 0 && (
+      {/* Past Due Tasks - Organized by Member */}
+      {pastDueTasksByMember.length > 0 && (
         <div className="mb-8">
           <Card className="p-6 border-destructive/50 bg-destructive/5">
             <div className="flex items-center gap-2 mb-4">
@@ -689,31 +718,46 @@ const Dashboard = () => {
               <h2 className="text-xl font-semibold text-destructive">Past Due Tasks</h2>
               <Badge variant="destructive" className="ml-2">{pastDueTasks.length}</Badge>
             </div>
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {pastDueTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border border-destructive/30 bg-card hover:bg-destructive/10 transition-colors"
-                >
-                  <Checkbox
-                    checked={task.status === "completed"}
-                    onCheckedChange={() => handleToggleTask(task.id, task.status, true)}
-                    className="mt-1"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-foreground">
-                      {task.title}
-                    </p>
-                    {task.description && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {task.description}
-                      </p>
-                    )}
-                    {task.due_date && (
-                      <p className="text-xs text-destructive mt-1">
-                        Was due: {format(new Date(task.due_date), "MMM d, yyyy 'at' h:mm a")}
-                      </p>
-                    )}
+            <div className="space-y-6 max-h-96 overflow-y-auto">
+              {pastDueTasksByMember.map((memberGroup) => (
+                <div key={memberGroup.userId}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="h-6 w-6 rounded-full bg-destructive/20 flex items-center justify-center">
+                      <span className="text-xs font-medium text-destructive">
+                        {memberGroup.memberName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-sm text-foreground">{memberGroup.memberName}</h3>
+                    <Badge variant="outline" className="text-xs">{memberGroup.tasks.length} task{memberGroup.tasks.length !== 1 ? 's' : ''}</Badge>
+                  </div>
+                  <div className="space-y-2 pl-8">
+                    {memberGroup.tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-3 p-3 rounded-lg border border-destructive/30 bg-card hover:bg-destructive/10 transition-colors"
+                      >
+                        <Checkbox
+                          checked={task.status === "completed"}
+                          onCheckedChange={() => handleToggleTask(task.id, task.status, true)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm text-foreground">
+                            {task.title}
+                          </p>
+                          {task.description && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {task.description}
+                            </p>
+                          )}
+                          {task.due_date && (
+                            <p className="text-xs text-destructive mt-1">
+                              Was due: {format(new Date(task.due_date), "MMM d, yyyy 'at' h:mm a")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
