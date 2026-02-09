@@ -178,11 +178,28 @@ export const TeamManagement = () => {
   };
 
   const handleDeleteUser = async (userId: string) => {
+    // Prevent self-deletion
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser?.id === userId) {
+      toast.error("You cannot remove yourself from the organization");
+      return;
+    }
+
     if (!confirm("Are you sure you want to remove this user from your organization?")) {
       return;
     }
 
     try {
+      // Remove the user's organization link by clearing org from profile
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ organization_id: null })
+        .eq("user_id", userId);
+
+      if (profileError) {
+        console.error("Error updating profile:", profileError);
+      }
+
       // Remove the user's role
       const { error: roleError } = await supabase
         .from("user_roles")
@@ -195,7 +212,7 @@ export const TeamManagement = () => {
       fetchUsers();
     } catch (error: any) {
       console.error("Error deleting user:", error);
-      toast.error("Failed to remove user");
+      toast.error(error.message || "Failed to remove user");
     }
   };
 
