@@ -17,7 +17,7 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
+  
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -58,7 +58,7 @@ export default function Signup() {
         data: {
           first_name: firstName,
           last_name: lastName,
-          organization_name: organizationName || `${firstName}'s Organization`
+          organization_name: `${firstName}'s Organization`
         }
       }
     });
@@ -124,15 +124,6 @@ export default function Signup() {
                   required
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organizationName">Organization Name (Optional)</Label>
-              <Input
-                id="organizationName"
-                placeholder="Your Company"
-                value={organizationName}
-                onChange={(e) => setOrganizationName(e.target.value)}
-              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

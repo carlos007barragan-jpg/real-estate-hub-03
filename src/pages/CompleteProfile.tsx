@@ -17,7 +17,7 @@ const CompleteProfile = () => {
   const [lastName, setLastName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
+  
   const [userId, setUserId] = useState<string | null>(null);
   const [isInvited, setIsInvited] = useState(false);
 
@@ -55,7 +55,7 @@ const CompleteProfile = () => {
       const metadata = session.user.user_metadata;
       if (metadata?.first_name) setFirstName(metadata.first_name);
       if (metadata?.last_name) setLastName(metadata.last_name);
-      if (metadata?.organization_name && !wasInvited) setOrganizationName(metadata.organization_name);
+      
 
       // Check if profile already exists and is complete
       const { data: profile } = await supabase
@@ -115,12 +115,6 @@ const CompleteProfile = () => {
 
       const hasInvitation = pendingInvitation !== null;
 
-      // If no invitation and no org name provided, require org name
-      if (!hasInvitation && !organizationName) {
-        toast.error("Organization name is required");
-        setLoading(false);
-        return;
-      }
 
       // Update user metadata
       const { error: metadataError } = await supabase.auth.updateUser({
@@ -235,7 +229,7 @@ const CompleteProfile = () => {
           const { data: org, error: orgError } = await supabase
             .from("organizations")
             .insert({
-              name: organizationName,
+              name: `${firstName}'s Organization`,
               created_by: userId,
             })
             .select()
@@ -362,18 +356,6 @@ const CompleteProfile = () => {
               />
             </div>
 
-            {!isInvited && (
-              <div className="space-y-2">
-                <Label htmlFor="organizationName">Organization Name *</Label>
-                <Input
-                  id="organizationName"
-                  placeholder="My Real Estate Company"
-                  value={organizationName}
-                  onChange={(e) => setOrganizationName(e.target.value)}
-                  required
-                />
-              </div>
-            )}
 
             <Button 
               type="submit" 
