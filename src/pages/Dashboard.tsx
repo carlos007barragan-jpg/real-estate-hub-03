@@ -397,8 +397,9 @@ const Dashboard = () => {
       setTotalMessages(messagesResult.data?.length || 0);
       setTotalNewLeads(leadsResult.data?.length || 0);
       setTotalAppointments(appointmentsResult.data?.length || 0);
-      setTodayTasks(tasksResult.data || []);
-      setPastDueTasks(pastDueTasksResult.data || []);
+      setTodayTasks((tasksResult.data || []).filter(t => t.user_id === user.id));
+      // Only store current user's own past due tasks
+      setPastDueTasks((pastDueTasksResult.data || []).filter(t => t.user_id === user.id));
 
       // Create maps
       const agentPhoneMap = new Map((agentPhonesResult.data || []).map((a) => [a.user_id, a]));
@@ -695,17 +696,17 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Past Due Tasks - Only show current user's own past due tasks */}
-      {pastDueTasks.filter(t => t.user_id === currentUserId).length > 0 && (
+      {/* Past Due Tasks - Only current user's own */}
+      {pastDueTasks.length > 0 && (
         <div className="mb-8">
         <Card className="p-6 border-destructive/50 bg-destructive/5">
             <div className="flex items-center gap-2 mb-4">
               <AlertTriangle className="h-5 w-5 text-destructive" />
               <h2 className="text-xl font-semibold text-destructive">Your Past Due Tasks</h2>
-              <Badge variant="destructive" className="ml-2">{pastDueTasks.filter(t => t.user_id === currentUserId).length}</Badge>
+              <Badge variant="destructive" className="ml-2">{pastDueTasks.length}</Badge>
             </div>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {pastDueTasks.filter(t => t.user_id === currentUserId).map((task) => (
+              {pastDueTasks.map((task) => (
                 <div
                   key={task.id}
                   className="flex items-start gap-3 p-3 rounded-lg border border-destructive/30 bg-card hover:bg-destructive/10 transition-colors"
