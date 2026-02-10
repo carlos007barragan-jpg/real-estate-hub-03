@@ -190,6 +190,17 @@ export const TeamManagement = () => {
     }
 
     try {
+      // Remove the user's role first (before org change, since delete policy checks admin role not org)
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (roleError) {
+        console.error("Error deleting role:", roleError);
+        // Continue even if no role existed
+      }
+
       // Remove the user's organization link by clearing org from profile
       const { error: profileError } = await supabase
         .from("profiles")
@@ -198,21 +209,17 @@ export const TeamManagement = () => {
 
       if (profileError) {
         console.error("Error updating profile:", profileError);
+        throw new Error("Failed to remove user from organization");
       }
 
-      // Remove the user's role
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
-
-      if (roleError) throw roleError;
-
+      // Immediately remove from local state for instant UI feedback
+      setUsers(prev => prev.filter(u => u.id !== userId));
       toast.success("User removed successfully");
-      fetchUsers();
     } catch (error: any) {
       console.error("Error deleting user:", error);
       toast.error(error.message || "Failed to remove user");
+      // Refresh to get accurate state
+      fetchUsers();
     }
   };
 
