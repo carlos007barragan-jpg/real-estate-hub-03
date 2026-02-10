@@ -108,70 +108,28 @@ const Dashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get admin status
-      const { data: adminData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-      const isUserAdmin = !!adminData;
-      setIsAdmin(isUserAdmin);
+      // Parallel fetch admin status + agent phone
+      const [adminResult, agentResult] = await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
+        supabase.from("agents").select("phone_number").eq("user_id", user.id).maybeSingle(),
+      ]);
 
-      // Get current user phone
-      const { data: agentData } = await supabase
-        .from("agents")
-        .select("phone_number")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const userPhone = agentData?.phone_number || null;
+      const isUserAdmin = !!adminResult.data;
+      const userPhone = agentResult.data?.phone_number || null;
+      setIsAdmin(isUserAdmin);
       setCurrentUserPhone(userPhone);
 
-      // Fetch dashboard data with the fresh values
-      await fetchDashboardData(isUserAdmin, userPhone);
+      // Fetch dashboard data and setup presence in parallel
+      fetchDashboardData(isUserAdmin, userPhone);
       setupPresenceTracking();
     };
     
     initializeDashboard();
   }, []);
 
-  useEffect(() => {
-    if (isAdmin !== undefined) {
-      fetchUpcomingAppointments();
-    }
-  }, [isAdmin]);
+  // Removed duplicate fetchUpcomingAppointments useEffect - already called in fetchDashboardData
 
-  const checkAdminStatus = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    setIsAdmin(!!data);
-  };
-
-  const fetchCurrentUserPhone = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("agents")
-        .select("phone_number")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      setCurrentUserPhone(data?.phone_number || null);
-    } catch (error: any) {
-      console.error("Error fetching current user phone:", error);
-    }
-  };
+  // Removed unused checkAdminStatus and fetchCurrentUserPhone - handled inline in initializeDashboard
 
   const fetchUpcomingAppointments = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -613,7 +571,32 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="p-8">
-        <p className="text-muted-foreground">Loading dashboard...</p>
+        <div className="mb-8">
+          <div className="h-9 w-48 bg-muted animate-pulse rounded" />
+          <div className="h-5 w-72 bg-muted animate-pulse rounded mt-2" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Card key={i} className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                  <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+                  <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+                </div>
+                <div className="h-12 w-12 rounded-full bg-muted animate-pulse" />
+              </div>
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Card key={i} className="p-6">
+              <div className="h-6 w-32 bg-muted animate-pulse rounded mb-4" />
+              <div className="h-48 bg-muted animate-pulse rounded" />
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
