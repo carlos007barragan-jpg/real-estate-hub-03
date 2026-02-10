@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
-import { User, Shield, Mail, Phone, Building2, Calendar, CheckCircle } from "lucide-react";
+import { User, Shield, Mail, Phone, Building2, Calendar, CheckCircle, KeyRound, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -253,123 +256,210 @@ export const ProfileSettings = () => {
   const permissions = getPermissions(userRole);
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      {/* Account Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Account Information
-          </CardTitle>
-          <CardDescription>Your personal details and account info</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-start gap-3">
-              <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Full Name</p>
-                <p className="text-base text-foreground">
-                  {profile.firstName && profile.lastName 
-                    ? `${profile.firstName} ${profile.lastName}`
-                    : 'Not set'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="flex items-start gap-3">
-              <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Email</p>
-                <p className="text-base text-foreground">{profile.email}</p>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="flex items-start gap-3">
-              <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Phone Number</p>
-                <p className="text-base text-foreground">
-                  {profile.phoneNumber || 'Not set'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="flex items-start gap-3">
-              <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Organization</p>
-                <p className="text-base text-foreground">
-                  {profile.organizationName || 'Not set'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Member Since</p>
-                <p className="text-base text-foreground">
-                  {new Date(profile.createdAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Role & Permissions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Role & Permissions
-          </CardTitle>
-          <CardDescription>Your current role and access levels</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">Current Role</p>
-            <Badge variant={getRoleBadgeVariant(userRole)} className="text-sm">
-              {getRoleDisplayName(userRole)}
-            </Badge>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">Permissions</p>
+    <div className="space-y-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Account Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Account Information
+            </CardTitle>
+            <CardDescription>Your personal details and account info</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              {permissions.map((permission, index) => (
-                <div key={index} className="flex items-start gap-2">
-                  <CheckCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-foreground">{permission}</p>
+              <div className="flex items-start gap-3">
+                <User className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground">Full Name</p>
+                  <p className="text-base text-foreground">
+                    {profile.firstName && profile.lastName 
+                      ? `${profile.firstName} ${profile.lastName}`
+                      : 'Not set'}
+                  </p>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-3">
+                <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground">Email</p>
+                  <p className="text-base text-foreground">{profile.email}</p>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-3">
+                <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground">Phone Number</p>
+                  <p className="text-base text-foreground">
+                    {profile.phoneNumber || 'Not set'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-3">
+                <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground">Organization</p>
+                  <p className="text-base text-foreground">
+                    {profile.organizationName || 'Not set'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground">Member Since</p>
+                  <p className="text-base text-foreground">
+                    {new Date(profile.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Role & Permissions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Role & Permissions
+            </CardTitle>
+            <CardDescription>Your current role and access levels</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Current Role</p>
+              <Badge variant={getRoleBadgeVariant(userRole)} className="text-sm">
+                {getRoleDisplayName(userRole)}
+              </Badge>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground">Permissions</p>
+              <div className="space-y-2">
+                {permissions.map((permission, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-foreground">{permission}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Set Password Section */}
+      <SetPasswordCard email={profile.email} />
     </div>
+  );
+};
+
+const SetPasswordCard = ({ email }: { email: string }) => {
+  const { toast } = useToast();
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (newPassword.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      toast({ title: "Password set", description: "You can now log in with your email and this password." });
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error("Error setting password:", error);
+      toast({ title: "Error", description: error.message || "Failed to set password", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <KeyRound className="h-5 w-5" />
+          Set Login Password
+        </CardTitle>
+        <CardDescription>
+          Set a password to log in with your email ({email}) instead of Google Sign-In
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSetPassword} className="space-y-4 max-w-md">
+          <div className="space-y-2">
+            <Label htmlFor="new-password">New Password</Label>
+            <Input
+              id="new-password"
+              type="password"
+              placeholder="Enter a password (min 6 characters)"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirm Password</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <Button type="submit" disabled={saving}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Set Password
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
