@@ -1,10 +1,25 @@
 import { z } from 'zod';
 
-// Phone number validation - E.164 format
+// Phone number validation - accepts local US format or international
 export const phoneSchema = z.string()
-  .regex(/^\+?[1-9]\d{1,14}$/, 'Phone number must be in international format (e.g., +12025551234)')
-  .min(10, 'Phone number is too short')
-  .max(16, 'Phone number is too long');
+  .transform((val) => {
+    // Strip all non-digit characters
+    const digits = val.replace(/\D/g, '');
+    // If 10 digits, assume US and prepend +1
+    if (digits.length === 10) return `+1${digits}`;
+    // If 11 digits starting with 1, prepend +
+    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+    // If already has +, keep as is
+    if (val.startsWith('+')) return val.replace(/[^\d+]/g, '');
+    // Otherwise return cleaned digits with +
+    return digits.length > 0 ? `+${digits}` : val;
+  })
+  .pipe(
+    z.string()
+      .regex(/^\+[1-9]\d{6,14}$/, 'Please enter a valid phone number (e.g., 555-123-4567 or +12025551234)')
+      .min(8, 'Phone number is too short')
+      .max(16, 'Phone number is too long')
+  );
 
 // Email validation
 export const emailSchema = z.string()

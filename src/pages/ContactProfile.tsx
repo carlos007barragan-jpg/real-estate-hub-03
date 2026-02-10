@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Phone, Mail, MapPin, Building2, Edit, Plus, ArrowLeft } from "lucide-react";
+import { Phone, Mail, Building2, Edit, Plus, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,31 +20,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type ContactCategory = "clients" | "leads" | "vendors" | "business-owners" | "title-offices" | "wholesalers" | "hard-money-lenders";
-
 interface Contact {
   id: string;
   name: string;
-  email: string;
-  phone: string;
-  address: string;
-  avatar: string;
-  properties: number;
-  lastContact: string;
-  category: ContactCategory;
-  company?: string;
-  isDemoData?: boolean;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  category: string;
+  vendor_subcategory: string | null;
+  notes: string | null;
+  tags: string[] | null;
+  created_at: string;
+  updated_at: string;
 }
-
-const categoryLabels: Record<ContactCategory, string> = {
-  "clients": "Clients",
-  "leads": "Leads",
-  "vendors": "Vendors",
-  "business-owners": "Business Owners",
-  "title-offices": "Title Offices",
-  "wholesalers": "Wholesalers",
-  "hard-money-lenders": "Hard Money Lenders",
-};
 
 const ContactProfile = () => {
   const { id } = useParams();
@@ -52,64 +40,99 @@ const ContactProfile = () => {
   const { toast } = useToast();
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
-  const [calling, setCalling] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
     phone: "",
-    address: "",
     company: "",
+    notes: "",
   });
 
   useEffect(() => {
-    // For now, load from local state/mock data
-    // In production, this would fetch from database
-    const mockContact: Contact = {
-      id: id || "",
-      name: "Sarah Johnson",
-      email: "sarah.j@email.com",
-      phone: "(555) 123-4567",
-      address: "123 Main St, Downtown",
-      avatar: "SJ",
-      properties: 2,
-      lastContact: "2 days ago",
-      category: "clients",
-      company: "Johnson Properties LLC",
-    };
-    setContact(mockContact);
-    setEditForm({
-      name: mockContact.name,
-      email: mockContact.email,
-      phone: mockContact.phone,
-      address: mockContact.address,
-      company: mockContact.company || "",
-    });
-    setLoading(false);
+    if (id) fetchContact();
   }, [id]);
 
-  const handleSaveEdit = () => {
-    if (contact) {
+  const fetchContact = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+
+      setContact(data);
+      setEditForm({
+        name: data.name || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        company: data.company || "",
+        notes: data.notes || "",
+      });
+    } catch (error: any) {
+      console.error("Error fetching contact:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load contact",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!contact) return;
+
+    try {
+      const { error } = await supabase
+        .from("contacts")
+        .update({
+          name: editForm.name,
+          email: editForm.email || null,
+          phone: editForm.phone || null,
+          company: editForm.company || null,
+          notes: editForm.notes || null,
+        })
+        .eq("id", contact.id);
+
+      if (error) throw error;
+
       setContact({
         ...contact,
         name: editForm.name,
-        email: editForm.email,
-        phone: editForm.phone,
-        address: editForm.address,
-        company: editForm.company,
+        email: editForm.email || null,
+        phone: editForm.phone || null,
+        company: editForm.company || null,
+        notes: editForm.notes || null,
       });
       setEditDialogOpen(false);
       toast({
         title: "Contact Updated",
-        description: "Contact information has been updated",
+        description: "Contact information has been saved",
+      });
+    } catch (error: any) {
+      console.error("Error updating contact:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update contact",
+        variant: "destructive",
       });
     }
   };
 
   const handleCall = () => {
-    if (!contact) return;
-    
-    // Dispatch custom event to trigger GlobalCallManager
+    if (!contact?.phone) {
+      toast({
+        title: "No phone number",
+        description: "This contact doesn't have a phone number",
+        variant: "destructive",
+      });
+      return;
+    }
+
     window.dispatchEvent(new CustomEvent('initiateCall', {
       detail: {
         phoneNumber: contact.phone,
@@ -118,12 +141,29 @@ const ContactProfile = () => {
     }));
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="p-8">Loading contact...</div>;
   }
 
   if (!contact) {
-    return <div className="p-8">Contact not found</div>;
+    return (
+      <div className="p-8">
+        <Button variant="ghost" onClick={() => navigate("/contacts")} className="mb-4 gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Contacts
+        </Button>
+        <p className="text-muted-foreground">Contact not found</p>
+      </div>
+    );
   }
 
   return (
@@ -143,17 +183,15 @@ const ContactProfile = () => {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             <div className="flex items-start gap-4">
               <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary to-primary/60 text-primary-foreground flex items-center justify-center font-bold text-2xl shadow-lg">
-                {contact.avatar}
+                {getInitials(contact.name)}
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-foreground mb-2">{contact.name}</h1>
                 <div className="flex items-center gap-2 mb-2">
                   <Badge variant="outline" className="border-primary/20 bg-primary/5">
-                    {categoryLabels[contact.category]}
+                    {contact.category}
+                    {contact.vendor_subcategory && ` • ${contact.vendor_subcategory}`}
                   </Badge>
-                  {contact.isDemoData && (
-                    <Badge variant="secondary">Demo</Badge>
-                  )}
                 </div>
                 {contact.company && (
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -165,13 +203,9 @@ const ContactProfile = () => {
             </div>
 
             <div className="flex gap-2">
-              <Button
-                onClick={handleCall}
-                disabled={calling}
-                className="gap-2"
-              >
+              <Button onClick={handleCall} className="gap-2" disabled={!contact.phone}>
                 <Phone className="h-4 w-4" />
-                {calling ? "Calling..." : "Call"}
+                Call
               </Button>
               <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
                 <DialogTrigger asChild>
@@ -183,9 +217,7 @@ const ContactProfile = () => {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Edit Contact</DialogTitle>
-                    <DialogDescription>
-                      Update contact information
-                    </DialogDescription>
+                    <DialogDescription>Update contact information</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
@@ -214,14 +246,6 @@ const ContactProfile = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="edit-address">Address</Label>
-                      <Input
-                        id="edit-address"
-                        value={editForm.address}
-                        onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
                       <Label htmlFor="edit-company">Company</Label>
                       <Input
                         id="edit-company"
@@ -229,11 +253,18 @@ const ContactProfile = () => {
                         onChange={(e) => setEditForm({ ...editForm, company: e.target.value })}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-notes">Notes</Label>
+                      <Textarea
+                        id="edit-notes"
+                        value={editForm.notes}
+                        onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                      Cancel
-                    </Button>
+                    <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
                     <Button onClick={handleSaveEdit}>Save Changes</Button>
                   </DialogFooter>
                 </DialogContent>
@@ -251,7 +282,7 @@ const ContactProfile = () => {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Email</p>
-                <p className="font-medium">{contact.email}</p>
+                <p className="font-medium">{contact.email || "Not provided"}</p>
               </div>
             </div>
           </Card>
@@ -262,29 +293,48 @@ const ContactProfile = () => {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Phone</p>
-                <p className="font-medium">{contact.phone}</p>
+                <p className="font-medium">{contact.phone || "Not provided"}</p>
               </div>
             </div>
           </Card>
           <Card className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <MapPin className="h-5 w-5 text-primary" />
+                <Building2 className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Address</p>
-                <p className="font-medium">{contact.address}</p>
+                <p className="text-xs text-muted-foreground">Company</p>
+                <p className="font-medium">{contact.company || "Not provided"}</p>
               </div>
             </div>
           </Card>
         </div>
+
+        {/* Notes Section */}
+        {contact.notes && (
+          <Card className="p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-2">Notes</h3>
+            <p className="text-muted-foreground whitespace-pre-wrap">{contact.notes}</p>
+          </Card>
+        )}
+
+        {/* Tags */}
+        {contact.tags && contact.tags.length > 0 && (
+          <Card className="p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-2">Tags</h3>
+            <div className="flex flex-wrap gap-2">
+              {contact.tags.map((tag, i) => (
+                <Badge key={i} variant="secondary">{tag}</Badge>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Tabs Section */}
         <Tabs defaultValue="activity" className="w-full">
           <TabsList className="w-full justify-start mb-6">
             <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="deals">Deals & Business</TabsTrigger>
-            <TabsTrigger value="team">Team Members</TabsTrigger>
             <TabsTrigger value="notes">Notes</TabsTrigger>
           </TabsList>
 
@@ -310,22 +360,6 @@ const ContactProfile = () => {
               <div className="text-center py-8 text-muted-foreground">
                 <p>No deals recorded yet</p>
                 <p className="text-sm">Add your first deal to track business history</p>
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="team">
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Team Members</h3>
-                <Button size="sm" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Member
-                </Button>
-              </div>
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No team members added</p>
-                <p className="text-sm">Add team members to track additional contacts</p>
               </div>
             </Card>
           </TabsContent>
