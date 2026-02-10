@@ -32,7 +32,15 @@ import DispoSheet from "./pages/DispoSheet";
 import OwnerManagement from "./pages/OwnerManagement";
 import PublicPageSettings from "./pages/PublicPageSettings";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes — show cached data instantly on revisit
+      gcTime: 10 * 60 * 1000, // 10 minutes — keep unused cache for 10 min
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Apply dark mode immediately before React renders to prevent flash
 const darkMode = localStorage.getItem("darkMode") === "true";
