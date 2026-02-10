@@ -245,11 +245,14 @@ export const ProfileSettings = () => {
 
   if (!profile) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-muted-foreground">No profile data found.</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground">No profile data found.</p>
+          </CardContent>
+        </Card>
+        <SetPasswordCard email="" />
+      </div>
     );
   }
 
@@ -382,11 +385,20 @@ export const ProfileSettings = () => {
   );
 };
 
-const SetPasswordCard = ({ email }: { email: string }) => {
+const SetPasswordCard = ({ email: initialEmail }: { email: string }) => {
   const { toast } = useToast();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [email, setEmail] = useState(initialEmail);
+
+  useEffect(() => {
+    if (!initialEmail) {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user?.email) setEmail(user.email);
+      });
+    }
+  }, [initialEmail]);
 
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
