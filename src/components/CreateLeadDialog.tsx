@@ -404,8 +404,9 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               required
-              placeholder="(555) 123-4567"
+              placeholder="555-123-4567"
             />
+            <p className="text-xs text-muted-foreground">US numbers auto-format. International: +44...</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

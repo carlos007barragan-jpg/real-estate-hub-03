@@ -169,7 +169,7 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
           </div>
 
           <div className="space-y-2">
-            <Label>Date & Time *</Label>
+            <Label>Date *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -187,12 +187,33 @@ export const AddAppointmentDialog = ({ onSuccess }: AddAppointmentDialogProps) =
                 <Calendar
                   mode="single"
                   selected={formData.dueDate}
-                  onSelect={(date) => date && setFormData({ ...formData, dueDate: date })}
+                  onSelect={(date) => {
+                    if (date) {
+                      // Preserve existing time when changing date
+                      const existing = formData.dueDate;
+                      date.setHours(existing.getHours(), existing.getMinutes());
+                      setFormData({ ...formData, dueDate: date });
+                    }
+                  }}
                   initialFocus
                   className="pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Time *</Label>
+            <Input
+              type="time"
+              value={`${String(formData.dueDate.getHours()).padStart(2, '0')}:${String(formData.dueDate.getMinutes()).padStart(2, '0')}`}
+              onChange={(e) => {
+                const [hours, minutes] = e.target.value.split(':').map(Number);
+                const newDate = new Date(formData.dueDate);
+                newDate.setHours(hours, minutes);
+                setFormData({ ...formData, dueDate: newDate });
+              }}
+            />
           </div>
 
           <div className="space-y-2">
