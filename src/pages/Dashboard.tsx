@@ -102,6 +102,7 @@ const Dashboard = () => {
   const [chartView, setChartView] = useState<'daily' | 'monthly' | 'ytd'>('monthly');
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const initializeDashboard = async () => {
@@ -118,6 +119,7 @@ const Dashboard = () => {
       const userPhone = agentResult.data?.phone_number || null;
       setIsAdmin(isUserAdmin);
       setCurrentUserPhone(userPhone);
+      setCurrentUserId(user.id);
 
       // Fetch dashboard data and setup presence in parallel
       fetchDashboardData(isUserAdmin, userPhone);
@@ -696,55 +698,61 @@ const Dashboard = () => {
       {/* Past Due Tasks - Organized by Member */}
       {pastDueTasksByMember.length > 0 && (
         <div className="mb-8">
-          <Card className="p-6 border-destructive/50 bg-destructive/5">
+        <Card className="p-6 border-destructive/50 bg-destructive/5">
             <div className="flex items-center gap-2 mb-4">
               <AlertTriangle className="h-5 w-5 text-destructive" />
               <h2 className="text-xl font-semibold text-destructive">Past Due Tasks</h2>
               <Badge variant="destructive" className="ml-2">{pastDueTasks.length}</Badge>
             </div>
-            <div className="space-y-6 max-h-96 overflow-y-auto">
-              {pastDueTasksByMember.map((memberGroup) => (
-                <div key={memberGroup.userId}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="h-6 w-6 rounded-full bg-destructive/20 flex items-center justify-center">
-                      <span className="text-xs font-medium text-destructive">
-                        {memberGroup.memberName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <h3 className="font-semibold text-sm text-foreground">{memberGroup.memberName}</h3>
-                    <Badge variant="outline" className="text-xs">{memberGroup.tasks.length} task{memberGroup.tasks.length !== 1 ? 's' : ''}</Badge>
-                  </div>
-                  <div className="space-y-2 pl-8">
-                    {memberGroup.tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="flex items-start gap-3 p-3 rounded-lg border border-destructive/30 bg-card hover:bg-destructive/10 transition-colors"
-                      >
-                        <Checkbox
-                          checked={task.status === "completed"}
-                          onCheckedChange={() => handleToggleTask(task.id, task.status, true)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm text-foreground">
-                            {task.title}
-                          </p>
-                          {task.description && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {task.description}
-                            </p>
-                          )}
-                          {task.due_date && (
-                            <p className="text-xs text-destructive mt-1">
-                              Was due: {format(new Date(task.due_date), "MMM d, yyyy 'at' h:mm a")}
-                            </p>
-                          )}
-                        </div>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {pastDueTasksByMember.map((memberGroup) => {
+                const isOwnTasks = memberGroup.userId === currentUserId;
+                return (
+                  <div key={memberGroup.userId}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="h-6 w-6 rounded-full bg-destructive/20 flex items-center justify-center">
+                        <span className="text-xs font-medium text-destructive">
+                          {memberGroup.memberName.charAt(0).toUpperCase()}
+                        </span>
                       </div>
-                    ))}
+                      <h3 className="font-semibold text-sm text-foreground">{memberGroup.memberName}</h3>
+                      <Badge variant="outline" className="text-xs">{memberGroup.tasks.length} past due task{memberGroup.tasks.length !== 1 ? 's' : ''}</Badge>
+                    </div>
+                    {/* Only show individual tasks for the current user's own tasks */}
+                    {isOwnTasks && (
+                      <div className="space-y-2 pl-8">
+                        {memberGroup.tasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className="flex items-start gap-3 p-3 rounded-lg border border-destructive/30 bg-card hover:bg-destructive/10 transition-colors"
+                          >
+                            <Checkbox
+                              checked={task.status === "completed"}
+                              onCheckedChange={() => handleToggleTask(task.id, task.status, true)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-foreground">
+                                {task.title}
+                              </p>
+                              {task.description && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {task.description}
+                                </p>
+                              )}
+                              {task.due_date && (
+                                <p className="text-xs text-destructive mt-1">
+                                  Was due: {format(new Date(task.due_date), "MMM d, yyyy 'at' h:mm a")}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
         </div>
