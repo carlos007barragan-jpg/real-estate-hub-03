@@ -627,15 +627,30 @@ const Pipelines = () => {
         // Transform leads into deals grouped by pipeline and stage
         const pipelineMap = new Map<string, Map<string, Deal[]>>();
 
+        // Build a lookup of valid stage names per pipeline
+        const pipelineStageNames = new Map<string, string[]>();
+        pipelines.forEach(p => {
+          pipelineStageNames.set(p.id, p.stages.map(s => s.name));
+        });
+
         leads?.forEach((lead) => {
           const pipelineId = lead.pipeline;
-          const stage = lead.pipeline_stage;
+          let stage = lead.pipeline_stage;
 
-          if (!pipelineMap.has(pipelineId)) {
-            pipelineMap.set(pipelineId, new Map());
+          // Skip leads assigned to non-existent pipelines
+          const validStages = pipelineStageNames.get(pipelineId!);
+          if (!validStages) return;
+
+          // If stage name doesn't match any stage in the pipeline, default to first stage
+          if (!validStages.includes(stage)) {
+            stage = validStages[0] || stage;
           }
 
-          const stageMap = pipelineMap.get(pipelineId)!;
+          if (!pipelineMap.has(pipelineId!)) {
+            pipelineMap.set(pipelineId!, new Map());
+          }
+
+          const stageMap = pipelineMap.get(pipelineId!)!;
           if (!stageMap.has(stage)) {
             stageMap.set(stage, []);
           }
@@ -845,31 +860,44 @@ const Pipelines = () => {
       // Transform leads into deals grouped by pipeline and stage
       const pipelineMap = new Map<string, Map<string, Deal[]>>();
 
-      leads?.forEach((lead) => {
-        const pipelineId = lead.pipeline;
-        const stage = lead.pipeline_stage;
+        // Build a lookup of valid stage names per pipeline
+        const pipelineStageNames = new Map<string, string[]>();
+        pipelines.forEach(p => {
+          pipelineStageNames.set(p.id, p.stages.map(s => s.name));
+        });
 
-        if (!pipelineMap.has(pipelineId)) {
-          pipelineMap.set(pipelineId, new Map());
-        }
+        leads?.forEach((lead) => {
+          const pipelineId = lead.pipeline;
+          let stage = lead.pipeline_stage;
 
-        const stageMap = pipelineMap.get(pipelineId)!;
-        if (!stageMap.has(stage)) {
-          stageMap.set(stage, []);
-        }
+          const validStages = pipelineStageNames.get(pipelineId!);
+          if (!validStages) return;
 
-        const deal: Deal = {
-          id: lead.id,
-          client: lead.name,
-          agent: lead.assigned_to || "Not assigned",
-          commission: parseFloat(lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
-          closeDate: lead.timeframe || "TBD",
-          priority: lead.lead_temperature === "hot" ? "high" : lead.lead_temperature === "warm" ? "medium" : "low",
-          leadId: lead.id,
-        };
+          if (!validStages.includes(stage)) {
+            stage = validStages[0] || stage;
+          }
 
-        stageMap.get(stage)!.push(deal);
-      });
+          if (!pipelineMap.has(pipelineId!)) {
+            pipelineMap.set(pipelineId!, new Map());
+          }
+
+          const stageMap = pipelineMap.get(pipelineId!)!;
+          if (!stageMap.has(stage)) {
+            stageMap.set(stage, []);
+          }
+
+          const deal: Deal = {
+            id: lead.id,
+            client: lead.name,
+            agent: lead.assigned_to || "Not assigned",
+            commission: parseFloat(lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
+            closeDate: lead.timeframe || "TBD",
+            priority: lead.lead_temperature === "hot" ? "high" : lead.lead_temperature === "warm" ? "medium" : "low",
+            leadId: lead.id,
+          };
+
+          stageMap.get(stage)!.push(deal);
+        });
 
         // Update pipelines with real data
         const updatedPipelines = pipelines.map((pipeline) => {
