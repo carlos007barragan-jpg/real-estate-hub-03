@@ -255,6 +255,37 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         }
       }
 
+      // Auto-match pipeline based on transaction type
+      let matchedPipelineId: string | null = null;
+      let matchedFirstStage = "New Lead";
+      if (formData.lead_temperature) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("organization_id")
+          .eq("user_id", user.id)
+          .single();
+
+        if (profile?.organization_id) {
+          const { data: orgPipelines } = await supabase
+            .from("pipelines")
+            .select("id, name, stages")
+            .eq("organization_id", profile.organization_id);
+
+          if (orgPipelines) {
+            // Find pipeline whose name matches the transaction type (case-insensitive)
+            const matched = orgPipelines.find(
+              (p) => p.name.toLowerCase().trim() === formData.lead_temperature.toLowerCase().trim()
+            );
+            if (matched) {
+              matchedPipelineId = matched.id;
+              const stages = Array.isArray(matched.stages) ? matched.stages : [];
+              const firstStage = stages[0] as { name?: string } | undefined;
+              matchedFirstStage = firstStage?.name || "New Lead";
+            }
+          }
+        }
+      }
+
       const { data: leadData, error } = await supabase.from("leads").insert({
         user_id: user.id,
         name: formData.name,
@@ -268,7 +299,8 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         status: formData.status,
         assigned_to: firstAssignedUser?.name || null,
         agent_phone: firstAssignedUser?.phone || null,
-        pipeline_stage: "New Lead",
+        pipeline: matchedPipelineId,
+        pipeline_stage: matchedFirstStage,
         lead_lifecycle: "Contact",
         down_payment: formData.down_payment || null,
         financing_type: formData.financing_type || null,
