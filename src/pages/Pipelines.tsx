@@ -871,8 +871,8 @@ const Pipelines = () => {
         stageMap.get(stage)!.push(deal);
       });
 
-      // Update pipelines with real data
-      const updatedPipelines = mockPipelines.map((pipeline) => {
+        // Update pipelines with real data
+        const updatedPipelines = pipelines.map((pipeline) => {
         const pipelineDeals = pipelineMap.get(pipeline.id);
 
         const updatedStages = pipeline.stages.map((stage) => ({
