@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle } from "lucide-react";
+import { LeadFilters } from "@/components/LeadFilters";
 import { CreateLeadDialog } from "@/components/CreateLeadDialog";
 import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
 import { Button } from "@/components/ui/button";
@@ -22,13 +23,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
 interface Lead {
@@ -40,6 +34,7 @@ interface Lead {
   source: string;
   value: string;
   date: string;
+  rawDate: string;
   assignedTo?: string;
   agentPhone?: string;
   assignedUserId?: string;
@@ -76,6 +71,11 @@ const Leads = () => {
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
   const [showMyLeadsOnly, setShowMyLeadsOnly] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [assignedToFilter, setAssignedToFilter] = useState("all");
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [createdByFilter, setCreatedByFilter] = useState("all");
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -113,6 +113,7 @@ const Leads = () => {
           source: lead.source,
           value: lead.value || "",
           date: new Date(lead.created_at).toLocaleDateString(),
+          rawDate: lead.created_at,
           assignedTo: lead.assigned_to || undefined,
           agentPhone: lead.agent_phone || undefined,
           isInboundCall: lead.is_inbound_call || false,
@@ -284,44 +285,88 @@ const Leads = () => {
     return transactionType.toLowerCase();
   }, []);
 
+  const createdByOptions = useMemo(() => {
+    const names = [...new Set(leads.map(l => l.createdBy).filter(Boolean))] as string[];
+    return names.sort();
+  }, [leads]);
+
   const filteredLeads = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayOfWeek = now.getDay(); // 0=Sun
+    const startOfThisWeek = new Date(startOfToday);
+    startOfThisWeek.setDate(startOfThisWeek.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    const startOfLastWeek = new Date(startOfThisWeek);
+    startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+    const endOfLastWeek = new Date(startOfThisWeek);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
     return leads
       .filter((lead) => {
         const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           lead.email.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        // Filter by "My Leads" if enabled - only show leads assigned to current user
+        if (!matchesSearch) return false;
+
+        // My Leads filter
         if (showMyLeadsOnly) {
           const assignmentMatch = myAssignedLeadIds.has(lead.id);
           const nameMatch = currentUserName ? lead.assignedTo?.toLowerCase() === currentUserName.toLowerCase() : false;
           const phoneMatch = currentUserPhone ? lead.agentPhone === currentUserPhone : false;
           if (!assignmentMatch && !nameMatch && !phoneMatch) return false;
         }
-        
-        if (activeTab === "all") return matchesSearch;
-        
-        const category = getLeadCategory(lead);
-        return matchesSearch && category === activeTab;
+
+        // Status filter
+        if (statusFilter !== "all" && lead.status !== statusFilter) return false;
+
+        // Assigned To filter
+        if (assignedToFilter !== "all") {
+          if (assignedToFilter === "unassigned") {
+            if (lead.assignedTo) return false;
+          } else {
+            if (lead.assignedTo?.toLowerCase() !== assignedToFilter.toLowerCase()) return false;
+          }
+        }
+
+        // Transaction Type filter
+        if (transactionTypeFilter !== "all") {
+          const lt = (lead.transactionType || "unassigned").toLowerCase();
+          if (lt !== transactionTypeFilter) return false;
+        }
+
+        // Date filter
+        if (dateFilter !== "all") {
+          const leadDate = new Date(lead.rawDate);
+          if (dateFilter === "today" && leadDate < startOfToday) return false;
+          if (dateFilter === "this-week" && leadDate < startOfThisWeek) return false;
+          if (dateFilter === "last-week" && (leadDate < startOfLastWeek || leadDate >= endOfLastWeek)) return false;
+          if (dateFilter === "this-month" && leadDate < startOfMonth) return false;
+          if (dateFilter === "most-recent" && leadDate < sevenDaysAgo) return false;
+        }
+
+        // Created By filter
+        if (createdByFilter !== "all" && lead.createdBy !== createdByFilter) return false;
+
+        // Tab filter
+        if (activeTab !== "all") {
+          const category = getLeadCategory(lead);
+          if (category !== activeTab) return false;
+        }
+
+        return true;
       })
       .sort((a, b) => {
-        // Priority 1: Leads assigned to current user (agent_phone matches)
         const aIsMyLead = currentUserPhone && a.agentPhone === currentUserPhone;
         const bIsMyLead = currentUserPhone && b.agentPhone === currentUserPhone;
-        
         if (aIsMyLead && !bIsMyLead) return -1;
         if (!aIsMyLead && bIsMyLead) return 1;
-        
-        // Priority 2: Unassigned leads
         const aIsUnassigned = !a.transactionType || a.transactionType === "Unassigned";
         const bIsUnassigned = !b.transactionType || b.transactionType === "Unassigned";
-        
         if (aIsUnassigned && !bIsUnassigned) return -1;
         if (!aIsUnassigned && bIsUnassigned) return 1;
-        
-        // Priority 3: Other leads (keep original order)
         return 0;
       });
-  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly]);
+  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly, statusFilter, assignedToFilter, transactionTypeFilter, dateFilter, createdByFilter]);
 
   const getLeadCountByCategory = useCallback((category: string) => {
     if (category === "all") return leads.length;
@@ -406,7 +451,7 @@ const Leads = () => {
           <CreateLeadDialog onLeadCreated={fetchLeads} />
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -417,18 +462,23 @@ const Leads = () => {
             />
           </div>
           
-          <Select 
-            value={showMyLeadsOnly ? "my-leads" : "all-leads"} 
-            onValueChange={(value) => setShowMyLeadsOnly(value === "my-leads")}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="my-leads">My Leads</SelectItem>
-              <SelectItem value="all-leads">All Leads</SelectItem>
-            </SelectContent>
-          </Select>
+          <LeadFilters
+            showMyLeadsOnly={showMyLeadsOnly}
+            onShowMyLeadsOnlyChange={setShowMyLeadsOnly}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            assignedToFilter={assignedToFilter}
+            onAssignedToFilterChange={setAssignedToFilter}
+            transactionTypeFilter={transactionTypeFilter}
+            onTransactionTypeFilterChange={setTransactionTypeFilter}
+            dateFilter={dateFilter}
+            onDateFilterChange={setDateFilter}
+            createdByFilter={createdByFilter}
+            onCreatedByFilterChange={setCreatedByFilter}
+            availableUsers={availableUsers}
+            transactionTypes={transactionTypes}
+            createdByOptions={createdByOptions}
+          />
         </div>
       </div>
 
