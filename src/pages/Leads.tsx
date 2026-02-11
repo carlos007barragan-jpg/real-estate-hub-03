@@ -69,6 +69,7 @@ const Leads = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
   const [showMyLeadsOnly, setShowMyLeadsOnly] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -174,6 +175,18 @@ const Leads = () => {
       
       setIsAdmin(!!roleData);
 
+      // Fetch profile name
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (profileData) {
+        const fullName = `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim();
+        setCurrentUserName(fullName || null);
+      }
+
       const { data, error } = await supabase
         .from("agents")
         .select("phone_number")
@@ -263,8 +276,9 @@ const Leads = () => {
           lead.email.toLowerCase().includes(searchTerm.toLowerCase());
         
         // Filter by "My Leads" if enabled - only show leads assigned to current user
-        if (showMyLeadsOnly && currentUserPhone) {
-          const isMyLead = lead.agentPhone === currentUserPhone;
+        if (showMyLeadsOnly) {
+          const isMyLead = (currentUserName && lead.assignedTo === currentUserName) ||
+                           (currentUserPhone && lead.agentPhone === currentUserPhone);
           if (!isMyLead) return false;
         }
         
@@ -291,7 +305,7 @@ const Leads = () => {
         // Priority 3: Other leads (keep original order)
         return 0;
       });
-  }, [leads, searchTerm, activeTab, currentUserPhone, getLeadCategory, showMyLeadsOnly]);
+  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, getLeadCategory, showMyLeadsOnly]);
 
   const getLeadCountByCategory = useCallback((category: string) => {
     if (category === "all") return leads.length;
