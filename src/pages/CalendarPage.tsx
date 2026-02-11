@@ -4,12 +4,12 @@ import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay, startOfDay } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Search, CheckSquare, AlertTriangle } from "lucide-react";
 import { AddAppointmentDialog } from "@/components/AddAppointmentDialog";
@@ -58,7 +58,7 @@ interface Task {
 }
 
 const CalendarPage = () => {
-  const { isAdmin } = useUserRole();
+  const { session, isAdmin } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [view, setView] = useState<'team' | 'individual'>('individual');
@@ -71,12 +71,14 @@ const CalendarPage = () => {
   const [agents, setAgents] = useState<Array<{ userId: string; agentName: string }>>([]);
 
   useEffect(() => {
-    fetchData();
-  }, [view]);
+    if (session?.user) {
+      fetchData();
+    }
+  }, [view, session?.user?.id]);
 
   const fetchData = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = session?.user;
       if (!user) return;
 
       // Get user's organization
@@ -203,7 +205,7 @@ const CalendarPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [view, isAdmin]);
+  }, [view, isAdmin, session?.user]);
 
   const filteredEvents = useMemo(() => {
     let filtered = [...events];

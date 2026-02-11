@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -84,6 +85,7 @@ interface DealsData {
 }
 
 const Dashboard = () => {
+  const { session, isAdmin: cachedIsAdmin, role } = useAuth();
   const [loading, setLoading] = useState(true);
   const [totalCalls, setTotalCalls] = useState(0);
   const [totalMessages, setTotalMessages] = useState(0);
@@ -105,37 +107,37 @@ const Dashboard = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const initializeDashboard = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    if (!session?.user) return;
 
-      // Parallel fetch admin status + agent phone
-      const [adminResult, agentResult] = await Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
-        supabase.from("agents").select("phone_number").eq("user_id", user.id).maybeSingle(),
-      ]);
+    const userId = session.user.id;
+    setIsAdmin(cachedIsAdmin);
+    setCurrentUserId(userId);
 
-      const isUserAdmin = !!adminResult.data;
-      const userPhone = agentResult.data?.phone_number || null;
-      setIsAdmin(isUserAdmin);
+    // Only need to fetch agent phone, role is already cached
+    const init = async () => {
+      const { data: agentResult } = await supabase
+        .from("agents")
+        .select("phone_number")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      const userPhone = agentResult?.phone_number || null;
       setCurrentUserPhone(userPhone);
-      setCurrentUserId(user.id);
 
-      // Fetch dashboard data and setup presence in parallel
-      fetchDashboardData(isUserAdmin, userPhone);
-      setupPresenceTracking();
+      // Fire both in parallel
+      fetchDashboardData(cachedIsAdmin, userPhone);
+      setupPresenceTracking(userId);
     };
-    
-    initializeDashboard();
-  }, []);
+    init();
+  }, [session?.user?.id, cachedIsAdmin]);
 
   // Removed duplicate fetchUpcomingAppointments useEffect - already called in fetchDashboardData
 
   // Removed unused checkAdminStatus and fetchCurrentUserPhone - handled inline in initializeDashboard
 
-  const fetchUpcomingAppointments = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  const fetchUpcomingAppointments = useCallback(async () => {
+    const userId = session?.user?.id;
+    if (!userId) return;
 
     const now = new Date();
     const fortyEightHoursLater = new Date(now.getTime() + 48 * 60 * 60 * 1000);
@@ -150,9 +152,8 @@ const Dashboard = () => {
         .lte("appointment_date", fortyEightHoursLater.toISOString())
         .order("appointment_date", { ascending: true });
 
-      // If not admin, only show user's own appointments
-      if (!isAdmin) {
-        query = query.eq("user_id", user.id);
+      if (!cachedIsAdmin) {
+        query = query.eq("user_id", userId);
       }
 
       const { data: fortyEightHourData, error: fortyEightHourError } = await query;
@@ -170,8 +171,8 @@ const Dashboard = () => {
           .lte("appointment_date", oneWeekLater.toISOString())
           .order("appointment_date", { ascending: true });
 
-        if (!isAdmin) {
-          weekQuery = weekQuery.eq("user_id", user.id);
+        if (!cachedIsAdmin) {
+          weekQuery = weekQuery.eq("user_id", userId);
         }
 
         const { data: weekData, error: weekError } = await weekQuery;
@@ -207,7 +208,7 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error fetching upcoming appointments:", error);
     }
-  };
+  }, [session?.user?.id, cachedIsAdmin]);
 
   const getAppointmentHighlight = (appointment: Appointment) => {
     const appointmentDate = new Date(appointment.appointment_date);
@@ -232,20 +233,15 @@ const Dashboard = () => {
     fetchChartsData();
   }, [chartView]);
 
-  const setupPresenceTracking = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Subscribe to presence channel
+  const setupPresenceTracking = useCallback(async (userId: string) => {
     const channel = supabase.channel('dashboard-presence', {
       config: {
         presence: {
-          key: user.id,
+          key: userId,
         },
       },
     });
 
-    // Track current user presence
     channel.on('presence', { event: 'sync' }, () => {
       const presenceState = channel.presenceState();
       updateLiveUsers(presenceState);
@@ -261,23 +257,17 @@ const Dashboard = () => {
 
     await channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        // Get current user profile
+        // Use cached profile data from a single query
         const { data: profile } = await supabase
           .from('profiles')
           .select('first_name, last_name')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .maybeSingle();
 
         await channel.track({
-          user_id: user.id,
+          user_id: userId,
           name: profile ? `${profile.first_name} ${profile.last_name}`.trim() : 'Unknown User',
-          role: roleData?.role || 'agent',
+          role: role || 'agent',
           online_at: new Date().toISOString(),
         });
       }
@@ -286,7 +276,7 @@ const Dashboard = () => {
     return () => {
       channel.unsubscribe();
     };
-  };
+  }, [role]);
 
   const updateLiveUsers = async (presenceState: any) => {
     const usersMap = new Map<string, LiveUser>();
@@ -315,7 +305,7 @@ const Dashboard = () => {
   }, [liveUsers]);
   const fetchDashboardData = async (adminStatus?: boolean, userPhone?: string | null) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = session?.user;
       if (!user) return;
 
       // Use provided values or fall back to state
@@ -487,8 +477,7 @@ const Dashboard = () => {
   };
 
   const fetchChartsData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!session?.user) return;
 
     const today = new Date();
     const startOfYear = new Date(today.getFullYear(), 0, 1);
