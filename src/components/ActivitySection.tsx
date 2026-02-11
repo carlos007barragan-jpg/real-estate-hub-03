@@ -31,16 +31,17 @@ export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddN
     const fetchModificationHistory = async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select(`
-          updated_at,
-          last_modified_by,
-          profiles!leads_last_modified_by_fkey(first_name, last_name)
-        `)
+        .select("updated_at, last_modified_by")
         .eq("id", leadId)
         .maybeSingle();
 
       if (data && data.last_modified_by) {
-        const profile = data.profiles as any;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", data.last_modified_by)
+          .maybeSingle();
+
         const modifierName = profile 
           ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User"
           : "Unknown User";
