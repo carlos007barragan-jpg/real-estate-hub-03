@@ -277,6 +277,7 @@ const Leads = () => {
         
         // Filter by "My Leads" if enabled - only show leads assigned to current user
         if (showMyLeadsOnly) {
+          console.log('[MyLeads Debug] currentUserName:', currentUserName, 'currentUserPhone:', currentUserPhone, 'lead.assignedTo:', lead.assignedTo, 'lead.agentPhone:', lead.agentPhone);
           const nameMatch = currentUserName ? lead.assignedTo?.toLowerCase() === currentUserName.toLowerCase() : false;
           const phoneMatch = currentUserPhone ? lead.agentPhone === currentUserPhone : false;
           if (!nameMatch && !phoneMatch) return false;
