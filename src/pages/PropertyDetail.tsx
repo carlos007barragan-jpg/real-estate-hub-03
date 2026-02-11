@@ -53,7 +53,7 @@ export default function PropertyDetail() {
   const { isAdmin } = useUserRole();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [seller, setSeller] = useState<Seller | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   // Memoize photos array to prevent unnecessary recalculations
@@ -136,13 +136,7 @@ export default function PropertyDetail() {
     setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  // No blocking loading state - render immediately
 
   if (!property) {
     return (

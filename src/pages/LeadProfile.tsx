@@ -56,7 +56,7 @@ const LeadProfile = () => {
   const { toast } = useToast();
   
   const [leadData, setLeadData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [currentLifecycle, setCurrentLifecycle] = useState<LeadLifecycle>("Contact");
   const [currentStage, setCurrentStage] = useState<PipelineStage>("New Lead");
   const [currentPipeline, setCurrentPipeline] = useState<string>("");
@@ -527,13 +527,7 @@ const LeadProfile = () => {
     unqualified: "bg-muted text-muted-foreground",
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
-        <p className="text-muted-foreground">Loading lead profile...</p>
-      </div>
-    );
-  }
+  // No blocking loading state - render immediately
 
   if (!leadData) {
     return (
