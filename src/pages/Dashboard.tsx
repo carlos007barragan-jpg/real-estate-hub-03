@@ -86,7 +86,7 @@ interface DealsData {
 
 const Dashboard = () => {
   const { session, isAdmin: cachedIsAdmin, role } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [totalCalls, setTotalCalls] = useState(0);
   const [totalMessages, setTotalMessages] = useState(0);
   const [totalNewLeads, setTotalNewLeads] = useState(0);

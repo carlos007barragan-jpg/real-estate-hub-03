@@ -64,7 +64,7 @@ const CalendarPage = () => {
   const [view, setView] = useState<'team' | 'individual'>('individual');
   const [calendarView, setCalendarView] = useState<View>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
@@ -346,16 +346,7 @@ const CalendarPage = () => {
     }
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-pulse" />
-          <p className="text-muted-foreground">Loading calendar...</p>
-        </div>
-      </div>
-    );
-  }
+  // No full-page loading block - render immediately, data populates progressively
 
   return (
     <div className="p-4 md:p-8 space-y-6">
