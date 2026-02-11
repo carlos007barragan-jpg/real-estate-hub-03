@@ -190,29 +190,12 @@ export const TeamManagement = () => {
     }
 
     try {
-      // Remove the user's organization link first (while admin can still update their profile)
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ organization_id: null })
-        .eq("user_id", userId);
+      const { error } = await supabase.rpc("remove_user_from_organization", {
+        p_target_user_id: userId,
+      });
 
-      if (profileError) {
-        console.error("Error updating profile:", profileError);
-        throw new Error("Failed to remove user from organization");
-      }
-
-      // Then remove the user's role
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
-
-      if (roleError) {
-        console.error("Error deleting role:", roleError);
-      }
-
-      if (profileError) {
-        console.error("Error updating profile:", profileError);
+      if (error) {
+        console.error("Error removing user:", error);
         throw new Error("Failed to remove user from organization");
       }
 

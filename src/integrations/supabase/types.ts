@@ -1442,6 +1442,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      remove_user_from_organization: {
+        Args: { p_target_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
