@@ -133,42 +133,17 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
       }
 
       console.log("Upserting profile with org:", orgId);
-      // Always try UPDATE first since trigger likely created the profile
-      const { data: updatedProfile, error: updateError } = await supabase
-        .from("profiles")
-        .update({
-          first_name: firstName,
-          last_name: lastName,
-          phone_number: phoneNumber,
-          email: email,
-          organization_id: orgId,
-        })
-        .eq("user_id", userId)
-        .select()
-        .single();
+      // Use server-side function to atomically upsert profile (bypasses RLS issues)
+      const { data: newProfile, error: profileError } = await supabase.rpc('complete_user_profile', {
+        p_user_id: userId,
+        p_first_name: firstName,
+        p_last_name: lastName,
+        p_phone_number: phoneNumber,
+        p_email: email,
+        p_organization_id: orgId,
+      });
 
-      let newProfile = updatedProfile;
-      let profileError = updateError;
-
-      // If update returned no rows (profile doesn't exist), insert
-      if (updateError && updateError.code === 'PGRST116') {
-        const result = await supabase
-          .from("profiles")
-          .insert({
-            user_id: userId,
-            first_name: firstName,
-            last_name: lastName,
-            phone_number: phoneNumber,
-            email: email,
-            organization_id: orgId,
-          })
-          .select()
-          .single();
-        profileError = result.error;
-        newProfile = result.data;
-      }
-
-      if (profileError && profileError.code !== 'PGRST116') {
+      if (profileError) {
         console.error("Profile upsert error:", profileError);
         throw profileError;
       }
