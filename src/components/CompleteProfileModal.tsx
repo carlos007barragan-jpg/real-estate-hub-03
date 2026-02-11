@@ -132,23 +132,53 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
         }
       }
 
-      console.log("Creating profile with org:", orgId);
-      // Create profile
-      const { data: newProfile, error: profileError } = await supabase
+      console.log("Upserting profile with org:", orgId);
+      // Check if profile already exists (created by trigger)
+      const { data: existingProfile } = await supabase
         .from("profiles")
-        .insert({
-          user_id: userId,
-          first_name: firstName,
-          last_name: lastName,
-          phone_number: phoneNumber,
-          email: email,
-          organization_id: orgId,
-        })
-        .select()
-        .single();
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      let profileError;
+      let newProfile;
+
+      if (existingProfile) {
+        // Update existing profile
+        const result = await supabase
+          .from("profiles")
+          .update({
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phoneNumber,
+            email: email,
+            organization_id: orgId,
+          })
+          .eq("user_id", userId)
+          .select()
+          .single();
+        profileError = result.error;
+        newProfile = result.data;
+      } else {
+        // Insert new profile
+        const result = await supabase
+          .from("profiles")
+          .insert({
+            user_id: userId,
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phoneNumber,
+            email: email,
+            organization_id: orgId,
+          })
+          .select()
+          .single();
+        profileError = result.error;
+        newProfile = result.data;
+      }
 
       if (profileError) {
-        console.error("Profile creation error:", profileError);
+        console.error("Profile upsert error:", profileError);
         throw profileError;
       }
 
