@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Landing from "./pages/Landing";
@@ -77,39 +78,41 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <BrowserRouter>
-          <Toaster />
-          <Sonner />
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/accept-invite" element={<AcceptInvite />} />
-            <Route path="/complete-profile" element={<CompleteProfile />} />
-            
-            {/* Owner Portal Routes */}
-            <Route path="/owner-login" element={<OwnerLogin />} />
-            <Route path="/owner-signup" element={<OwnerSignup />} />
-            <Route path="/owner-portal" element={<ProtectedRoute><OwnerPortalDashboard /></ProtectedRoute>} />
-            <Route path="/dispo-sheet" element={<DispoSheet />} />
-            
-            {/* CRM Routes */}
-            <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
-            <Route path="/calendar" element={<ProtectedRoute><Layout><CalendarPage /></Layout></ProtectedRoute>} />
-            <Route path="/leads" element={<ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute>} />
-            <Route path="/new-leads" element={<ProtectedRoute><Layout><NewLeads /></Layout></ProtectedRoute>} />
-            <Route path="/leads/:id" element={<ProtectedRoute><Layout><LeadProfile /></Layout></ProtectedRoute>} />
-            <Route path="/pipelines" element={<ProtectedRoute><Layout><Pipelines /></Layout></ProtectedRoute>} />
-            <Route path="/contacts" element={<ProtectedRoute><Layout><Contacts /></Layout></ProtectedRoute>} />
-            <Route path="/contacts/:id" element={<ProtectedRoute><Layout><ContactProfile /></Layout></ProtectedRoute>} />
-            <Route path="/inbox" element={<ProtectedRoute><Layout><Inbox /></Layout></ProtectedRoute>} />
-            <Route path="/inventory" element={<ProtectedRoute><Layout><Inventory /></Layout></ProtectedRoute>} />
-            <Route path="/inventory/:id" element={<ProtectedRoute><Layout><PropertyDetail /></Layout></ProtectedRoute>} />
-            <Route path="/owner-management" element={<ProtectedRoute><Layout><OwnerManagement /></Layout></ProtectedRoute>} />
-            <Route path="/public-page-settings" element={<ProtectedRoute><Layout><PublicPageSettings /></Layout></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AuthProvider>
+            <Toaster />
+            <Sonner />
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/accept-invite" element={<AcceptInvite />} />
+              <Route path="/complete-profile" element={<CompleteProfile />} />
+              
+              {/* Owner Portal Routes */}
+              <Route path="/owner-login" element={<OwnerLogin />} />
+              <Route path="/owner-signup" element={<OwnerSignup />} />
+              <Route path="/owner-portal" element={<ProtectedRoute><OwnerPortalDashboard /></ProtectedRoute>} />
+              <Route path="/dispo-sheet" element={<DispoSheet />} />
+              
+              {/* CRM Routes */}
+              <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
+              <Route path="/calendar" element={<ProtectedRoute><Layout><CalendarPage /></Layout></ProtectedRoute>} />
+              <Route path="/leads" element={<ProtectedRoute><Layout><Leads /></Layout></ProtectedRoute>} />
+              <Route path="/new-leads" element={<ProtectedRoute><Layout><NewLeads /></Layout></ProtectedRoute>} />
+              <Route path="/leads/:id" element={<ProtectedRoute><Layout><LeadProfile /></Layout></ProtectedRoute>} />
+              <Route path="/pipelines" element={<ProtectedRoute><Layout><Pipelines /></Layout></ProtectedRoute>} />
+              <Route path="/contacts" element={<ProtectedRoute><Layout><Contacts /></Layout></ProtectedRoute>} />
+              <Route path="/contacts/:id" element={<ProtectedRoute><Layout><ContactProfile /></Layout></ProtectedRoute>} />
+              <Route path="/inbox" element={<ProtectedRoute><Layout><Inbox /></Layout></ProtectedRoute>} />
+              <Route path="/inventory" element={<ProtectedRoute><Layout><Inventory /></Layout></ProtectedRoute>} />
+              <Route path="/inventory/:id" element={<ProtectedRoute><Layout><PropertyDetail /></Layout></ProtectedRoute>} />
+              <Route path="/owner-management" element={<ProtectedRoute><Layout><OwnerManagement /></Layout></ProtectedRoute>} />
+              <Route path="/public-page-settings" element={<ProtectedRoute><Layout><PublicPageSettings /></Layout></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
