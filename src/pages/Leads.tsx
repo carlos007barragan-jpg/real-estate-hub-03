@@ -277,9 +277,9 @@ const Leads = () => {
         
         // Filter by "My Leads" if enabled - only show leads assigned to current user
         if (showMyLeadsOnly) {
-          const isMyLead = (currentUserName && lead.assignedTo === currentUserName) ||
-                           (currentUserPhone && lead.agentPhone === currentUserPhone);
-          if (!isMyLead) return false;
+          const nameMatch = currentUserName ? lead.assignedTo?.toLowerCase() === currentUserName.toLowerCase() : false;
+          const phoneMatch = currentUserPhone ? lead.agentPhone === currentUserPhone : false;
+          if (!nameMatch && !phoneMatch) return false;
         }
         
         if (activeTab === "all") return matchesSearch;
