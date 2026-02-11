@@ -262,13 +262,10 @@ const Leads = () => {
         const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           lead.email.toLowerCase().includes(searchTerm.toLowerCase());
         
-        // Filter by "My Leads" if enabled
+        // Filter by "My Leads" if enabled - only show leads assigned to current user
         if (showMyLeadsOnly && currentUserPhone) {
           const isMyLead = lead.agentPhone === currentUserPhone;
-          const isUnassigned = !lead.agentPhone;
-          
-          // Show only leads assigned to me OR unassigned leads
-          if (!isMyLead && !isUnassigned) return false;
+          if (!isMyLead) return false;
         }
         
         if (activeTab === "all") return matchesSearch;
