@@ -133,34 +133,25 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
       }
 
       console.log("Upserting profile with org:", orgId);
-      // Check if profile already exists (created by trigger)
-      const { data: existingProfile } = await supabase
+      // Always try UPDATE first since trigger likely created the profile
+      const { data: updatedProfile, error: updateError } = await supabase
         .from("profiles")
-        .select("id")
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          phone_number: phoneNumber,
+          email: email,
+          organization_id: orgId,
+        })
         .eq("user_id", userId)
-        .maybeSingle();
+        .select()
+        .single();
 
-      let profileError;
-      let newProfile;
+      let newProfile = updatedProfile;
+      let profileError = updateError;
 
-      if (existingProfile) {
-        // Update existing profile
-        const result = await supabase
-          .from("profiles")
-          .update({
-            first_name: firstName,
-            last_name: lastName,
-            phone_number: phoneNumber,
-            email: email,
-            organization_id: orgId,
-          })
-          .eq("user_id", userId)
-          .select()
-          .single();
-        profileError = result.error;
-        newProfile = result.data;
-      } else {
-        // Insert new profile
+      // If update returned no rows (profile doesn't exist), insert
+      if (updateError && updateError.code === 'PGRST116') {
         const result = await supabase
           .from("profiles")
           .insert({
@@ -177,7 +168,7 @@ export const CompleteProfileModal = ({ userId, email, onComplete }: CompleteProf
         newProfile = result.data;
       }
 
-      if (profileError) {
+      if (profileError && profileError.code !== 'PGRST116') {
         console.error("Profile upsert error:", profileError);
         throw profileError;
       }
