@@ -1052,16 +1052,12 @@ const Pipelines = () => {
       }
     : currentPipeline;
 
-  // Show loading state if pipelines haven't loaded yet
-  if (!currentPipeline) {
-    return (
-      <div className="min-h-screen bg-background p-4 md:p-8">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading pipelines...</p>
-        </div>
-      </div>
-    );
-  }
+  // Use empty pipeline shell while loading
+  const displayPipeline = filteredPipeline || currentPipeline || {
+    id: "",
+    name: "Loading...",
+    stages: [],
+  };
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -1071,7 +1067,7 @@ const Pipelines = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground mb-1">Pipeline</h1>
             <p className="text-sm text-muted-foreground">
-              {currentPipeline.name}
+              {displayPipeline.name}
             </p>
           </div>
           
@@ -1148,7 +1144,7 @@ const Pipelines = () => {
           onDragEnd={handleDragEnd}
         >
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {filteredPipeline.stages.map((stage) => {
+          {displayPipeline.stages.map((stage) => {
             const stageValue = stage.deals.reduce((sum, deal) => sum + deal.commission, 0);
             
             return (
