@@ -26,7 +26,7 @@ interface NewLead {
 
 export default function NewLeads() {
   const [leads, setLeads] = useState<NewLead[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [playingLeadId, setPlayingLeadId] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
   const [stats, setStats] = useState({ total: 0, answered: 0, unanswered: 0 });
@@ -219,13 +219,7 @@ export default function NewLeads() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Loading new leads...</div>
-      </div>
-    );
-  }
+  // No blocking loading state - render immediately
 
   return (
     <div className="space-y-6">

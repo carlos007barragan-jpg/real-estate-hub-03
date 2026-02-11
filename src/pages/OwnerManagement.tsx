@@ -26,7 +26,7 @@ export default function OwnerManagement() {
   const { toast } = useToast();
   const [owners, setOwners] = useState<Owner[]>([]);
   const [filteredOwners, setFilteredOwners] = useState<Owner[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);

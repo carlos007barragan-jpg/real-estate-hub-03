@@ -61,7 +61,7 @@ const Leads = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
@@ -432,13 +432,7 @@ const Leads = () => {
     }
   }, [leads, toast]);
 
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center">
-        <p className="text-muted-foreground">Loading leads...</p>
-      </div>
-    );
-  }
+  // No blocking loading state - render immediately, data populates progressively
 
   return (
     <div className="p-8">

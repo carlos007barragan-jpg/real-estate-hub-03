@@ -39,7 +39,7 @@ const ContactProfile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [contact, setContact] = useState<Contact | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
@@ -150,9 +150,7 @@ const ContactProfile = () => {
       .slice(0, 2);
   };
 
-  if (loading) {
-    return <div className="p-8">Loading contact...</div>;
-  }
+  // No blocking loading state - render immediately
 
   if (!contact) {
     return (

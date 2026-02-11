@@ -10,7 +10,7 @@ import { Copy, ExternalLink } from "lucide-react";
 
 export default function PublicPageSettings() {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [organizationId, setOrganizationId] = useState<string>("");
   const [formData, setFormData] = useState({
@@ -118,13 +118,7 @@ export default function PublicPageSettings() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  // No blocking loading state - render immediately
 
   return (
     <div className="container mx-auto p-6 space-y-6">
