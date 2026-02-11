@@ -1423,6 +1423,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_user_profile: {
+        Args: {
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_organization_id?: string
+          p_phone_number: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       get_user_organization_id: { Args: { p_user_id: string }; Returns: string }
       has_role: {
         Args: {

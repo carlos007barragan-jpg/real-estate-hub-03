@@ -127,103 +127,50 @@ const CompleteProfile = () => {
 
       if (metadataError) throw metadataError;
 
-      // Check if profile exists
-      const { data: existingProfile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // Handle invitation-related role updates
+      let orgId = null;
+      
+      if (hasInvitation && pendingInvitation) {
+        orgId = pendingInvitation.organization_id;
 
-      if (existingProfile) {
-        // Update existing profile
-        let orgId = existingProfile.organization_id;
-        
-        // If user has a pending invitation, use that organization and role
-        if (hasInvitation && pendingInvitation) {
-          orgId = pendingInvitation.organization_id;
+        // Update or insert the correct role
+        const { data: existingRole } = await supabase
+          .from("user_roles")
+          .select("*")
+          .eq("user_id", userId)
+          .maybeSingle();
 
-          // Update or insert the correct role
-          const { data: existingRole } = await supabase
-            .from("user_roles")
-            .select("*")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-          if (existingRole) {
-            // Update existing role
-            await supabase
-              .from("user_roles")
-              .update({ role: pendingInvitation.role })
-              .eq("user_id", userId);
-          } else {
-            // Insert new role
-            await supabase
-              .from("user_roles")
-              .insert({
-                user_id: userId,
-                role: pendingInvitation.role,
-              });
-          }
-
-          // Mark invitation as accepted
+        if (existingRole) {
           await supabase
-            .from("user_invitations")
-            .update({ status: "accepted" })
-            .eq("id", pendingInvitation.id);
-
-          toast.success("Joined organization successfully!");
+            .from("user_roles")
+            .update({ role: pendingInvitation.role })
+            .eq("user_id", userId);
+        } else {
+          await supabase
+            .from("user_roles")
+            .insert({
+              user_id: userId,
+              role: pendingInvitation.role,
+            });
         }
 
-        const { error: updateError } = await supabase
-          .from("profiles")
-          .update({
-            first_name: firstName,
-            last_name: lastName,
-            phone_number: phoneNumber,
-            email: email,
-            organization_id: orgId,
-          })
-          .eq("user_id", userId);
+        // Mark invitation as accepted
+        await supabase
+          .from("user_invitations")
+          .update({ status: "accepted" })
+          .eq("id", pendingInvitation.id);
 
-        if (updateError) throw updateError;
+        toast.success("Joined organization successfully!");
       } else {
-        // Create new profile
-        let orgId = null;
+        // Check if user already has an org (from trigger)
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("organization_id")
+          .eq("user_id", userId)
+          .maybeSingle();
 
-        if (hasInvitation && pendingInvitation) {
-          // Invited user - use organization from invitation
-          orgId = pendingInvitation.organization_id;
-
-          // Update or insert the correct role
-          const { data: existingRole } = await supabase
-            .from("user_roles")
-            .select("*")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-          if (existingRole) {
-            // Update existing role
-            await supabase
-              .from("user_roles")
-              .update({ role: pendingInvitation.role })
-              .eq("user_id", userId);
-          } else {
-            // Insert new role
-            await supabase
-              .from("user_roles")
-              .insert({
-                user_id: userId,
-                role: pendingInvitation.role,
-              });
-          }
-
-          // Mark invitation as accepted
-          await supabase
-            .from("user_invitations")
-            .update({ status: "accepted" })
-            .eq("id", pendingInvitation.id);
-
-          toast.success("Joined organization successfully!");
+        if (existingProfile?.organization_id) {
+          orgId = existingProfile.organization_id;
         } else {
           // New admin - create organization
           const { data: org, error: orgError } = await supabase
@@ -237,43 +184,20 @@ const CompleteProfile = () => {
 
           if (orgError) throw orgError;
           orgId = org.id;
-
-          // Update or insert admin role
-          const { data: existingRole } = await supabase
-            .from("user_roles")
-            .select("*")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-          if (existingRole) {
-            await supabase
-              .from("user_roles")
-              .update({ role: "admin" })
-              .eq("user_id", userId);
-          } else {
-            await supabase
-              .from("user_roles")
-              .insert({
-                user_id: userId,
-                role: "admin",
-              });
-          }
         }
-
-        // Create profile
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            user_id: userId,
-            first_name: firstName,
-            last_name: lastName,
-            phone_number: phoneNumber,
-            email: email,
-            organization_id: orgId,
-          });
-
-        if (profileError) throw profileError;
       }
+
+      // Use server-side function to atomically upsert profile
+      const { error: profileError } = await supabase.rpc('complete_user_profile', {
+        p_user_id: userId,
+        p_first_name: firstName,
+        p_last_name: lastName,
+        p_phone_number: phoneNumber,
+        p_email: email,
+        p_organization_id: orgId,
+      });
+
+      if (profileError) throw profileError;
 
       toast.success("Profile completed successfully!");
       navigate("/dashboard");
