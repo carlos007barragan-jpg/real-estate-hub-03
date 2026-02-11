@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { GlobalCallManager } from "@/components/GlobalCallManager";
 import { NotificationBell } from "@/components/NotificationBell";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/contexts/AuthContext";
 
 const baseNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -21,7 +21,7 @@ const settingsNavItem = { title: "Settings", url: "/settings", icon: Settings };
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
-  const { isAdmin } = useUserRole();
+  const { isAdmin } = useAuth();
 
   const navItems = [
     ...baseNavItems,
