@@ -42,6 +42,7 @@ interface Lead {
   date: string;
   assignedTo?: string;
   agentPhone?: string;
+  assignedUserId?: string;
   isInboundCall?: boolean;
   isDemoData?: boolean;
   leadLifecycle?: string;
@@ -70,6 +71,8 @@ const Leads = () => {
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [myAssignedLeadIds, setMyAssignedLeadIds] = useState<Set<string>>(new Set());
   const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; phone: string | null }>>([]);
   const [showMyLeadsOnly, setShowMyLeadsOnly] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -165,6 +168,8 @@ const Leads = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      setCurrentUserId(user.id);
+
       // Check if admin
       const { data: roleData } = await supabase
         .from("user_roles")
@@ -195,6 +200,16 @@ const Leads = () => {
 
       if (error) throw error;
       setCurrentUserPhone(data?.phone_number || null);
+
+      // Fetch lead IDs assigned to this user from lead_assignments table
+      const { data: assignmentData } = await supabase
+        .from("lead_assignments")
+        .select("lead_id")
+        .eq("user_id", user.id);
+
+      if (assignmentData) {
+        setMyAssignedLeadIds(new Set(assignmentData.map(a => a.lead_id)));
+      }
       
       // Default to "My Leads" for non-admins
       if (!roleData) {
@@ -277,10 +292,10 @@ const Leads = () => {
         
         // Filter by "My Leads" if enabled - only show leads assigned to current user
         if (showMyLeadsOnly) {
-          console.log('[MyLeads Debug] currentUserName:', currentUserName, 'currentUserPhone:', currentUserPhone, 'lead.assignedTo:', lead.assignedTo, 'lead.agentPhone:', lead.agentPhone);
+          const assignmentMatch = myAssignedLeadIds.has(lead.id);
           const nameMatch = currentUserName ? lead.assignedTo?.toLowerCase() === currentUserName.toLowerCase() : false;
           const phoneMatch = currentUserPhone ? lead.agentPhone === currentUserPhone : false;
-          if (!nameMatch && !phoneMatch) return false;
+          if (!assignmentMatch && !nameMatch && !phoneMatch) return false;
         }
         
         if (activeTab === "all") return matchesSearch;
@@ -306,7 +321,7 @@ const Leads = () => {
         // Priority 3: Other leads (keep original order)
         return 0;
       });
-  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, getLeadCategory, showMyLeadsOnly]);
+  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly]);
 
   const getLeadCountByCategory = useCallback((category: string) => {
     if (category === "all") return leads.length;
