@@ -60,7 +60,7 @@ export const ProfileSettings = () => {
 
       // If no profile exists, create one with an organization
       if (!profileData) {
-        console.log('No profile found, creating one...');
+        console.log('No profile found, creating one via RPC...');
         
         // Create organization first
         const { data: newOrg, error: orgError } = await supabase
@@ -74,19 +74,19 @@ export const ProfileSettings = () => {
 
         if (orgError) throw orgError;
 
-        // Create profile with organization
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: user.id,
-            first_name: user.user_metadata?.first_name || null,
-            last_name: user.user_metadata?.last_name || null,
-            organization_id: newOrg.id
-          })
-          .select('first_name, last_name, phone_number, created_at, organization_id')
-          .single();
+        // Use RPC to atomically upsert profile (handles existing profiles from trigger)
+        const { data: rpcResult, error: createError } = await supabase.rpc('complete_user_profile', {
+          p_user_id: user.id,
+          p_first_name: user.user_metadata?.first_name || '',
+          p_last_name: user.user_metadata?.last_name || '',
+          p_phone_number: '',
+          p_email: user.email || '',
+          p_organization_id: newOrg.id,
+        });
 
         if (createError) throw createError;
+
+        const newProfile = rpcResult as any;
 
         // Get organization name
         const { data: orgData } = await supabase
@@ -105,11 +105,11 @@ export const ProfileSettings = () => {
         setUserRole(roleData?.role || 'agent');
         setProfile({
           email: user.email || '',
-          firstName: newProfile.first_name,
-          lastName: newProfile.last_name,
-          phoneNumber: newProfile.phone_number,
+          firstName: newProfile?.first_name,
+          lastName: newProfile?.last_name,
+          phoneNumber: newProfile?.phone_number,
           organizationName: orgData?.name || null,
-          createdAt: newProfile.created_at,
+          createdAt: newProfile?.created_at,
         });
         return;
       }
