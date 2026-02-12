@@ -16,9 +16,26 @@ export const RoundRobinSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
-  const { role, roleLoading } = useAuth();
+  const { role: contextRole, roleLoading } = useAuth();
+  
+  // Also fetch role directly to handle stale cached roles
+  const [freshRole, setFreshRole] = useState<string | null>(null);
+  useEffect(() => {
+    const fetchFreshRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (data) setFreshRole(data.role);
+    };
+    fetchFreshRole();
+  }, []);
 
-  const isSupremeAdmin = role === 'supreme_admin';
+  const effectiveRole = freshRole || contextRole;
+  const isSupremeAdmin = effectiveRole === 'supreme_admin';
 
   // While role is loading, don't lock the UI
   const isLocked = !roleLoading && !isSupremeAdmin;
