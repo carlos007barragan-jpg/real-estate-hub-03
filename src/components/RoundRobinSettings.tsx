@@ -4,9 +4,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Phone } from "lucide-react";
+import { RefreshCw, Phone, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const RoundRobinSettings = () => {
   const [autoRoundRobin, setAutoRoundRobin] = useState(false);
@@ -15,6 +16,9 @@ export const RoundRobinSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { role } = useAuth();
+
+  const isSupremeAdmin = role === 'supreme_admin';
 
   useEffect(() => {
     fetchSettings();
@@ -150,7 +154,15 @@ export const RoundRobinSettings = () => {
 
   return (
     <Card className="p-6">
-      <h2 className="text-xl font-semibold text-foreground mb-6">Call Routing Settings</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold text-foreground">Call Routing Settings</h2>
+        {!isSupremeAdmin && (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <ShieldAlert className="h-4 w-4" />
+            <span>Supreme Admin only</span>
+          </div>
+        )}
+      </div>
       <div className="space-y-6 max-w-2xl">
         <div className="flex items-center justify-between py-4 border-b">
           <div className="flex items-center gap-3">
@@ -168,6 +180,7 @@ export const RoundRobinSettings = () => {
             id="auto-roundrobin"
             checked={autoRoundRobin}
             onCheckedChange={handleToggle}
+            disabled={!isSupremeAdmin}
           />
         </div>
 
@@ -190,6 +203,7 @@ export const RoundRobinSettings = () => {
               placeholder="+1234567890"
               value={fallbackPhone1}
               onChange={(e) => setFallbackPhone1(e.target.value)}
+              disabled={!isSupremeAdmin}
             />
           </div>
 
@@ -201,16 +215,19 @@ export const RoundRobinSettings = () => {
               placeholder="+1234567890"
               value={fallbackPhone2}
               onChange={(e) => setFallbackPhone2(e.target.value)}
+              disabled={!isSupremeAdmin}
             />
           </div>
 
-          <Button 
-            onClick={handleSavePhoneNumbers} 
-            disabled={saving}
-            className="mt-4"
-          >
-            {saving ? "Saving..." : "Save Phone Numbers"}
-          </Button>
+          {isSupremeAdmin && (
+            <Button 
+              onClick={handleSavePhoneNumbers} 
+              disabled={saving}
+              className="mt-4"
+            >
+              {saving ? "Saving..." : "Save Phone Numbers"}
+            </Button>
+          )}
         </div>
       </div>
     </Card>
