@@ -47,15 +47,21 @@ export const RoundRobinSettings = () => {
   const fetchSettings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
+      // Try fetching all settings (admins can view all)
       const { data, error } = await supabase
         .from('crm_settings')
         .select('auto_roundrobin_unanswered, fallback_phone_1, fallback_phone_2')
-        .eq('user_id', user.id)
+        .limit(1)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching settings:', error);
+      }
 
       if (data) {
         setAutoRoundRobin(data.auto_roundrobin_unanswered);
