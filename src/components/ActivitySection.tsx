@@ -1,11 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Phone, PlusCircle, History } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Phone, PlusCircle, History, ChevronDown, ChevronRight, StickyNote, Clock, Send } from "lucide-react";
 import { CallHistory } from "@/components/CallHistory";
-import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 
@@ -26,6 +26,9 @@ interface ActivitySectionProps {
 
 export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddNote }: ActivitySectionProps) => {
   const [modificationHistory, setModificationHistory] = useState<{ modifier: string; timestamp: string } | null>(null);
+  const [callHistoryOpen, setCallHistoryOpen] = useState(true);
+  const [notesOpen, setNotesOpen] = useState(true);
+  const [isAddingNote, setIsAddingNote] = useState(false);
 
   useEffect(() => {
     const fetchModificationHistory = async () => {
@@ -56,77 +59,121 @@ export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddN
     fetchModificationHistory();
   }, [leadId]);
 
+  const SectionHeader = ({ icon: Icon, label, count, color, isOpen, onToggle }: { icon: any; label: string; count?: number; color: string; isOpen: boolean; onToggle: () => void }) => (
+    <button
+      onClick={onToggle}
+      className="flex items-center gap-2 w-full py-2 px-1 text-left group/header"
+    >
+      {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+      <Icon className={`h-3.5 w-3.5 ${color}`} />
+      <span className="text-xs font-semibold text-foreground uppercase tracking-wide">{label}</span>
+      {count !== undefined && (
+        <Badge variant="secondary" className={`text-[10px] h-4 px-1.5 ml-auto ${count === 0 ? 'opacity-50' : ''}`}>
+          {count}
+        </Badge>
+      )}
+    </button>
+  );
+
   return (
-    <Card className="border">
-      <CardHeader className="p-4">
-        <CardTitle className="text-lg font-semibold">Activity & History</CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <ScrollArea className="h-[500px]">
-          <div className="space-y-4">
-            {/* Modification History Section */}
-            {modificationHistory && (
-              <>
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <History className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-semibold">Last Modified</h3>
-                  </div>
-                  <Card className="p-3 text-sm bg-muted/50">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium">{modificationHistory.modifier}</span>
-                      <span className="text-muted-foreground">{modificationHistory.timestamp}</span>
-                    </div>
-                  </Card>
-                </div>
-                <Separator className="my-4" />
-              </>
-            )}
-
-            {/* Call History Section */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Phone className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold">Call History</h3>
-              </div>
-              <CallHistory leadId={leadId} />
+    <Card className="border overflow-hidden">
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <History className="h-4 w-4 text-primary" />
             </div>
-
-            <Separator className="my-4" />
-
-            {/* Notes Section */}
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <PlusCircle className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold">Notes</h3>
-              </div>
-              <div className="space-y-3 mb-4">
-                {notes.map((note) => (
-                  <Card key={note.id} className="p-3 text-sm">
-                    <p className="mb-2">{note.content}</p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{note.author}</span>
-                      <span>{note.timestamp}</span>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-              <div className="space-y-2">
-                <Textarea
-                  placeholder="Add a note..."
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  className="min-h-[80px] text-sm resize-none"
-                />
-                <Button onClick={handleAddNote} disabled={!newNote.trim()} className="w-full h-9 text-sm">
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Note
-                </Button>
-              </div>
+              <h3 className="text-sm font-bold text-foreground">Activity & History</h3>
+              {modificationHistory && (
+                <p className="text-[11px] text-muted-foreground">
+                  Last modified by <span className="font-medium text-foreground">{modificationHistory.modifier}</span> · {modificationHistory.timestamp}
+                </p>
+              )}
             </div>
           </div>
-        </ScrollArea>
-      </CardContent>
+          <Button
+            variant={isAddingNote ? "secondary" : "default"}
+            size="sm"
+            onClick={() => setIsAddingNote(!isAddingNote)}
+            className="h-8 text-xs gap-1"
+          >
+            <PlusCircle className="h-3.5 w-3.5" />
+            New Note
+          </Button>
+        </div>
+
+        {/* Add Note Form */}
+        {isAddingNote && (
+          <div className="mb-4 p-4 bg-muted/30 rounded-xl border border-dashed border-primary/20 space-y-3">
+            <Textarea
+              placeholder="Write a note..."
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              className="text-sm min-h-[80px] resize-none bg-background"
+              autoFocus
+            />
+            <div className="flex gap-2 pt-1">
+              <Button onClick={() => { handleAddNote(); setIsAddingNote(false); }} disabled={!newNote.trim()} size="sm" className="h-8 text-xs flex-1 gap-1">
+                <Send className="h-3 w-3" /> Add Note
+              </Button>
+              <Button onClick={() => setIsAddingNote(false)} variant="outline" size="sm" className="h-8 text-xs">Cancel</Button>
+            </div>
+          </div>
+        )}
+
+        {/* Sections */}
+        <div className="space-y-1 max-h-[500px] overflow-y-auto">
+          {/* Notes Section */}
+          <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
+            <CollapsibleTrigger asChild>
+              <div>
+                <SectionHeader icon={StickyNote} label="Notes" count={notes.length} color="text-primary" isOpen={notesOpen} onToggle={() => setNotesOpen(!notesOpen)} />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="space-y-2 pb-3 pl-1">
+                {notes.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-3 text-center">No notes yet</p>
+                ) : (
+                  notes.map((note) => (
+                    <div
+                      key={note.id}
+                      className="group relative pl-4 pr-3 py-3 rounded-lg border bg-card transition-all hover:shadow-sm border-l-[3px] border-l-primary"
+                    >
+                      <p className="text-sm text-foreground leading-snug">{note.content}</p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {note.timestamp}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                          {note.author}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Call History Section */}
+          <Collapsible open={callHistoryOpen} onOpenChange={setCallHistoryOpen}>
+            <CollapsibleTrigger asChild>
+              <div>
+                <SectionHeader icon={Phone} label="Call History" color="text-success" isOpen={callHistoryOpen} onToggle={() => setCallHistoryOpen(!callHistoryOpen)} />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="pb-3 pl-1">
+                <CallHistory leadId={leadId} />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      </div>
     </Card>
   );
 };
