@@ -67,136 +67,28 @@ const mockPipelines: Pipeline[] = [
     id: "real-estate",
     name: "Real Estate Sales",
     stages: [
-      {
-        id: "1",
-        name: "New Lead",
-        deals: [
-          {
-            id: "1",
-            client: "Sarah Johnson",
-            agent: "Mike Davis",
-            commission: 13500,
-            closeDate: "Jan 30, 2025",
-            priority: "high",
-          },
-          {
-            id: "2",
-            client: "David Kim",
-            agent: "Lisa Chen",
-            commission: 11400,
-            closeDate: "Feb 5, 2025",
-            priority: "medium",
-          },
-        ],
-      },
-      {
-        id: "2",
-        name: "Contacted",
-        deals: [],
-      },
-      {
-        id: "3",
-        name: "Qualified",
-        deals: [],
-      },
-      {
-        id: "4",
-        name: "Showing Scheduled",
-        deals: [
-          {
-            id: "3",
-            client: "Michael Chen",
-            agent: "Mike Davis",
-            commission: 19500,
-            closeDate: "Jan 28, 2025",
-            priority: "high",
-          },
-        ],
-      },
-      {
-        id: "5",
-        name: "Offer Made",
-        deals: [
-          {
-            id: "4",
-            client: "Emily Rodriguez",
-            agent: "Sarah Park",
-            commission: 15600,
-            closeDate: "Feb 10, 2025",
-            priority: "medium",
-          },
-        ],
-      },
-      {
-        id: "6",
-        name: "Under Contract",
-        deals: [],
-      },
-      {
-        id: "7",
-        name: "Closed Won",
-        deals: [],
-      },
-      {
-        id: "8",
-        name: "Closed Lost",
-        deals: [],
-      },
+      { id: "1", name: "New Lead", deals: [] },
+      { id: "2", name: "Contacted", deals: [] },
+      { id: "3", name: "Qualified", deals: [] },
+      { id: "4", name: "Showing Scheduled", deals: [] },
+      { id: "5", name: "Offer Made", deals: [] },
+      { id: "6", name: "Under Contract", deals: [] },
+      { id: "7", name: "Closed Won", deals: [] },
+      { id: "8", name: "Closed Lost", deals: [] },
     ],
   },
   {
     id: "commercial",
     name: "Commercial Properties",
     stages: [
-      {
-        id: "1",
-        name: "New Lead",
-        deals: [
-          {
-            id: "5",
-            client: "Tech Corp Inc",
-            agent: "James Wilson",
-            commission: 36000,
-            closeDate: "Feb 15, 2025",
-            priority: "high",
-          },
-        ],
-      },
-      {
-        id: "2",
-        name: "Contacted",
-        deals: [],
-      },
-      {
-        id: "3",
-        name: "Qualified",
-        deals: [],
-      },
-      {
-        id: "4",
-        name: "Showing Scheduled",
-        deals: [],
-      },
-      {
-        id: "5",
-        name: "Offer Made",
-        deals: [],
-      },
-      {
-        id: "6",
-        name: "Under Contract",
-        deals: [],
-      },
-      {
-        id: "7",
-        name: "Closed Won",
-        deals: [],
-      },
-      {
-        id: "8",
-        name: "Closed Lost",
-        deals: [],
-      },
+      { id: "1", name: "New Lead", deals: [] },
+      { id: "2", name: "Contacted", deals: [] },
+      { id: "3", name: "Qualified", deals: [] },
+      { id: "4", name: "Showing Scheduled", deals: [] },
+      { id: "5", name: "Offer Made", deals: [] },
+      { id: "6", name: "Under Contract", deals: [] },
+      { id: "7", name: "Closed Won", deals: [] },
+      { id: "8", name: "Closed Lost", deals: [] },
     ],
   },
 ];

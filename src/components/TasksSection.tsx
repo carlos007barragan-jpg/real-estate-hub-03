@@ -17,6 +17,8 @@ interface Task {
   due_date?: string;
   completed_at?: string;
   created_at: string;
+  user_id: string;
+  assignedToName?: string;
 }
 
 interface TasksSectionProps {
@@ -48,7 +50,25 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setTasks(data || []);
+
+      const tasks = data || [];
+
+      // Batch-fetch profile names for all unique user_ids
+      const userIds = [...new Set(tasks.map(t => t.user_id))];
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name")
+          .in("user_id", userIds);
+
+        const profileMap = new Map(
+          (profiles || []).map(p => [p.user_id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Unknown User'])
+        );
+
+        setTasks(tasks.map(t => ({ ...t, assignedToName: profileMap.get(t.user_id) || 'Unknown User' })));
+      } else {
+        setTasks(tasks);
+      }
     } catch (error: any) {
       console.error("Error fetching tasks:", error);
     }
@@ -338,12 +358,22 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
                         {task.description && (
                           <p className="text-xs text-muted-foreground mt-1">{task.description}</p>
                         )}
-                        {task.due_date && (
-                          <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                          </div>
+                        {task.assignedToName && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Assigned to: {task.assignedToName}
+                          </p>
                         )}
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          {task.due_date && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              Due: {new Date(task.due_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          <span>
+                            Created: {new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button
