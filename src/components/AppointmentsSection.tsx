@@ -2,21 +2,14 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Trash2, MapPin, Plus, CheckCircle, XCircle, CalendarClock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface Appointment {
   id: string;
@@ -39,7 +32,8 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  
+  const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -49,7 +43,6 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
     appointmentType: "property_viewing",
   });
 
-  // Action dialogs
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -63,7 +56,6 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
     fetchAppointments();
   }, [leadId]);
 
-  // Real-time subscription for new appointments
   useEffect(() => {
     if (!leadId) return;
 
@@ -71,21 +63,12 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
       .channel('appointments-changes')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'appointments',
-          filter: `lead_id=eq.${leadId}`
-        },
-        () => {
-          fetchAppointments();
-        }
+        { event: 'INSERT', schema: 'public', table: 'appointments', filter: `lead_id=eq.${leadId}` },
+        () => fetchAppointments()
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [leadId]);
 
   const fetchAppointments = async () => {
@@ -105,46 +88,20 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
 
   const handleDeleteAppointment = async (appointmentId: string) => {
     try {
-      const { error } = await supabase
-        .from("appointments")
-        .delete()
-        .eq("id", appointmentId);
-
+      const { error } = await supabase.from("appointments").delete().eq("id", appointmentId);
       if (error) throw error;
-
       fetchAppointments();
-      toast({
-        title: "Appointment deleted",
-      });
+      toast({ title: "Appointment deleted" });
     } catch (error: any) {
-      console.error("Error deleting appointment:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-success/10 text-success-foreground border-success/20";
-      case "cancelled":
-        return "bg-destructive/10 text-destructive-foreground border-destructive/20";
-      default:
-        return "bg-info/10 text-info-foreground border-info/20";
-    }
-  };
-
-  const isUpcoming = (date: string) => {
-    return new Date(date) > new Date();
-  };
+  const isUpcoming = (date: string) => new Date(date) > new Date();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -164,29 +121,12 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
       });
 
       if (error) throw error;
-
-      toast({
-        title: "Appointment scheduled",
-        description: "Appointment has been created successfully",
-      });
-
-      setFormData({
-        title: "",
-        description: "",
-        appointmentDate: "",
-        appointmentTime: "09:00",
-        duration: "60",
-        appointmentType: "property_viewing",
-      });
+      toast({ title: "Appointment scheduled", description: "Appointment has been created successfully" });
+      setFormData({ title: "", description: "", appointmentDate: "", appointmentTime: "09:00", duration: "60", appointmentType: "property_viewing" });
       setIsDialogOpen(false);
       fetchAppointments();
     } catch (error: any) {
-      console.error("Error creating appointment:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -194,60 +134,33 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
 
   const handleMarkNoShow = async (appointmentId: string) => {
     try {
-      const { error } = await supabase
-        .from("appointments")
-        .update({ status: "no_show" })
-        .eq("id", appointmentId);
-
+      const { error } = await supabase.from("appointments").update({ status: "no_show" }).eq("id", appointmentId);
       if (error) throw error;
-
       fetchAppointments();
-      toast({
-        title: "Marked as no show",
-      });
+      toast({ title: "Marked as no show" });
     } catch (error: any) {
-      console.error("Error updating appointment:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const handleReschedule = async () => {
     if (!selectedAppointment) return;
     setLoading(true);
-
     try {
       const appointmentDateTime = new Date(`${rescheduleData.appointmentDate}T${rescheduleData.appointmentTime}`);
-
       const { error } = await supabase
         .from("appointments")
-        .update({ 
-          appointment_date: appointmentDateTime.toISOString(),
-          status: "rescheduled"
-        })
+        .update({ appointment_date: appointmentDateTime.toISOString(), status: "rescheduled" })
         .eq("id", selectedAppointment.id);
 
       if (error) throw error;
-
-      toast({
-        title: "Appointment rescheduled",
-        description: "The appointment has been rescheduled successfully",
-      });
-
+      toast({ title: "Appointment rescheduled" });
       setRescheduleDialogOpen(false);
       setSelectedAppointment(null);
       setRescheduleData({ appointmentDate: "", appointmentTime: "09:00" });
       fetchAppointments();
     } catch (error: any) {
-      console.error("Error rescheduling appointment:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -256,34 +169,20 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
   const handleComplete = async () => {
     if (!selectedAppointment) return;
     setLoading(true);
-
     try {
       const { error } = await supabase
         .from("appointments")
-        .update({ 
-          status: "completed",
-          completion_notes: completionNotes
-        })
+        .update({ status: "completed", completion_notes: completionNotes })
         .eq("id", selectedAppointment.id);
 
       if (error) throw error;
-
-      toast({
-        title: "Appointment completed",
-        description: "The appointment has been marked as completed",
-      });
-
+      toast({ title: "Appointment completed" });
       setCompleteDialogOpen(false);
       setSelectedAppointment(null);
       setCompletionNotes("");
       fetchAppointments();
     } catch (error: any) {
-      console.error("Error completing appointment:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -305,15 +204,52 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
     setCompleteDialogOpen(true);
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <Badge className="bg-success/15 text-success border-success/20 text-[10px] h-5">Completed</Badge>;
+      case "cancelled":
+        return <Badge className="bg-destructive/15 text-destructive border-destructive/20 text-[10px] h-5">Cancelled</Badge>;
+      case "no_show":
+        return <Badge className="bg-warning/15 text-warning border-warning/20 text-[10px] h-5">No Show</Badge>;
+      case "rescheduled":
+        return <Badge className="bg-info/15 text-info border-info/20 text-[10px] h-5">Rescheduled</Badge>;
+      default:
+        return <Badge className="bg-primary/15 text-primary border-primary/20 text-[10px] h-5">Pending</Badge>;
+    }
+  };
+
+  const getTypeLabel = (type?: string) => {
+    if (!type) return null;
+    const labels: Record<string, string> = {
+      property_viewing: "Viewing",
+      consultation: "Consult",
+      follow_up: "Follow Up",
+      closing: "Closing",
+      other: "Other",
+    };
+    return labels[type] || type;
+  };
+
+  const upcomingAppointments = appointments.filter(a => isUpcoming(a.appointment_date) || a.status === "pending");
+  const pastAppointments = appointments.filter(a => !isUpcoming(a.appointment_date) && a.status !== "pending");
+  const filteredAppointments = activeTab === "upcoming" ? upcomingAppointments : pastAppointments;
+
   return (
     <Card className="border">
       <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Appointments
-          </h3>
-          
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Appointments</h3>
+            {upcomingAppointments.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                {upcomingAppointments.length} upcoming
+              </Badge>
+            )}
+          </div>
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="h-7 text-xs">
@@ -336,7 +272,6 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
                     required
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
@@ -347,54 +282,34 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
                     className="resize-none"
                   />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="appointmentDate">Date</Label>
-                    <Input
-                      id="appointmentDate"
-                      type="date"
-                      value={formData.appointmentDate}
-                      onChange={(e) => setFormData({ ...formData, appointmentDate: e.target.value })}
-                      required
-                    />
+                    <Input id="appointmentDate" type="date" value={formData.appointmentDate} onChange={(e) => setFormData({ ...formData, appointmentDate: e.target.value })} required />
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="appointmentTime">Time</Label>
-                    <Input
-                      id="appointmentTime"
-                      type="time"
-                      value={formData.appointmentTime}
-                      onChange={(e) => setFormData({ ...formData, appointmentTime: e.target.value })}
-                      required
-                    />
+                    <Input id="appointmentTime" type="time" value={formData.appointmentTime} onChange={(e) => setFormData({ ...formData, appointmentTime: e.target.value })} required />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="duration">Duration</Label>
                     <Select value={formData.duration} onValueChange={(value) => setFormData({ ...formData, duration: value })}>
-                      <SelectTrigger id="duration">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger id="duration"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="15">15 minutes</SelectItem>
-                        <SelectItem value="30">30 minutes</SelectItem>
+                        <SelectItem value="15">15 min</SelectItem>
+                        <SelectItem value="30">30 min</SelectItem>
                         <SelectItem value="60">1 hour</SelectItem>
                         <SelectItem value="90">1.5 hours</SelectItem>
                         <SelectItem value="120">2 hours</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="appointmentType">Type</Label>
                     <Select value={formData.appointmentType} onValueChange={(value) => setFormData({ ...formData, appointmentType: value })}>
-                      <SelectTrigger id="appointmentType">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger id="appointmentType"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="property_viewing">Property Viewing</SelectItem>
                         <SelectItem value="consultation">Consultation</SelectItem>
@@ -405,115 +320,155 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
                     </Select>
                   </div>
                 </div>
-
                 <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "Creating..." : "Create Appointment"}
-                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                  <Button type="submit" disabled={loading}>{loading ? "Creating..." : "Create Appointment"}</Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
         </div>
 
-        <ScrollArea className="h-[180px]">
-          <div className="space-y-2">
-            {appointments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-center">
-                <Calendar className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">No appointments scheduled</p>
-              </div>
-            ) : (
-              appointments.map((appointment) => (
+        {/* Tabs */}
+        <div className="flex gap-1 mb-3 p-0.5 bg-muted/50 rounded-md">
+          <button
+            onClick={() => setActiveTab("upcoming")}
+            className={`flex-1 text-xs py-1.5 px-3 rounded transition-colors font-medium ${
+              activeTab === "upcoming" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Upcoming ({upcomingAppointments.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("past")}
+            className={`flex-1 text-xs py-1.5 px-3 rounded transition-colors font-medium ${
+              activeTab === "past" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Past ({pastAppointments.length})
+          </button>
+        </div>
+
+        {/* Appointment List */}
+        <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+          {filteredAppointments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Calendar className="h-7 w-7 text-muted-foreground/40 mb-2" />
+              <p className="text-xs text-muted-foreground">
+                {activeTab === "upcoming" ? "No upcoming appointments" : "No past appointments"}
+              </p>
+            </div>
+          ) : (
+            filteredAppointments.map((appointment) => {
+              const date = new Date(appointment.appointment_date);
+              const isPending = appointment.status === "pending";
+
+              return (
                 <div
                   key={appointment.id}
-                  className="p-3 rounded-lg border bg-card"
+                  className={`group p-3 rounded-lg border transition-all ${
+                    isPending ? "bg-card hover:border-primary/30" : "bg-muted/20 border-border/50"
+                  }`}
                 >
+                  {/* Top row: title + status */}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{appointment.title}</p>
+                      <p className="text-sm font-medium leading-tight">{appointment.title}</p>
                       {appointment.description && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {appointment.description}
-                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{appointment.description}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      {appointment.status === "pending" ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 text-xs">
-                              Pending
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openCompleteDialog(appointment)}>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Mark Complete
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleMarkNoShow(appointment.id)}>
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Mark No Show
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openRescheduleDialog(appointment)}>
-                              <CalendarClock className="h-4 w-4 mr-2" />
-                              Reschedule
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        <Badge variant="secondary" className={getStatusColor(appointment.status)}>
-                          {appointment.status.replace('_', ' ')}
-                        </Badge>
-                      )}
+                    {getStatusBadge(appointment.status)}
+                  </div>
+
+                  {/* Meta row */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground mb-2">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {appointment.duration} min
+                    </span>
+                    {appointment.appointment_type && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {getTypeLabel(appointment.appointment_type)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Completion notes */}
+                  {appointment.completion_notes && appointment.status === "completed" && (
+                    <p className="text-[11px] text-muted-foreground bg-muted/30 rounded p-1.5 mb-2 line-clamp-2">
+                      📝 {appointment.completion_notes}
+                    </p>
+                  )}
+
+                  {/* Action buttons — only for pending */}
+                  {isPending && (
+                    <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openCompleteDialog(appointment)}
+                        className="h-7 text-xs text-success hover:text-success hover:bg-success/10 flex-1"
+                      >
+                        <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                        Complete
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openRescheduleDialog(appointment)}
+                        className="h-7 text-xs text-info hover:text-info hover:bg-info/10 flex-1"
+                      >
+                        <CalendarClock className="h-3.5 w-3.5 mr-1" />
+                        Reschedule
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleMarkNoShow(appointment.id)}
+                        className="h-7 text-xs text-warning hover:text-warning hover:bg-warning/10 flex-1"
+                      >
+                        <XCircle className="h-3.5 w-3.5 mr-1" />
+                        No Show
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteAppointment(appointment.id)}
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      <span>
-                        {new Date(appointment.appointment_date).toLocaleDateString()} at{" "}
-                        {new Date(appointment.appointment_date).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {isUpcoming(appointment.appointment_date) && (
-                        <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1">
-                          Upcoming
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>{appointment.duration} minutes</span>
-                    </div>
+                  )}
 
-                    {appointment.appointment_type && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        <span className="capitalize">{appointment.appointment_type}</span>
-                      </div>
-                    )}
-                  </div>
+                  {/* Delete for non-pending */}
+                  {!isPending && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteAppointment(appointment.id)}
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              ))
-            )}
-          </div>
-        </ScrollArea>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Reschedule Dialog */}
@@ -521,42 +476,21 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Reschedule Appointment</DialogTitle>
-            <DialogDescription>
-              Choose a new date and time for this appointment
-            </DialogDescription>
+            <DialogDescription>Choose a new date and time for this appointment</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="reschedule-date">Date</Label>
-                <Input
-                  id="reschedule-date"
-                  type="date"
-                  value={rescheduleData.appointmentDate}
-                  onChange={(e) => setRescheduleData({ ...rescheduleData, appointmentDate: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="reschedule-time">Time</Label>
-                <Input
-                  id="reschedule-time"
-                  type="time"
-                  value={rescheduleData.appointmentTime}
-                  onChange={(e) => setRescheduleData({ ...rescheduleData, appointmentTime: e.target.value })}
-                  required
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="reschedule-date">Date</Label>
+              <Input id="reschedule-date" type="date" value={rescheduleData.appointmentDate} onChange={(e) => setRescheduleData({ ...rescheduleData, appointmentDate: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reschedule-time">Time</Label>
+              <Input id="reschedule-time" type="time" value={rescheduleData.appointmentTime} onChange={(e) => setRescheduleData({ ...rescheduleData, appointmentTime: e.target.value })} required />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setRescheduleDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleReschedule} disabled={loading}>
-              {loading ? "Rescheduling..." : "Reschedule"}
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setRescheduleDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleReschedule} disabled={loading}>{loading ? "Rescheduling..." : "Reschedule"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -566,30 +500,22 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Complete Appointment</DialogTitle>
-            <DialogDescription>
-              Add any notes about information collected during this appointment
-            </DialogDescription>
+            <DialogDescription>Add any notes about information collected during this appointment</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="completion-notes">Notes</Label>
-              <Textarea
-                id="completion-notes"
-                value={completionNotes}
-                onChange={(e) => setCompletionNotes(e.target.value)}
-                placeholder="What information was collected? Any follow-up needed?"
-                className="resize-none"
-                rows={5}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="completion-notes">Notes</Label>
+            <Textarea
+              id="completion-notes"
+              value={completionNotes}
+              onChange={(e) => setCompletionNotes(e.target.value)}
+              placeholder="What information was collected? Any follow-up needed?"
+              className="resize-none"
+              rows={5}
+            />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCompleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleComplete} disabled={loading}>
-              {loading ? "Marking..." : "Mark Complete"}
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setCompleteDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleComplete} disabled={loading}>{loading ? "Marking..." : "Mark Complete"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
