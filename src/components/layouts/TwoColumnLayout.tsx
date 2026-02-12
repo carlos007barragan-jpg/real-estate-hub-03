@@ -284,16 +284,10 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                           </div>
                         </div>
                       )}
-                       {leadData.pipeline && (
+                       {leadData.pipelineStage && leadData.pipeline && (
                          <div>
-                           <span className="text-muted-foreground">Pipeline:</span> 
-                           <span className="ml-1">{leadData.pipeline}</span>
-                           {leadData.pipelineStage && (
-                             <>
-                               <span className="ml-2 text-muted-foreground">• Stage:</span>
-                               <span className="ml-1">{leadData.pipelineStage}</span>
-                             </>
-                           )}
+                           <span className="text-muted-foreground">Stage:</span>
+                           <span className="ml-1">{leadData.pipelineStage}</span>
                          </div>
                        )}
                       {/* Custom Fields */}
