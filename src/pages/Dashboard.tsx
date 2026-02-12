@@ -30,6 +30,8 @@ interface AgentStats {
   appointmentsCompleted: number;
   propertyShowings: number;
   deals: number;
+  tasksCompleted: number;
+  tasksPending: number;
   status: "active" | "offline";
 }
 
@@ -429,6 +431,8 @@ const Dashboard = () => {
       const completedAppointmentsCounts = countByUserId(allAppointments.filter(a => a.status === 'completed'));
       const dealsCounts = countByUserId(allDealsResult.data || []);
       const showingsCounts = countByUserId(allAppointments.filter(a => a.appointment_type?.toLowerCase().includes('showing')));
+      const tasksCompletedCounts = countByUserId(allTasks.filter(t => t.status === 'completed'));
+      const tasksPendingCounts = countByUserId(allTasks.filter(t => t.status !== 'completed'));
 
       // Count active team members
       const activeCount = (allUserRolesResult.data || []).filter(role => {
@@ -454,6 +458,8 @@ const Dashboard = () => {
           appointmentsCompleted: completedAppointmentsCounts.get(userRole.user_id) || 0,
           propertyShowings: showingsCounts.get(userRole.user_id) || 0,
           deals: dealsCounts.get(userRole.user_id) || 0,
+          tasksCompleted: tasksCompletedCounts.get(userRole.user_id) || 0,
+          tasksPending: tasksPendingCounts.get(userRole.user_id) || 0,
           status: isActive ? "active" : "offline",
         } as AgentStats;
       });
@@ -957,7 +963,8 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Agent Performance Table */}
+      {/* Agent Performance Table - Supreme Admin + Admin only */}
+      {(role === 'supreme_admin' || role === 'admin') && (
       <Card className="p-6">
         <h2 className="text-xl font-semibold text-foreground mb-4">Agent Performance</h2>
         {agentStats.length === 0 ? (
@@ -968,12 +975,14 @@ const Dashboard = () => {
               <TableRow>
                 <TableHead>Agent Name</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Tasks Completed</TableHead>
+                <TableHead className="text-right">Tasks Pending</TableHead>
                 <TableHead className="text-right">Calls</TableHead>
                 <TableHead className="text-right">Messages</TableHead>
                 <TableHead className="text-right">New Leads</TableHead>
                 <TableHead className="text-right">Appointments</TableHead>
-                <TableHead className="text-right">Appointments Completed</TableHead>
-                <TableHead className="text-right">Property Showings</TableHead>
+                <TableHead className="text-right">Appts Completed</TableHead>
+                <TableHead className="text-right">Showings</TableHead>
                 <TableHead className="text-right">Deals</TableHead>
               </TableRow>
             </TableHeader>
@@ -1015,6 +1024,8 @@ const Dashboard = () => {
                       </Badge>
                     )}
                   </TableCell>
+                  <TableCell className="text-right font-semibold text-success">{agent.tasksCompleted}</TableCell>
+                  <TableCell className="text-right font-semibold text-warning">{agent.tasksPending}</TableCell>
                   <TableCell className="text-right font-semibold">{agent.calls}</TableCell>
                   <TableCell className="text-right font-semibold">{agent.messages}</TableCell>
                   <TableCell className="text-right font-semibold">{agent.newLeads}</TableCell>
@@ -1028,6 +1039,7 @@ const Dashboard = () => {
           </Table>
         )}
       </Card>
+      )}
     </div>
   );
 };
