@@ -82,19 +82,19 @@ export const RoundRobinSettings = () => {
 
       setAutoRoundRobin(checked);
 
-      // Check if settings exist
+      // Check if any settings exist (org-wide)
       const { data: existing } = await supabase
         .from('crm_settings')
-        .select('id')
-        .eq('user_id', user.id)
+        .select('id, user_id')
+        .limit(1)
         .maybeSingle();
 
       if (existing) {
-        // Update existing
+        // Update existing record
         const { error } = await supabase
           .from('crm_settings')
           .update({ auto_roundrobin_unanswered: checked })
-          .eq('user_id', user.id);
+          .eq('id', existing.id);
 
         if (error) throw error;
       } else {
@@ -127,22 +127,22 @@ export const RoundRobinSettings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if settings exist
+      // Check if any settings exist (org-wide)
       const { data: existing } = await supabase
         .from('crm_settings')
-        .select('id')
-        .eq('user_id', user.id)
+        .select('id, user_id')
+        .limit(1)
         .maybeSingle();
 
       if (existing) {
-        // Update existing
+        // Update existing record
         const { error } = await supabase
           .from('crm_settings')
           .update({ 
             fallback_phone_1: fallbackPhone1 || null,
             fallback_phone_2: fallbackPhone2 || null 
           })
-          .eq('user_id', user.id);
+          .eq('id', existing.id);
 
         if (error) throw error;
       } else {
