@@ -310,8 +310,15 @@ const Pipelines = () => {
       const validStages = pipelineStageNames.get(pipelineId!);
       if (!validStages) return;
 
+      // Try exact match first, then case-insensitive partial match for mismatched stages
       if (!validStages.includes(stage)) {
-        stage = validStages[0] || stage;
+        const normalizedStage = stage?.toLowerCase().trim();
+        const fuzzyMatch = validStages.find(s => 
+          s.toLowerCase().trim() === normalizedStage ||
+          s.toLowerCase().trim().includes(normalizedStage) ||
+          normalizedStage?.includes(s.toLowerCase().trim())
+        );
+        stage = fuzzyMatch || validStages[0] || stage;
       }
 
       if (!pipelineMap.has(pipelineId!)) {
@@ -323,13 +330,22 @@ const Pipelines = () => {
         stageMap.set(stage, []);
       }
 
+      // Map lead_temperature to priority - handle custom values
+      const tempLower = (lead.lead_temperature || "").toLowerCase();
+      let priority: "high" | "medium" | "low" = "medium";
+      if (tempLower === "hot" || tempLower.includes("investor")) {
+        priority = "high";
+      } else if (tempLower === "cold" || tempLower === "" || !lead.lead_temperature) {
+        priority = "low";
+      }
+
       const deal: Deal = {
         id: lead.id,
         client: lead.name,
         agent: lead.assigned_to || "Not assigned",
         commission: parseFloat(lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
         closeDate: lead.timeframe || "TBD",
-        priority: lead.lead_temperature === "hot" ? "high" : lead.lead_temperature === "warm" ? "medium" : "low",
+        priority,
         leadId: lead.id,
       };
 
