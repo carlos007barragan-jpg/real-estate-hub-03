@@ -347,13 +347,6 @@ export const TransactionTypesManager = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Card className="p-6">
-        <div className="text-center text-muted-foreground">Loading...</div>
-      </Card>
-    );
-  }
 
   return (
     <Card className="p-6">

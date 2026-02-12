@@ -214,9 +214,6 @@ export const ContactFieldsManager = () => {
     }
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
 
   return (
     <div className="space-y-6">

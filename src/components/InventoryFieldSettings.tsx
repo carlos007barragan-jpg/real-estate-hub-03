@@ -356,9 +356,6 @@ export default function InventoryFieldSettings() {
       .map(opt => opt.option_value);
   };
 
-  if (loading) {
-    return <div className="flex justify-center p-8">Loading...</div>;
-  }
 
   return (
     <Card>
