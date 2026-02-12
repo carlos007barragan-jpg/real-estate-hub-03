@@ -400,8 +400,64 @@ const Pipelines = () => {
   const [pipelineManagerOpen, setPipelineManagerOpen] = useState(false);
   const { toast } = useToast();
 
-  // Fetch pipelines from database
-  const fetchPipelines = async () => {
+  // Helper: populate pipeline stages with leads from DB
+  const populatePipelinesWithLeads = (rawPipelines: Pipeline[], leads: any[]): Pipeline[] => {
+    const pipelineStageNames = new Map<string, string[]>();
+    rawPipelines.forEach(p => {
+      pipelineStageNames.set(p.id, p.stages.map(s => s.name));
+    });
+
+    const pipelineMap = new Map<string, Map<string, Deal[]>>();
+    const deletedIds: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
+
+    leads.forEach((lead) => {
+      if (deletedIds.includes(lead.id)) return;
+      const pipelineId = lead.pipeline;
+      let stage = lead.pipeline_stage;
+
+      const validStages = pipelineStageNames.get(pipelineId!);
+      if (!validStages) return;
+
+      if (!validStages.includes(stage)) {
+        stage = validStages[0] || stage;
+      }
+
+      if (!pipelineMap.has(pipelineId!)) {
+        pipelineMap.set(pipelineId!, new Map());
+      }
+
+      const stageMap = pipelineMap.get(pipelineId!)!;
+      if (!stageMap.has(stage)) {
+        stageMap.set(stage, []);
+      }
+
+      const deal: Deal = {
+        id: lead.id,
+        client: lead.name,
+        agent: lead.assigned_to || "Not assigned",
+        commission: parseFloat(lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
+        closeDate: lead.timeframe || "TBD",
+        priority: lead.lead_temperature === "hot" ? "high" : lead.lead_temperature === "warm" ? "medium" : "low",
+        leadId: lead.id,
+      };
+
+      stageMap.get(stage)!.push(deal);
+    });
+
+    return rawPipelines.map((pipeline) => {
+      const pipelineDeals = pipelineMap.get(pipeline.id);
+      return {
+        ...pipeline,
+        stages: pipeline.stages.map((stage) => ({
+          ...stage,
+          deals: pipelineDeals?.get(stage.name) || [],
+        })),
+      };
+    });
+  };
+
+  // Fetch pipelines AND leads together in one atomic operation
+  const fetchPipelinesAndLeads = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -414,15 +470,25 @@ const Pipelines = () => {
 
       if (!userProfile?.organization_id) return;
 
-      const { data: dbPipelines, error } = await supabase
-        .from("pipelines")
-        .select("*")
-        .eq("organization_id", userProfile.organization_id)
-        .order("display_order", { ascending: true });
+      // Fetch pipelines and leads in parallel
+      const [pipelinesResult, leadsResult] = await Promise.all([
+        supabase
+          .from("pipelines")
+          .select("*")
+          .eq("organization_id", userProfile.organization_id)
+          .order("display_order", { ascending: true }),
+        supabase
+          .from("leads")
+          .select("*")
+          .not("pipeline", "is", null)
+          .eq("lead_lifecycle", "Moved to Pipeline"),
+      ]);
 
-      if (error) throw error;
+      if (pipelinesResult.error) throw pipelinesResult.error;
 
-      if (!dbPipelines || dbPipelines.length === 0) {
+      let rawPipelines: Pipeline[];
+
+      if (!pipelinesResult.data || pipelinesResult.data.length === 0) {
         // Create default pipelines if none exist
         const defaultPipelines = mockPipelines.map((mp, index) => ({
           user_id: user.id,
@@ -439,29 +505,27 @@ const Pipelines = () => {
 
         if (createError) throw createError;
 
-        const pipelinesWithDeals = (created || []).map((p: any) => ({
+        rawPipelines = (created || []).map((p: any) => ({
           id: p.id,
           name: p.name,
           stages: (p.stages as any[]).map(s => ({ ...s, deals: [] })),
         }));
-
-        setPipelines(pipelinesWithDeals);
-        if (pipelinesWithDeals.length > 0) {
-          handleSelectPipeline(pipelinesWithDeals[0].id);
-        }
       } else {
-        const pipelinesWithDeals = dbPipelines.map((p: any) => ({
+        rawPipelines = pipelinesResult.data.map((p: any) => ({
           id: p.id,
           name: p.name,
           stages: (p.stages as any[]).map(s => ({ ...s, deals: [] })),
         }));
+      }
 
-        setPipelines(pipelinesWithDeals);
-        // Always ensure selectedPipeline is valid - check if current selection exists in loaded pipelines
-        const pipelineIds = pipelinesWithDeals.map(p => p.id);
-        if (!selectedPipeline || !pipelineIds.includes(selectedPipeline)) {
-          handleSelectPipeline(pipelinesWithDeals[0].id);
-        }
+      // Populate with leads in one shot — no flash
+      const populatedPipelines = populatePipelinesWithLeads(rawPipelines, leadsResult.data || []);
+      setPipelines(populatedPipelines);
+
+      // Ensure selected pipeline is valid
+      const pipelineIds = populatedPipelines.map(p => p.id);
+      if (!selectedPipeline || !pipelineIds.includes(selectedPipeline)) {
+        handleSelectPipeline(populatedPipelines[0]?.id || "");
       }
 
       setPipelinesLoaded(true);
@@ -607,95 +671,9 @@ const Pipelines = () => {
   };
 
   useEffect(() => {
-    fetchPipelines();
-  }, []);
+    fetchPipelinesAndLeads();
 
-  // Fetch leads from database and sync with pipelines
-  useEffect(() => {
-    if (!pipelinesLoaded || pipelines.length === 0) return;
-
-    const fetchLeads = async () => {
-      try {
-        const { data: leads, error } = await supabase
-          .from("leads")
-          .select("*")
-          .not("pipeline", "is", null)
-          .eq("lead_lifecycle", "Moved to Pipeline");
-
-        if (error) throw error;
-
-        // Transform leads into deals grouped by pipeline and stage
-        const pipelineMap = new Map<string, Map<string, Deal[]>>();
-
-        // Build a lookup of valid stage names per pipeline
-        const pipelineStageNames = new Map<string, string[]>();
-        pipelines.forEach(p => {
-          pipelineStageNames.set(p.id, p.stages.map(s => s.name));
-        });
-
-        leads?.forEach((lead) => {
-          const pipelineId = lead.pipeline;
-          let stage = lead.pipeline_stage;
-
-          // Skip leads assigned to non-existent pipelines
-          const validStages = pipelineStageNames.get(pipelineId!);
-          if (!validStages) return;
-
-          // If stage name doesn't match any stage in the pipeline, default to first stage
-          if (!validStages.includes(stage)) {
-            stage = validStages[0] || stage;
-          }
-
-          if (!pipelineMap.has(pipelineId!)) {
-            pipelineMap.set(pipelineId!, new Map());
-          }
-
-          const stageMap = pipelineMap.get(pipelineId!)!;
-          if (!stageMap.has(stage)) {
-            stageMap.set(stage, []);
-          }
-
-          const deal: Deal = {
-            id: lead.id,
-            client: lead.name,
-            agent: lead.assigned_to || "Not assigned",
-            commission: parseFloat(lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
-            closeDate: lead.timeframe || "TBD",
-            priority: lead.lead_temperature === "hot" ? "high" : lead.lead_temperature === "warm" ? "medium" : "low",
-            leadId: lead.id,
-          };
-
-          stageMap.get(stage)!.push(deal);
-        });
-
-        // Update pipelines with real data
-        const updatedPipelines = pipelines.map((pipeline) => {
-          const pipelineDeals = pipelineMap.get(pipeline.id);
-
-          const updatedStages = pipeline.stages.map((stage) => ({
-            ...stage,
-            deals: (pipelineDeals?.get(stage.name) || []),
-          }));
-
-          // Filter out locally deleted deals
-          const deletedIds: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
-          const filteredStages = updatedStages.map((stage) => ({
-            ...stage,
-            deals: stage.deals.filter((d) => !deletedIds.includes(d.id)),
-          }));
-
-          return { ...pipeline, stages: filteredStages };
-        });
-
-        setPipelines(updatedPipelines);
-      } catch (error) {
-        console.error("Error fetching leads:", error);
-      }
-    };
-
-    fetchLeads();
-
-    // Subscribe to real-time updates
+    // Subscribe to real-time lead updates — just re-fetch everything atomically
     const channel = supabase
       .channel("leads_pipeline_changes")
       .on(
@@ -706,7 +684,7 @@ const Pipelines = () => {
           table: "leads",
         },
         () => {
-          fetchLeads();
+          fetchPipelinesAndLeads();
         }
       )
       .subscribe();
@@ -714,7 +692,7 @@ const Pipelines = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [pipelinesLoaded, pipelines.length]);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -847,81 +825,8 @@ const Pipelines = () => {
     );
   };
 
-  const fetchDeals = async () => {
-    try {
-      const { data: leads, error } = await supabase
-        .from("leads")
-        .select("*")
-        .not("pipeline", "is", null)
-        .eq("lead_lifecycle", "Moved to Pipeline");
-
-      if (error) throw error;
-
-      // Transform leads into deals grouped by pipeline and stage
-      const pipelineMap = new Map<string, Map<string, Deal[]>>();
-
-        // Build a lookup of valid stage names per pipeline
-        const pipelineStageNames = new Map<string, string[]>();
-        pipelines.forEach(p => {
-          pipelineStageNames.set(p.id, p.stages.map(s => s.name));
-        });
-
-        leads?.forEach((lead) => {
-          const pipelineId = lead.pipeline;
-          let stage = lead.pipeline_stage;
-
-          const validStages = pipelineStageNames.get(pipelineId!);
-          if (!validStages) return;
-
-          if (!validStages.includes(stage)) {
-            stage = validStages[0] || stage;
-          }
-
-          if (!pipelineMap.has(pipelineId!)) {
-            pipelineMap.set(pipelineId!, new Map());
-          }
-
-          const stageMap = pipelineMap.get(pipelineId!)!;
-          if (!stageMap.has(stage)) {
-            stageMap.set(stage, []);
-          }
-
-          const deal: Deal = {
-            id: lead.id,
-            client: lead.name,
-            agent: lead.assigned_to || "Not assigned",
-            commission: parseFloat(lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
-            closeDate: lead.timeframe || "TBD",
-            priority: lead.lead_temperature === "hot" ? "high" : lead.lead_temperature === "warm" ? "medium" : "low",
-            leadId: lead.id,
-          };
-
-          stageMap.get(stage)!.push(deal);
-        });
-
-        // Update pipelines with real data
-        const updatedPipelines = pipelines.map((pipeline) => {
-        const pipelineDeals = pipelineMap.get(pipeline.id);
-
-        const updatedStages = pipeline.stages.map((stage) => ({
-          ...stage,
-          deals: (pipelineDeals?.get(stage.name) || []),
-        }));
-
-        // Filter out locally deleted deals
-        const deletedIds: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
-        const filteredStages = updatedStages.map((stage) => ({
-          ...stage,
-          deals: stage.deals.filter((d) => !deletedIds.includes(d.id)),
-        }));
-
-        return { ...pipeline, stages: filteredStages };
-      });
-
-      setPipelines(updatedPipelines);
-    } catch (error) {
-      console.error("Error fetching leads:", error);
-    }
+  const fetchDeals = () => {
+    fetchPipelinesAndLeads();
   };
 
   const handleOpenNotes = (deal: Deal) => {
