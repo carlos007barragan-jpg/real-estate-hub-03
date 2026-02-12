@@ -4,9 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, X, Save } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, X, Save, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Task {
@@ -35,6 +35,7 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
+  const [activeTab, setActiveTab] = useState<"pending" | "completed">("pending");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -53,7 +54,6 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
 
       const tasks = data || [];
 
-      // Batch-fetch profile names for all unique user_ids
       const userIds = [...new Set(tasks.map(t => t.user_id))];
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -76,11 +76,7 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
 
   const handleAddTask = async () => {
     if (!newTaskTitle.trim()) {
-      toast({
-        title: "Error",
-        description: "Task title is required",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Task title is required", variant: "destructive" });
       return;
     }
 
@@ -99,11 +95,7 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
 
       if (error) throw error;
 
-      toast({
-        title: "Task added",
-        description: "Task has been created successfully",
-      });
-
+      toast({ title: "Task added", description: "Task has been created successfully" });
       setNewTaskTitle("");
       setNewTaskDescription("");
       setNewTaskDueDate("");
@@ -111,11 +103,7 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
       fetchTasks();
     } catch (error: any) {
       console.error("Error adding task:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -130,38 +118,23 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
         .eq("id", taskId);
 
       if (error) throw error;
-
       fetchTasks();
-      toast({
-        title: newStatus === "completed" ? "Task completed" : "Task reopened",
-      });
+      toast({ title: newStatus === "completed" ? "Task completed" : "Task reopened" });
     } catch (error: any) {
       console.error("Error updating task:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const handleDeleteTask = async (taskId: string) => {
     try {
       const { error } = await supabase.from("tasks").delete().eq("id", taskId);
-
       if (error) throw error;
-
       fetchTasks();
-      toast({
-        title: "Task deleted",
-      });
+      toast({ title: "Task deleted" });
     } catch (error: any) {
       console.error("Error deleting task:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
@@ -169,7 +142,6 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
     setEditingTaskId(task.id);
     setEditTitle(task.title);
     setEditDescription(task.description || "");
-    // Format date for input[type="date"] - needs YYYY-MM-DD format
     if (task.due_date) {
       const date = new Date(task.due_date);
       setEditDueDate(date.toISOString().split('T')[0]);
@@ -187,11 +159,7 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
 
   const handleUpdateTask = async (taskId: string) => {
     if (!editTitle.trim()) {
-      toast({
-        title: "Error",
-        description: "Task title is required",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Task title is required", variant: "destructive" });
       return;
     }
 
@@ -206,32 +174,38 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
         .eq("id", taskId);
 
       if (error) throw error;
-
-      toast({
-        title: "Task updated",
-        description: "Task has been updated successfully",
-      });
-
+      toast({ title: "Task updated", description: "Task has been updated successfully" });
       cancelEditing();
       fetchTasks();
     } catch (error: any) {
       console.error("Error updating task:", error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
+
+  const isOverdue = (dueDate?: string) => {
+    if (!dueDate) return false;
+    return new Date(dueDate) < new Date() && new Date(dueDate).toDateString() !== new Date().toDateString();
+  };
+
+  const pendingTasks = tasks.filter(t => t.status !== "completed");
+  const completedTasks = tasks.filter(t => t.status === "completed");
+  const filteredTasks = activeTab === "pending" ? pendingTasks : completedTasks;
 
   return (
     <Card className="border">
       <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4" />
-            Tasks
-          </h3>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Tasks</h3>
+            {pendingTasks.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                {pendingTasks.length} pending
+              </Badge>
+            )}
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -239,167 +213,184 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
             className="h-7 text-xs"
           >
             <PlusCircle className="h-3 w-3 mr-1" />
-            Add Task
+            Add
           </Button>
         </div>
 
+        {/* Add Task Form */}
         {isAddingTask && (
-          <div className="mb-3 space-y-2 p-3 bg-muted/30 rounded-lg">
+          <div className="mb-4 space-y-2 p-3 bg-muted/30 rounded-lg border border-dashed border-border">
             <Input
-              placeholder="Task title..."
+              placeholder="What needs to be done?"
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
-              className="text-sm h-8"
+              className="text-sm h-9"
+              autoFocus
             />
             <Textarea
-              placeholder="Description (optional)..."
+              placeholder="Add details (optional)..."
               value={newTaskDescription}
               onChange={(e) => setNewTaskDescription(e.target.value)}
-              className="text-sm min-h-[60px] resize-none"
+              className="text-sm min-h-[50px] resize-none"
             />
-            <Input
-              type="date"
-              value={newTaskDueDate}
-              onChange={(e) => setNewTaskDueDate(e.target.value)}
-              className="text-sm h-8"
-            />
-            <div className="flex gap-2">
-              <Button onClick={handleAddTask} size="sm" className="h-7 text-xs flex-1">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={newTaskDueDate}
+                onChange={(e) => setNewTaskDueDate(e.target.value)}
+                className="text-sm h-8 flex-1"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button onClick={handleAddTask} size="sm" className="h-8 text-xs flex-1">
                 Create Task
               </Button>
-              <Button
-                onClick={() => setIsAddingTask(false)}
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-              >
+              <Button onClick={() => setIsAddingTask(false)} variant="ghost" size="sm" className="h-8 text-xs">
                 Cancel
               </Button>
             </div>
           </div>
         )}
 
-        <ScrollArea className="h-[180px]">
-          <div className="space-y-2">
-            {tasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-center">
-                <CheckCircle2 className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">No tasks yet</p>
-              </div>
-            ) : (
-              tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className={`p-3 rounded-lg border ${
-                    task.status === "completed" ? "bg-muted/20" : "bg-card"
-                  }`}
-                >
-                  {editingTaskId === task.id ? (
-                    // Edit mode
-                    <div className="space-y-2">
+        {/* Tabs */}
+        <div className="flex gap-1 mb-3 p-0.5 bg-muted/50 rounded-md">
+          <button
+            onClick={() => setActiveTab("pending")}
+            className={`flex-1 text-xs py-1.5 px-3 rounded transition-colors font-medium ${
+              activeTab === "pending"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Pending ({pendingTasks.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("completed")}
+            className={`flex-1 text-xs py-1.5 px-3 rounded transition-colors font-medium ${
+              activeTab === "completed"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Completed ({completedTasks.length})
+          </button>
+        </div>
+
+        {/* Task List */}
+        <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+          {filteredTasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <CheckCircle2 className="h-7 w-7 text-muted-foreground/40 mb-2" />
+              <p className="text-xs text-muted-foreground">
+                {activeTab === "pending" ? "No pending tasks" : "No completed tasks"}
+              </p>
+            </div>
+          ) : (
+            filteredTasks.map((task) => (
+              <div
+                key={task.id}
+                className={`group p-3 rounded-lg border transition-all ${
+                  task.status === "completed"
+                    ? "bg-muted/20 border-border/50"
+                    : isOverdue(task.due_date)
+                    ? "bg-destructive/5 border-destructive/20"
+                    : "bg-card hover:border-primary/30"
+                }`}
+              >
+                {editingTaskId === task.id ? (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Task title..."
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="text-sm h-8"
+                      autoFocus
+                    />
+                    <Textarea
+                      placeholder="Description (optional)..."
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      className="text-sm min-h-[50px] resize-none"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Task title..."
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        className="text-sm h-8"
-                        autoFocus
+                        type="date"
+                        value={editDueDate}
+                        onChange={(e) => setEditDueDate(e.target.value)}
+                        className="text-sm h-8 flex-1"
                       />
-                      <Textarea
-                        placeholder="Description (optional)..."
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        className="text-sm min-h-[60px] resize-none"
-                      />
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="date"
-                          value={editDueDate}
-                          onChange={(e) => setEditDueDate(e.target.value)}
-                          className="text-sm h-8 flex-1"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          onClick={() => handleUpdateTask(task.id)} 
-                          size="sm" 
-                          className="h-7 text-xs flex-1"
-                        >
-                          <Save className="h-3 w-3 mr-1" />
-                          Save
-                        </Button>
-                        <Button
-                          onClick={cancelEditing}
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Cancel
-                        </Button>
-                      </div>
                     </div>
-                  ) : (
-                    // View mode
-                    <div className="flex items-start gap-2">
-                      <Checkbox
-                        checked={task.status === "completed"}
-                        onCheckedChange={() => handleToggleTask(task.id, task.status)}
-                        className="mt-0.5"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className={`text-sm font-medium ${
-                            task.status === "completed" ? "line-through text-muted-foreground" : ""
-                          }`}
-                        >
-                          {task.title}
-                        </p>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground mt-1">{task.description}</p>
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleUpdateTask(task.id)} size="sm" className="h-7 text-xs flex-1">
+                        <Save className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                      <Button onClick={cancelEditing} variant="ghost" size="sm" className="h-7 text-xs">
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={task.status === "completed"}
+                      onCheckedChange={() => handleToggleTask(task.id, task.status)}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium leading-tight ${
+                        task.status === "completed" ? "line-through text-muted-foreground" : ""
+                      }`}>
+                        {task.title}
+                      </p>
+                      {task.description && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                        {task.due_date && (
+                          <span className={`flex items-center gap-1 text-[11px] ${
+                            isOverdue(task.due_date) && task.status !== "completed"
+                              ? "text-destructive font-medium"
+                              : "text-muted-foreground"
+                          }`}>
+                            {isOverdue(task.due_date) && task.status !== "completed" && (
+                              <AlertTriangle className="h-3 w-3" />
+                            )}
+                            <Calendar className="h-3 w-3" />
+                            {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
                         )}
                         {task.assignedToName && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Assigned to: {task.assignedToName}
-                          </p>
+                          <span className="text-[11px] text-muted-foreground">{task.assignedToName}</span>
                         )}
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          {task.due_date && (
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Due: {new Date(task.due_date).toLocaleDateString()}
-                            </span>
-                          )}
-                          <span>
-                            Created: {new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => startEditing(task)}
-                          className="h-6 w-6 text-muted-foreground hover:text-primary"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
                       </div>
                     </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </ScrollArea>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => startEditing(task)}
+                        className="h-7 w-7 text-muted-foreground hover:text-primary"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteTask(task.id)}
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </Card>
   );
