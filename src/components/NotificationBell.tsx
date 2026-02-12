@@ -55,10 +55,10 @@ const ROLE_EVENT_PERMISSIONS: Record<string, string[]> = {
 
 // Legacy type mapping for backwards compatibility
 const LEGACY_TYPE_MAPPING: Record<string, string[]> = {
-  admin: ['pipeline', 'task', 'call', 'message', 'property_update', 'wholesale_submission', 'property_inquiry'],
-  agent: ['pipeline', 'task', 'call', 'message'],
-  marketing_manager: ['property_update', 'wholesale_submission'],
-  marketing: ['property_update', 'wholesale_submission'],
+  admin: ['pipeline', 'task', 'call', 'message', 'property_update', 'wholesale_submission', 'property_inquiry', 'lead_assignment', 'lead_created', 'appointment', 'appointment_created', 'task_created', 'task_completed'],
+  agent: ['pipeline', 'task', 'call', 'message', 'lead_assignment', 'appointment', 'appointment_created', 'task_created', 'task_assigned'],
+  marketing_manager: ['property_update', 'wholesale_submission', 'task_assigned', 'task_created'],
+  marketing: ['property_update', 'wholesale_submission', 'task_assigned', 'task_created'],
   owner_user: ['property_update']
 };
 
