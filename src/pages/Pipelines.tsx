@@ -62,33 +62,16 @@ interface Pipeline {
   stages: Stage[];
 }
 
-const mockPipelines: Pipeline[] = [
+const defaultPipelineTemplate: Pipeline[] = [
   {
-    id: "real-estate",
-    name: "Real Estate Sales",
+    id: "default-1",
+    name: "Sales Pipeline",
     stages: [
-      { id: "1", name: "New Lead", deals: [] },
-      { id: "2", name: "Contacted", deals: [] },
-      { id: "3", name: "Qualified", deals: [] },
-      { id: "4", name: "Showing Scheduled", deals: [] },
-      { id: "5", name: "Offer Made", deals: [] },
-      { id: "6", name: "Under Contract", deals: [] },
-      { id: "7", name: "Closed Won", deals: [] },
-      { id: "8", name: "Closed Lost", deals: [] },
-    ],
-  },
-  {
-    id: "commercial",
-    name: "Commercial Properties",
-    stages: [
-      { id: "1", name: "New Lead", deals: [] },
-      { id: "2", name: "Contacted", deals: [] },
-      { id: "3", name: "Qualified", deals: [] },
-      { id: "4", name: "Showing Scheduled", deals: [] },
-      { id: "5", name: "Offer Made", deals: [] },
-      { id: "6", name: "Under Contract", deals: [] },
-      { id: "7", name: "Closed Won", deals: [] },
-      { id: "8", name: "Closed Lost", deals: [] },
+      { id: "s1", name: "New Lead", deals: [] },
+      { id: "s2", name: "Contacted", deals: [] },
+      { id: "s3", name: "Qualified", deals: [] },
+      { id: "s4", name: "Under Contract", deals: [] },
+      { id: "s5", name: "Closed", deals: [] },
     ],
   },
 ];
@@ -300,10 +283,8 @@ const Pipelines = () => {
     });
 
     const pipelineMap = new Map<string, Map<string, Deal[]>>();
-    const deletedIds: string[] = JSON.parse(localStorage.getItem('deletedDealIds') || '[]');
 
     leads.forEach((lead) => {
-      if (deletedIds.includes(lead.id)) return;
       const pipelineId = lead.pipeline;
       let stage = lead.pipeline_stage;
 
@@ -398,7 +379,7 @@ const Pipelines = () => {
 
       if (!pipelinesResult.data || pipelinesResult.data.length === 0) {
         // Create default pipelines if none exist
-        const defaultPipelines = mockPipelines.map((mp, index) => ({
+        const defaultPipelines = defaultPipelineTemplate.map((mp, index) => ({
           user_id: user.id,
           organization_id: userProfile.organization_id,
           name: mp.name,
@@ -782,38 +763,7 @@ const Pipelines = () => {
 
   const handleDeleteDeal = async (dealId: string, leadId?: string) => {
     try {
-      // In our UI, some deals may be mock/local-only (no lead in DB)
       const idToDelete = leadId || dealId;
-
-      // Helper to detect UUIDs (leads use UUIDs). Non-UUID => local-only deal
-      const isUuid = (v: string) =>
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
-
-      // If it's not a UUID, treat as a local/mock deal and just remove from UI
-      if (!isUuid(idToDelete)) {
-        setPipelines((prevPipelines) =>
-          prevPipelines.map((pipeline) => ({
-            ...pipeline,
-            stages: pipeline.stages.map((stage) => ({
-              ...stage,
-              deals: stage.deals.filter((deal) => deal.id !== dealId),
-            })),
-          }))
-        );
-
-        // Persist local deletion so it doesn't reappear on refresh
-        const deletedIds: string[] = JSON.parse(localStorage.getItem("deletedDealIds") || "[]");
-        localStorage.setItem(
-          "deletedDealIds",
-          JSON.stringify(Array.from(new Set([...deletedIds, dealId])))
-        );
-
-        toast({
-          title: "Deal Deleted",
-          description: "The deal has been removed from the pipeline",
-        });
-        return;
-      }
 
       // UUID => attempt DB deletion (these are real leads moved into pipeline)
       const { error } = await supabase

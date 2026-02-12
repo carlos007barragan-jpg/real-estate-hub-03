@@ -244,9 +244,6 @@ export default function OwnerPortalDashboard() {
     }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
 
   return (
     <div className="min-h-screen bg-background">

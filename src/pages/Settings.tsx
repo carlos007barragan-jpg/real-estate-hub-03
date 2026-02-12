@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Moon, Trash2, AlertCircle } from "lucide-react";
+import { Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +23,7 @@ const Settings = () => {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
-  const [deletingDemoData, setDeletingDemoData] = useState(false);
+  
   const [activeTab, setActiveTab] = useState("general");
 
   useEffect(() => {
@@ -46,88 +46,7 @@ const Settings = () => {
     window.dispatchEvent(new Event("darkModeChange"));
   }, [darkMode]);
 
-  const handleDeleteDemoData = async () => {
-    setDeletingDemoData(true);
-    try {
-      // Delete demo leads
-      const { error: leadsError } = await supabase
-        .from('leads')
-        .delete()
-        .eq('is_demo_data', true);
 
-      if (leadsError) throw leadsError;
-
-      // Delete demo call logs
-      const { error: callLogsError } = await supabase
-        .from('call_logs')
-        .delete()
-        .eq('is_demo_data', true);
-
-      if (callLogsError) throw callLogsError;
-
-      // Delete demo tasks
-      const { error: tasksError } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('is_demo_data', true);
-
-      if (tasksError) throw tasksError;
-
-      // Delete demo notes
-      const { error: notesError } = await supabase
-        .from('notes')
-        .delete()
-        .eq('is_demo_data', true);
-
-      if (notesError) throw notesError;
-
-      // Delete demo documents
-      const { error: documentsError } = await supabase
-        .from('documents')
-        .delete()
-        .eq('is_demo_data', true);
-
-      if (documentsError) throw documentsError;
-
-      // Delete demo SMS logs
-      const { error: smsError } = await supabase
-        .from('sms_logs')
-        .delete()
-        .eq('is_demo_data', true);
-
-      if (smsError) throw smsError;
-
-      // Delete demo inventory
-      const { error: inventoryError } = await supabase
-        .from('inventory')
-        .delete()
-        .eq('is_demo_data', true);
-
-      if (inventoryError) throw inventoryError;
-
-      toast({
-        title: "Demo data deleted",
-        description: "All demo data has been removed from your account.",
-      });
-    } catch (error: any) {
-      console.error('Error deleting demo data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete demo data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setDeletingDemoData(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-8">
@@ -176,26 +95,6 @@ const Settings = () => {
                   </div>
                 </div>
 
-                <div className="pt-6 mt-6 border-t">
-                  <div className="flex items-start gap-3 p-4 bg-destructive/10 rounded-lg mb-4">
-                    <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
-                    <div>
-                      <h3 className="font-semibold text-foreground mb-1">Delete Demo Data</h3>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        This will permanently delete all demo leads, calls, tasks, and related data. This action cannot be undone.
-                      </p>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteDemoData}
-                        disabled={deletingDemoData}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {deletingDemoData ? "Deleting..." : "Delete All Demo Data"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </Card>
           </div>
