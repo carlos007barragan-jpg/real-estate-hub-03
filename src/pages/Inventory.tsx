@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useCachedState } from "@/hooks/useCachedState";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -61,7 +60,7 @@ interface Seller {
 export default function Inventory() {
   const navigate = useNavigate();
   const { isAdmin } = useUserRole();
-  const [items, setItems] = useCachedState<InventoryItem[]>("inventory-items", []);
+  const [items, setItems] = useState<InventoryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(false);

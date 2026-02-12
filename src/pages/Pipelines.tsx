@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from "react";
-import { useCachedState } from "@/hooks/useCachedState";
 import { useNavigate } from "react-router-dom";
 import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical, Trash2, Edit } from "lucide-react";
 import { EditDealDialog } from "@/components/EditDealDialog";
@@ -382,7 +381,7 @@ const Pipelines = () => {
     // Restore selected pipeline from localStorage
     return localStorage.getItem("selectedPipelineId") || "";
   });
-  const [pipelines, setPipelines] = useCachedState<Pipeline[]>("pipelines-list", []);
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   
   // Persist selected pipeline to localStorage
   const handleSelectPipeline = (pipelineId: string) => {
