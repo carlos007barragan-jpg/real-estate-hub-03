@@ -275,20 +275,46 @@ const Pipelines = () => {
   const [pipelineManagerOpen, setPipelineManagerOpen] = useState(false);
   const { toast } = useToast();
 
+  // Map lead_temperature values to pipeline names for auto-assignment
+  const temperatureToPipelineMap: Record<string, string> = {
+    "buyer's": "Real Estate Sales",
+    "listing": "Seller Listings",
+    "investor's": "Investor/Buyer Dispositions",
+    "owner financed": "Owner Finance Sales",
+    "funding": "Hard Money Loans",
+    "wholesale": "Wholesale Acquisitions",
+    "commercial": "Investor/Buyer Dispositions",
+    "multifamily": "Investor/Buyer Dispositions",
+    "rental": "Real Estate Sales",
+  };
+
   // Helper: populate pipeline stages with leads from DB
   const populatePipelinesWithLeads = (rawPipelines: Pipeline[], leads: any[]): Pipeline[] => {
     const pipelineStageNames = new Map<string, string[]>();
+    const pipelineNameToId = new Map<string, string>();
     rawPipelines.forEach(p => {
       pipelineStageNames.set(p.id, p.stages.map(s => s.name));
+      pipelineNameToId.set(p.name.toLowerCase().trim(), p.id);
     });
 
     const pipelineMap = new Map<string, Map<string, Deal[]>>();
 
     leads.forEach((lead) => {
-      const pipelineId = lead.pipeline;
+      let pipelineId = lead.pipeline;
       let stage = lead.pipeline_stage;
 
-      const validStages = pipelineStageNames.get(pipelineId!);
+      // If lead has no pipeline assigned, auto-map based on lead_temperature
+      if (!pipelineId && lead.lead_temperature) {
+        const tempKey = lead.lead_temperature.toLowerCase().trim();
+        const targetPipelineName = temperatureToPipelineMap[tempKey];
+        if (targetPipelineName) {
+          pipelineId = pipelineNameToId.get(targetPipelineName.toLowerCase().trim());
+        }
+      }
+
+      if (!pipelineId) return;
+
+      const validStages = pipelineStageNames.get(pipelineId);
       if (!validStages) return;
 
       // Try exact match first, then case-insensitive partial match for mismatched stages
@@ -302,11 +328,11 @@ const Pipelines = () => {
         stage = fuzzyMatch || validStages[0] || stage;
       }
 
-      if (!pipelineMap.has(pipelineId!)) {
-        pipelineMap.set(pipelineId!, new Map());
+      if (!pipelineMap.has(pipelineId)) {
+        pipelineMap.set(pipelineId, new Map());
       }
 
-      const stageMap = pipelineMap.get(pipelineId!)!;
+      const stageMap = pipelineMap.get(pipelineId)!;
       if (!stageMap.has(stage)) {
         stageMap.set(stage, []);
       }
@@ -369,8 +395,7 @@ const Pipelines = () => {
         supabase
           .from("leads")
           .select("*")
-          .not("pipeline", "is", null)
-          .eq("lead_lifecycle", "Moved to Pipeline"),
+          .eq("is_demo_data", false),
       ]);
 
       if (pipelinesResult.error) throw pipelinesResult.error;
