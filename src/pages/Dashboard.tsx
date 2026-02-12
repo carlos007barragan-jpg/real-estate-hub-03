@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -85,6 +86,7 @@ interface DealsData {
 }
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { session, isAdmin: cachedIsAdmin, role } = useAuth();
   const [loading, setLoading] = useState(false);
   const [totalCalls, setTotalCalls] = useState(0);
@@ -736,7 +738,7 @@ const Dashboard = () => {
                     onCheckedChange={() => handleToggleTask(task.id, task.status, true)}
                     className="mt-1"
                   />
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/leads/${task.lead_id}`)}>
                     <p className="font-medium text-sm text-foreground">
                       {task.title}
                     </p>
@@ -781,7 +783,7 @@ const Dashboard = () => {
                         onCheckedChange={() => handleToggleTask(task.id, task.status, false)}
                         className="mt-1"
                       />
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/leads/${task.lead_id}`)}>
                         <p
                           className={`font-medium text-sm ${
                             task.status === "completed"
