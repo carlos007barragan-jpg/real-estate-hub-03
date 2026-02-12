@@ -1454,6 +1454,7 @@ export type Database = {
         | "marketing_manager"
         | "marketing"
         | "owner_user"
+        | "supreme_admin"
       contact_category: "client" | "lead" | "vendor" | "partner" | "other"
       vendor_subcategory:
         | "title_company"
@@ -1598,6 +1599,7 @@ export const Constants = {
         "marketing_manager",
         "marketing",
         "owner_user",
+        "supreme_admin",
       ],
       contact_category: ["client", "lead", "vendor", "partner", "other"],
       vendor_subcategory: [
