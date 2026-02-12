@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { TwoColumnLayout } from "@/components/layouts/TwoColumnLayout";
-import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
 import { PipelineAssignmentDialog } from "@/components/PipelineAssignmentDialog";
 
 interface Message {
@@ -36,19 +35,10 @@ const leadLifecycleStages = [
 
 type LeadLifecycle = typeof leadLifecycleStages[number];
 
-// Pipeline stages - after lifecycle is complete
-const pipelineStages = [
-  "New Lead",
-  "Contacted",
-  "Qualified",
-  "Showing Scheduled",
-  "Offer Made",
-  "Under Contract",
-  "Closed Won",
-  "Closed Lost"
-] as const;
-
-type PipelineStage = typeof pipelineStages[number];
+interface PipelineStageOption {
+  id: string;
+  name: string;
+}
 
 const LeadProfile = () => {
   const { id } = useParams();
@@ -58,15 +48,16 @@ const LeadProfile = () => {
   const [leadData, setLeadData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [currentLifecycle, setCurrentLifecycle] = useState<LeadLifecycle>("Contact");
-  const [currentStage, setCurrentStage] = useState<PipelineStage>("New Lead");
+  const [currentStage, setCurrentStage] = useState<string>("New Lead");
   const [currentPipeline, setCurrentPipeline] = useState<string>("");
   const [pipelineDialogOpen, setPipelineDialogOpen] = useState(false);
   const [customFields, setCustomFields] = useState<any[]>([]);
-
-  const availablePipelines = [
-    { id: "real-estate", name: "Real Estate Sales" },
-    { id: "commercial", name: "Commercial Properties" },
-  ];
+  const [pipelineName, setPipelineName] = useState<string>("");
+  const [pipelineStages, setPipelineStages] = useState<PipelineStageOption[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [newNote, setNewNote] = useState("");
 
   const fetchNotes = async () => {
     if (!id) return;
@@ -88,6 +79,35 @@ const LeadProfile = () => {
       })) || []);
     } catch (error) {
       console.error("Error fetching notes:", error);
+    }
+  };
+
+  // Fetch pipeline details (name + stages) when pipeline ID changes
+  const fetchPipelineDetails = async (pipelineId: string) => {
+    if (!pipelineId) {
+      setPipelineName("");
+      setPipelineStages([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("pipelines")
+        .select("name, stages")
+        .eq("id", pipelineId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setPipelineName(data.name);
+        const stages = (data.stages as any[]) || [];
+        setPipelineStages(stages.map((s: any) => ({ id: s.id, name: s.name })));
+      }
+    } catch (error) {
+      console.error("Error fetching pipeline details:", error);
+      setPipelineName("");
+      setPipelineStages([]);
     }
   };
 
@@ -119,7 +139,7 @@ const LeadProfile = () => {
           assignedTo: data.assigned_to || "Unassigned",
           timeframe: data.timeframe || "Not specified",
           leadLifecycle: data.lead_lifecycle as LeadLifecycle,
-          pipelineStage: data.pipeline_stage as PipelineStage,
+          pipelineStage: data.pipeline_stage,
           pipeline: data.pipeline || null,
           downPayment: data.down_payment || null,
           financingType: data.financing_type || null,
@@ -154,8 +174,13 @@ const LeadProfile = () => {
           customData: data.custom_data || {},
         });
         setCurrentLifecycle(data.lead_lifecycle as LeadLifecycle);
-        setCurrentStage(data.pipeline_stage as PipelineStage);
+        setCurrentStage(data.pipeline_stage || "New Lead");
         setCurrentPipeline(data.pipeline || "");
+        
+        // Fetch pipeline details if assigned
+        if (data.pipeline) {
+          await fetchPipelineDetails(data.pipeline);
+        }
         
         // Fetch custom fields for this user
         await fetchCustomFields(data.user_id);
@@ -242,11 +267,6 @@ const LeadProfile = () => {
     };
   }, [id, toast]);
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [newNote, setNewNote] = useState("");
-
   const handleSendMessage = async () => {
     if (newMessage.trim() && leadData) {
       try {
@@ -330,7 +350,7 @@ const LeadProfile = () => {
 
         setCurrentLifecycle(newLifecycle);
         setPipelineDialogOpen(true);
-        await fetchLead(); // Refresh lead data
+        await fetchLead();
       } catch (error: any) {
         toast({
           title: "Error",
@@ -353,7 +373,7 @@ const LeadProfile = () => {
       if (error) throw error;
 
       setCurrentLifecycle(newLifecycle);
-      await fetchLead(); // Refresh lead data
+      await fetchLead();
       toast({
         title: "Lead Lifecycle Updated",
         description: `Lead moved to ${newLifecycle}`,
@@ -367,7 +387,7 @@ const LeadProfile = () => {
     }
   };
 
-  const handleStageChange = async (newStage: PipelineStage | "Back to Lifecycle") => {
+  const handleStageChange = async (newStage: string) => {
     if (!leadData) return;
     
     const { data: { user } } = await supabase.auth.getUser();
@@ -378,7 +398,7 @@ const LeadProfile = () => {
         const { error } = await supabase
           .from("leads")
           .update({ 
-            lead_lifecycle: "Lead",
+            lead_lifecycle: "Contact",
             pipeline: null,
             pipeline_stage: "New Lead",
             last_modified_by: user?.id,
@@ -414,61 +434,10 @@ const LeadProfile = () => {
       if (error) throw error;
 
       setCurrentStage(newStage);
-      await fetchLead(); // Refresh lead data
+      await fetchLead();
       toast({
         title: "Pipeline Stage Updated",
         description: `Lead moved to ${newStage}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handlePipelineChange = async (newPipeline: string) => {
-    if (!leadData) return;
-    
-    try {
-      const { error } = await supabase
-        .from("leads")
-        .update({ pipeline: newPipeline })
-        .eq("id", leadData.id);
-
-      if (error) throw error;
-
-      setCurrentPipeline(newPipeline);
-      await fetchLead(); // Refresh lead data
-      toast({
-        title: "Pipeline Updated",
-        description: `Lead assigned to ${availablePipelines.find(p => p.id === newPipeline)?.name}`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleLeadTemperatureChange = async (newTemperature: 'hot' | 'warm' | 'cold') => {
-    if (!leadData) return;
-    
-    try {
-      const { error } = await supabase
-        .from("leads")
-        .update({ lead_temperature: newTemperature })
-        .eq("id", leadData.id);
-
-      if (error) throw error;
-
-      setLeadData({ ...leadData, leadTemperature: newTemperature });
-      toast({
-        title: "Lead Status Updated",
-        description: `Lead status changed to ${newTemperature}`,
       });
     } catch (error: any) {
       toast({
@@ -516,18 +485,11 @@ const LeadProfile = () => {
   };
 
   const getStageProgress = () => {
-    const index = pipelineStages.indexOf(currentStage);
+    if (pipelineStages.length === 0) return 0;
+    const index = pipelineStages.findIndex(s => s.name === currentStage);
+    if (index === -1) return 0;
     return ((index + 1) / pipelineStages.length) * 100;
   };
-
-  const statusColors = {
-    new: "bg-info text-info-foreground",
-    contacted: "bg-warning text-warning-foreground",
-    qualified: "bg-success text-success-foreground",
-    unqualified: "bg-muted text-muted-foreground",
-  };
-
-  // No blocking loading state - render immediately
 
   if (!leadData) {
     return (
@@ -544,7 +506,7 @@ const LeadProfile = () => {
     <div className="min-h-screen bg-background">
       <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4 animate-fade-in">
+        <div className="flex flex-wrap items-center gap-4 animate-fade-in">
           <Button
             variant="ghost"
             size="icon"
@@ -553,52 +515,38 @@ const LeadProfile = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                {leadData.name}
-              </h1>
-              <Select value={leadData.leadTemperature || 'warm'} onValueChange={handleLeadTemperatureChange}>
-                <SelectTrigger className={`w-[110px] h-8 text-xs capitalize px-3 py-1 ${
-                  leadData.leadTemperature === 'hot' 
-                    ? 'bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400' 
-                    : leadData.leadTemperature === 'warm' 
-                    ? 'bg-orange-500/10 text-orange-600 border-orange-500/20 dark:text-orange-400'
-                    : 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400'
-                }`}>
-                  <SelectValue placeholder="Set status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hot">🔥 Hot</SelectItem>
-                  <SelectItem value="warm">☀️ Warm</SelectItem>
-                  <SelectItem value="cold">❄️ Cold</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+              {leadData.name}
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">Lead Profile</p>
           </div>
-          <div className="flex items-center gap-2">
-            <ForwardLeadDialog
-              leadId={leadData.id}
-              currentAgent={leadData.assignedTo}
-              onSuccess={fetchLead}
-            />
-          </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center">
             <Badge className="bg-primary/10 text-primary px-4 py-1.5 text-sm font-medium border border-primary/20">
               {leadData.leadLifecycle || "Contact"}
             </Badge>
-            {leadData.pipeline && (
+            {currentPipeline && pipelineName && (
               <>
                 <span className="text-muted-foreground">→</span>
-                <Badge className="bg-secondary/10 text-secondary-foreground px-4 py-1.5 text-sm font-medium border border-secondary/20">
-                  {leadData.pipeline}
+                <Badge className="bg-accent/50 text-accent-foreground px-4 py-1.5 text-sm font-medium border border-accent/30">
+                  {pipelineName}
                 </Badge>
                 <span className="text-muted-foreground">→</span>
-                <Badge className={`${statusColors[leadData.pipelineStage as keyof typeof statusColors]} px-4 py-1.5 text-sm font-medium`}>
+                <Badge className="bg-secondary text-secondary-foreground px-4 py-1.5 text-sm font-medium">
                   {leadData.pipelineStage}
                 </Badge>
               </>
+            )}
+            {!currentPipeline && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setPipelineDialogOpen(true)}
+                className="gap-2"
+              >
+                <Layers className="h-4 w-4" />
+                Assign Pipeline
+              </Button>
             )}
           </div>
         </div>
@@ -615,7 +563,7 @@ const LeadProfile = () => {
               <Progress value={getLifecycleProgress()} className="h-1.5" />
             </div>
             <Select value={currentLifecycle} onValueChange={handleLifecycleChange}>
-              <SelectTrigger className="w-[140px] h-7 text-xs">
+              <SelectTrigger className="w-[160px] h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>
                <SelectContent className="z-50 bg-popover">
@@ -635,22 +583,32 @@ const LeadProfile = () => {
                 <Building2 className="h-4 w-4 text-primary" />
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium">Pipeline Progress</span>
+                    <span className="text-xs font-medium">
+                      {pipelineName || "Pipeline"} Progress
+                    </span>
                     <span className="text-xs text-muted-foreground">{Math.round(getStageProgress())}%</span>
                   </div>
                   <Progress value={getStageProgress()} className="h-1.5" />
                 </div>
                 <Select value={currentStage} onValueChange={handleStageChange}>
-                  <SelectTrigger className="w-[140px] h-7 text-xs">
+                  <SelectTrigger className="w-[160px] h-7 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                    <SelectContent className="z-50 bg-popover">
                      <SelectItem value="Back to Lifecycle">← Back to Lifecycle</SelectItem>
                      {pipelineStages.map((stage) => (
-                       <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                       <SelectItem key={stage.id} value={stage.name}>{stage.name}</SelectItem>
                      ))}
                    </SelectContent>
                 </Select>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setPipelineDialogOpen(true)}
+                  className="text-xs"
+                >
+                  Change Pipeline
+                </Button>
               </div>
             ) : (
               <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
