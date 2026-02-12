@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
+import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import {
@@ -530,6 +530,43 @@ const Dashboard = () => {
     }
   };
 
+  const handleToggleAgentStatus = async (agentUserId: string, currentStatus: "active" | "offline") => {
+    const newIsActive = currentStatus === "offline";
+    try {
+      // Check if agent record exists
+      const { data: existing } = await supabase
+        .from("agents")
+        .select("id")
+        .eq("user_id", agentUserId)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("agents")
+          .update({ is_active: newIsActive })
+          .eq("user_id", agentUserId);
+        if (error) throw error;
+      } else {
+        // Create agent record with a placeholder phone number
+        const { error } = await supabase
+          .from("agents")
+          .insert({ user_id: agentUserId, phone_number: "", is_active: newIsActive });
+        if (error) throw error;
+      }
+
+      // Update local state immediately
+      setAgentStats(prev =>
+        prev.map(a =>
+          a.id === agentUserId ? { ...a, status: newIsActive ? "active" : "offline" } : a
+        )
+      );
+      toast.success(`Agent status set to ${newIsActive ? "active" : "offline"}`);
+    } catch (error: any) {
+      console.error("Error toggling agent status:", error);
+      toast.error("Failed to update agent status");
+    }
+  };
+
   const handleToggleTask = async (taskId: string, currentStatus: string, isPastDue: boolean = false) => {
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
     const { error } = await supabase
@@ -546,7 +583,6 @@ const Dashboard = () => {
     }
 
     if (isPastDue) {
-      // Remove from past due tasks when completed
       if (newStatus === "completed") {
         setPastDueTasks((prev) => prev.filter((task) => task.id !== taskId));
       }
@@ -949,16 +985,38 @@ const Dashboard = () => {
                 <TableRow key={agent.id}>
                   <TableCell className="font-medium">{agent.name}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={
-                        agent.status === "active"
-                          ? "bg-success text-success-foreground"
-                          : "bg-muted text-muted-foreground"
-                      }
-                    >
-                      {agent.status}
-                    </Badge>
+                    {isAdmin ? (
+                      <button
+                        onClick={() => handleToggleAgentStatus(agent.id, agent.status)}
+                        className="inline-flex items-center gap-1.5 cursor-pointer group"
+                        title={`Click to set ${agent.status === "active" ? "offline" : "active"}`}
+                      >
+                        <Power className={`h-3.5 w-3.5 transition-colors ${
+                          agent.status === "active" ? "text-success" : "text-muted-foreground"
+                        } group-hover:text-primary`} />
+                        <Badge
+                          variant="secondary"
+                          className={`transition-colors ${
+                            agent.status === "active"
+                              ? "bg-success text-success-foreground"
+                              : "bg-muted text-muted-foreground"
+                          } group-hover:ring-2 group-hover:ring-primary/30`}
+                        >
+                          {agent.status}
+                        </Badge>
+                      </button>
+                    ) : (
+                      <Badge
+                        variant="secondary"
+                        className={
+                          agent.status === "active"
+                            ? "bg-success text-success-foreground"
+                            : "bg-muted text-muted-foreground"
+                        }
+                      >
+                        {agent.status}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right font-semibold">{agent.calls}</TableCell>
                   <TableCell className="text-right font-semibold">{agent.messages}</TableCell>
