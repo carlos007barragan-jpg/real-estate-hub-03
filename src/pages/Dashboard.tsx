@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -109,6 +109,86 @@ const Dashboard = () => {
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [performancePeriod, setPerformancePeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [rawPerfData, setRawPerfData] = useState<{
+    calls: any[]; messages: any[]; leads: any[]; appointments: any[]; deals: any[]; tasks: any[];
+    userRoles: any[]; agentPhones: any[]; profiles: any[];
+  }>({ calls: [], messages: [], leads: [], appointments: [], deals: [], tasks: [], userRoles: [], agentPhones: [], profiles: [] });
+
+  // Recompute agent stats when performance period changes
+  useEffect(() => {
+    const { calls, messages, leads, appointments, deals, tasks, userRoles, agentPhones, profiles } = rawPerfData;
+    if (!userRoles.length) return;
+
+    const now = new Date();
+    let periodStart: Date;
+    if (performancePeriod === 'daily') {
+      periodStart = startOfDay(now);
+    } else if (performancePeriod === 'weekly') {
+      periodStart = startOfWeek(now);
+    } else {
+      periodStart = startOfMonth(now);
+    }
+
+    const filterByPeriod = (data: any[]) => data.filter(item => new Date(item.created_at) >= periodStart);
+    const filterTasksByPeriod = (data: any[]) => {
+      if (performancePeriod === 'daily') {
+        return data; // tasks don't have created_at filtering - use due_date or show all
+      }
+      return data;
+    };
+
+    const countByUserId = (data: any[]) => {
+      const counts = new Map<string, number>();
+      data.forEach(item => {
+        counts.set(item.user_id, (counts.get(item.user_id) || 0) + 1);
+      });
+      return counts;
+    };
+
+    const filteredCalls = filterByPeriod(calls);
+    const filteredMessages = filterByPeriod(messages);
+    const filteredLeads = filterByPeriod(leads);
+    const filteredAppointments = filterByPeriod(appointments);
+    const filteredDeals = filterByPeriod(deals);
+
+    const agentPhoneMap = new Map(agentPhones.map((a: any) => [a.user_id, a]));
+    const profileMap = new Map(profiles.map((p: any) => [p.user_id, p]));
+
+    const callsCounts = countByUserId(filteredCalls);
+    const messagesCounts = countByUserId(filteredMessages);
+    const leadsCounts = countByUserId(filteredLeads);
+    const appointmentsCounts = countByUserId(filteredAppointments);
+    const completedAppointmentsCounts = countByUserId(filteredAppointments.filter((a: any) => a.status === 'completed'));
+    const dealsCounts = countByUserId(filteredDeals);
+    const showingsCounts = countByUserId(filteredAppointments.filter((a: any) => a.appointment_type?.toLowerCase().includes('showing')));
+    const tasksCompletedCounts = countByUserId(tasks.filter((t: any) => t.status === 'completed'));
+    const tasksPendingCounts = countByUserId(tasks.filter((t: any) => t.status !== 'completed'));
+
+    const agentStatsData = userRoles.map((userRole: any) => {
+      const profile = profileMap.get(userRole.user_id);
+      const name = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown User";
+      const agentPhone = agentPhoneMap.get(userRole.user_id);
+      const isActive = agentPhone?.is_active === true;
+
+      return {
+        id: userRole.user_id,
+        name: name || "Unknown User",
+        calls: callsCounts.get(userRole.user_id) || 0,
+        messages: messagesCounts.get(userRole.user_id) || 0,
+        newLeads: leadsCounts.get(userRole.user_id) || 0,
+        appointments: appointmentsCounts.get(userRole.user_id) || 0,
+        appointmentsCompleted: completedAppointmentsCounts.get(userRole.user_id) || 0,
+        propertyShowings: showingsCounts.get(userRole.user_id) || 0,
+        deals: dealsCounts.get(userRole.user_id) || 0,
+        tasksCompleted: tasksCompletedCounts.get(userRole.user_id) || 0,
+        tasksPending: tasksPendingCounts.get(userRole.user_id) || 0,
+        status: isActive ? "active" : "offline",
+      } as AgentStats;
+    });
+
+    setAgentStats(agentStatsData);
+  }, [performancePeriod, rawPerfData]);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -321,6 +401,8 @@ const Dashboard = () => {
       const today = new Date();
       const weekStart = startOfWeek(today);
       const weekEnd = endOfWeek(today);
+      const monthStart = startOfMonth(today);
+      const monthEnd = endOfMonth(today);
       const todayStart = startOfDay(today);
       const todayEnd = endOfDay(today);
 
@@ -344,35 +426,41 @@ const Dashboard = () => {
         allAppointmentsResult,
         allDealsResult,
       ] = await Promise.all([
-        // call_logs: fetch full records once (used for totals AND per-agent counts)
+        // call_logs: fetch full month (used for totals AND per-agent counts)
         !isUserAdmin && currentPhone 
-          ? supabase.from("call_logs").select("*").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
-          : supabase.from("call_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        // sms_logs: fetch full records once
+          ? supabase.from("call_logs").select("*").eq("to_number", currentPhone).gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString())
+          : supabase.from("call_logs").select("*").gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString()),
+        // sms_logs: fetch full month
         !isUserAdmin && currentPhone
-          ? supabase.from("sms_logs").select("*").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
-          : supabase.from("sms_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        // leads (new): fetch full records once
+          ? supabase.from("sms_logs").select("*").eq("to_number", currentPhone).gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString())
+          : supabase.from("sms_logs").select("*").gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString()),
+        // leads (new): fetch full month
         !isUserAdmin && currentPhone
-          ? supabase.from("leads").select("*").eq("status", "new").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
-          : supabase.from("leads").select("*").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+          ? supabase.from("leads").select("*").eq("status", "new").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString())
+          : supabase.from("leads").select("*").eq("status", "new").gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString()),
         supabase.from("user_roles").select("user_id, role").in("user_id", orgUserIds),
         supabase.from("agents").select("*"),
         supabase.from("profiles").select("*").in("user_id", orgUserIds),
-        // tasks: fetch all non-completed or due this week in one query
+        // tasks: fetch all non-completed or due this month
         supabase.from("tasks").select("*").or(`due_date.gte.${todayStart.toISOString()},and(due_date.lt.${todayStart.toISOString()},status.neq.completed)`).order("due_date", { ascending: true }),
-        // appointments: fetch all for the week (used for totals, completed, and showings)
-        supabase.from("appointments").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        // deals (leads with close_date): fetch once
+        // appointments: fetch full month
+        supabase.from("appointments").select("*").gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString()),
+        // deals (leads with close_date): fetch full month
         !isUserAdmin && currentPhone
-          ? supabase.from("leads").select("user_id").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
-          : supabase.from("leads").select("user_id").not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+          ? supabase.from("leads").select("user_id, created_at").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).not("close_date", "is", null).gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString())
+          : supabase.from("leads").select("user_id, created_at").not("close_date", "is", null).gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString()),
       ]);
 
-      // Set totals
-      setTotalCalls(callsResult.data?.length || 0);
-      setTotalMessages(messagesResult.data?.length || 0);
-      setTotalNewLeads(leadsResult.data?.length || 0);
+      // Filter to weekly for summary cards
+      const weekCalls = (callsResult.data || []).filter(c => new Date(c.created_at) >= weekStart && new Date(c.created_at) <= weekEnd);
+      const weekMessages = (messagesResult.data || []).filter(m => new Date(m.created_at) >= weekStart && new Date(m.created_at) <= weekEnd);
+      const weekLeads = (leadsResult.data || []).filter(l => new Date(l.created_at) >= weekStart && new Date(l.created_at) <= weekEnd);
+      const weekAppointments = (allAppointmentsResult.data || []).filter(a => new Date(a.created_at) >= weekStart && new Date(a.created_at) <= weekEnd);
+
+      // Set totals (weekly)
+      setTotalCalls(weekCalls.length);
+      setTotalMessages(weekMessages.length);
+      setTotalNewLeads(weekLeads.length);
 
       // Filter tasks client-side: today's tasks, past due tasks
       const allTasks = allTasksResult.data || [];
@@ -386,7 +474,7 @@ const Dashboard = () => {
         return new Date(t.due_date) < todayStart && t.status !== 'completed';
       });
 
-      setTotalAppointments(allAppointmentsResult.data?.length || 0);
+      setTotalAppointments(weekAppointments.length);
       setTodayTasks(todayTasksFiltered.filter(t => t.user_id === user.id));
       setPastDueTasks(pastDueFiltered.filter(t => t.user_id === user.id));
 
@@ -413,26 +501,6 @@ const Dashboard = () => {
       // Sort by member name
       groupedTasks.sort((a, b) => a.memberName.localeCompare(b.memberName));
       setPastDueTasksByMember(groupedTasks);
-      
-      // Count occurrences for each agent - reuse the full data fetched above
-      const countByUserId = (data: any[]) => {
-        const counts = new Map<string, number>();
-        data.forEach(item => {
-          counts.set(item.user_id, (counts.get(item.user_id) || 0) + 1);
-        });
-        return counts;
-      };
-
-      const allAppointments = allAppointmentsResult.data || [];
-      const callsCounts = countByUserId(callsResult.data || []);
-      const messagesCounts = countByUserId(messagesResult.data || []);
-      const leadsCounts = countByUserId(leadsResult.data || []);
-      const appointmentsCounts = countByUserId(allAppointments);
-      const completedAppointmentsCounts = countByUserId(allAppointments.filter(a => a.status === 'completed'));
-      const dealsCounts = countByUserId(allDealsResult.data || []);
-      const showingsCounts = countByUserId(allAppointments.filter(a => a.appointment_type?.toLowerCase().includes('showing')));
-      const tasksCompletedCounts = countByUserId(allTasks.filter(t => t.status === 'completed'));
-      const tasksPendingCounts = countByUserId(allTasks.filter(t => t.status !== 'completed'));
 
       // Count active team members
       const activeCount = (allUserRolesResult.data || []).filter(role => {
@@ -441,30 +509,18 @@ const Dashboard = () => {
       }).length;
       setActiveAgents(activeCount);
 
-      // Build agent stats without additional queries - now showing ALL team members
-      const agentStatsData = (allUserRolesResult.data || []).map((userRole) => {
-        const profile = profileMap.get(userRole.user_id);
-        const name = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown User";
-        const agentPhone = agentPhoneMap.get(userRole.user_id);
-        const isActive = agentPhone?.is_active === true;
-
-        return {
-          id: userRole.user_id,
-          name: name || "Unknown User",
-          calls: callsCounts.get(userRole.user_id) || 0,
-          messages: messagesCounts.get(userRole.user_id) || 0,
-          newLeads: leadsCounts.get(userRole.user_id) || 0,
-          appointments: appointmentsCounts.get(userRole.user_id) || 0,
-          appointmentsCompleted: completedAppointmentsCounts.get(userRole.user_id) || 0,
-          propertyShowings: showingsCounts.get(userRole.user_id) || 0,
-          deals: dealsCounts.get(userRole.user_id) || 0,
-          tasksCompleted: tasksCompletedCounts.get(userRole.user_id) || 0,
-          tasksPending: tasksPendingCounts.get(userRole.user_id) || 0,
-          status: isActive ? "active" : "offline",
-        } as AgentStats;
+      // Store raw data for agent performance period filtering
+      setRawPerfData({
+        calls: callsResult.data || [],
+        messages: messagesResult.data || [],
+        leads: leadsResult.data || [],
+        appointments: allAppointmentsResult.data || [],
+        deals: allDealsResult.data || [],
+        tasks: allTasks,
+        userRoles: allUserRolesResult.data || [],
+        agentPhones: agentPhonesResult.data || [],
+        profiles: profilesResult.data || [],
       });
-
-      setAgentStats(agentStatsData);
 
       // Fetch upcoming appointments and charts data in parallel
       await Promise.all([
@@ -966,7 +1022,16 @@ const Dashboard = () => {
       {/* Agent Performance Table - Supreme Admin + Admin only */}
       {(role === 'supreme_admin' || role === 'admin') && (
       <Card className="p-6">
-        <h2 className="text-xl font-semibold text-foreground mb-4">Agent Performance</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-foreground">Agent Performance</h2>
+          <Tabs value={performancePeriod} onValueChange={(v) => setPerformancePeriod(v as 'daily' | 'weekly' | 'monthly')}>
+            <TabsList>
+              <TabsTrigger value="daily">Today</TabsTrigger>
+              <TabsTrigger value="weekly">This Week</TabsTrigger>
+              <TabsTrigger value="monthly">This Month</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
         {agentStats.length === 0 ? (
           <p className="text-muted-foreground text-sm">No agent data available</p>
         ) : (
