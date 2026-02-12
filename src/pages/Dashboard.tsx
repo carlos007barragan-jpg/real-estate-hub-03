@@ -911,7 +911,12 @@ const Dashboard = () => {
                       return (
                         <div
                           key={appointment.id}
-                          className={`p-3 rounded-lg border transition-colors ${getAppointmentHighlight(appointment)}`}
+                          onClick={() => {
+                            if (lead?.id) {
+                              navigate(`/leads/${lead.id}`);
+                            }
+                          }}
+                          className={`p-3 rounded-lg border transition-colors cursor-pointer hover:shadow-md ${getAppointmentHighlight(appointment)}`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
