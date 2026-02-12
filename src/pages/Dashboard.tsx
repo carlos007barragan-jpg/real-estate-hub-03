@@ -328,77 +328,71 @@ const Dashboard = () => {
 
       const orgUserIds = (orgProfiles || []).map(p => p.user_id);
 
+      // Consolidated queries - merged duplicates to reduce round-trips
       const [
         callsResult,
         messagesResult,
         leadsResult,
-        appointmentsResult,
         allUserRolesResult,
         agentPhonesResult,
         profilesResult,
-        tasksResult,
-        pastDueTasksResult,
-        allCallsResult,
-        allMessagesResult,
-        allLeadsResult,
+        allTasksResult,
         allAppointmentsResult,
-        allCompletedAppointmentsResult,
         allDealsResult,
-        allShowingsResult
       ] = await Promise.all([
-        // For non-admins, filter by assigned agent phone
+        // call_logs: fetch full records once (used for totals AND per-agent counts)
         !isUserAdmin && currentPhone 
           ? supabase.from("call_logs").select("*").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("call_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        // sms_logs: fetch full records once
         !isUserAdmin && currentPhone
           ? supabase.from("sms_logs").select("*").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("sms_logs").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        // leads (new): fetch full records once
         !isUserAdmin && currentPhone
           ? supabase.from("leads").select("*").eq("status", "new").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("leads").select("*").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        supabase.from("tasks").select("*").gte("due_date", weekStart.toISOString()).lte("due_date", weekEnd.toISOString()),
         supabase.from("user_roles").select("user_id, role").in("user_id", orgUserIds),
         supabase.from("agents").select("*"),
         supabase.from("profiles").select("*").in("user_id", orgUserIds),
-        // Fetch today's tasks - RLS handles organization filtering
-        supabase.from("tasks").select("*").gte("due_date", todayStart.toISOString()).lte("due_date", todayEnd.toISOString()).order("due_date", { ascending: true }),
-        // Fetch past due tasks - RLS handles organization filtering
-        supabase.from("tasks").select("*").not("due_date", "is", null).lt("due_date", todayStart.toISOString()).neq("status", "completed").order("due_date", { ascending: true }),
-        // Fetch all agent data at once (with filtering for non-admins)
-        !isUserAdmin && currentPhone
-          ? supabase.from("call_logs").select("user_id").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
-          : supabase.from("call_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        !isUserAdmin && currentPhone
-          ? supabase.from("sms_logs").select("user_id").eq("to_number", currentPhone).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
-          : supabase.from("sms_logs").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        !isUserAdmin && currentPhone
-          ? supabase.from("leads").select("user_id").eq("status", "new").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
-          : supabase.from("leads").select("user_id").eq("status", "new").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        supabase.from("appointments").select("user_id").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        supabase.from("appointments").select("user_id").eq("status", "completed").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        // tasks: fetch all non-completed or due this week in one query
+        supabase.from("tasks").select("*").or(`due_date.gte.${todayStart.toISOString()},and(due_date.lt.${todayStart.toISOString()},status.neq.completed)`).order("due_date", { ascending: true }),
+        // appointments: fetch all for the week (used for totals, completed, and showings)
+        supabase.from("appointments").select("*").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
+        // deals (leads with close_date): fetch once
         !isUserAdmin && currentPhone
           ? supabase.from("leads").select("user_id").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
           : supabase.from("leads").select("user_id").not("close_date", "is", null).gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString()),
-        supabase.from("appointments").select("user_id").ilike("appointment_type", "%showing%").gte("created_at", weekStart.toISOString()).lte("created_at", weekEnd.toISOString())
       ]);
 
       // Set totals
       setTotalCalls(callsResult.data?.length || 0);
       setTotalMessages(messagesResult.data?.length || 0);
       setTotalNewLeads(leadsResult.data?.length || 0);
-      setTotalAppointments(appointmentsResult.data?.length || 0);
-      setTodayTasks((tasksResult.data || []).filter(t => t.user_id === user.id));
-      // Only store current user's own past due tasks
-      setPastDueTasks((pastDueTasksResult.data || []).filter(t => t.user_id === user.id));
+
+      // Filter tasks client-side: today's tasks, past due tasks
+      const allTasks = allTasksResult.data || [];
+      const todayTasksFiltered = allTasks.filter(t => {
+        if (!t.due_date) return false;
+        const d = new Date(t.due_date);
+        return d >= todayStart && d <= todayEnd;
+      });
+      const pastDueFiltered = allTasks.filter(t => {
+        if (!t.due_date) return false;
+        return new Date(t.due_date) < todayStart && t.status !== 'completed';
+      });
+
+      setTotalAppointments(allAppointmentsResult.data?.length || 0);
+      setTodayTasks(todayTasksFiltered.filter(t => t.user_id === user.id));
+      setPastDueTasks(pastDueFiltered.filter(t => t.user_id === user.id));
 
       // Create maps
       const agentPhoneMap = new Map((agentPhonesResult.data || []).map((a) => [a.user_id, a]));
       const profileMap = new Map((profilesResult.data || []).map((p) => [p.user_id, p]));
 
       // Group past due tasks by member
-      const pastDueTasksData = pastDueTasksResult.data || [];
       const tasksByMember = new Map<string, Task[]>();
-      pastDueTasksData.forEach((task: Task) => {
+      pastDueFiltered.forEach((task: Task) => {
         const existing = tasksByMember.get(task.user_id) || [];
         existing.push(task);
         tasksByMember.set(task.user_id, existing);
@@ -416,7 +410,7 @@ const Dashboard = () => {
       groupedTasks.sort((a, b) => a.memberName.localeCompare(b.memberName));
       setPastDueTasksByMember(groupedTasks);
       
-      // Count occurrences for each agent
+      // Count occurrences for each agent - reuse the full data fetched above
       const countByUserId = (data: any[]) => {
         const counts = new Map<string, number>();
         data.forEach(item => {
@@ -425,13 +419,14 @@ const Dashboard = () => {
         return counts;
       };
 
-      const callsCounts = countByUserId(allCallsResult.data || []);
-      const messagesCounts = countByUserId(allMessagesResult.data || []);
-      const leadsCounts = countByUserId(allLeadsResult.data || []);
-      const appointmentsCounts = countByUserId(allAppointmentsResult.data || []);
-      const completedAppointmentsCounts = countByUserId(allCompletedAppointmentsResult.data || []);
+      const allAppointments = allAppointmentsResult.data || [];
+      const callsCounts = countByUserId(callsResult.data || []);
+      const messagesCounts = countByUserId(messagesResult.data || []);
+      const leadsCounts = countByUserId(leadsResult.data || []);
+      const appointmentsCounts = countByUserId(allAppointments);
+      const completedAppointmentsCounts = countByUserId(allAppointments.filter(a => a.status === 'completed'));
       const dealsCounts = countByUserId(allDealsResult.data || []);
-      const showingsCounts = countByUserId(allShowingsResult.data || []);
+      const showingsCounts = countByUserId(allAppointments.filter(a => a.appointment_type?.toLowerCase().includes('showing')));
 
       // Count active team members
       const activeCount = (allUserRolesResult.data || []).filter(role => {

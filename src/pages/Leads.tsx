@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle } from "lucide-react";
 import { LeadFilters } from "@/components/LeadFilters";
 import { CreateLeadDialog } from "@/components/CreateLeadDialog";
@@ -59,6 +60,7 @@ const statusColors = {
 const Leads = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { session, isAdmin: cachedIsAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
@@ -141,13 +143,13 @@ const Leads = () => {
 
   const fetchTransactionTypes = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const userId = session?.user?.id;
+      if (!userId) return;
 
       const { data, error } = await supabase
         .from("transaction_types")
         .select("name")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .eq("is_active", true)
         .order("display_order", { ascending: true });
 
@@ -162,75 +164,53 @@ const Leads = () => {
     } catch (error: any) {
       console.error("Error fetching transaction types:", error);
     }
-  }, []);
+  }, [session?.user?.id]);
 
   const fetchCurrentUserPhone = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const userId = session?.user?.id;
+      if (!userId) return;
 
-      setCurrentUserId(user.id);
+      setCurrentUserId(userId);
+      setIsAdmin(cachedIsAdmin);
 
-      // Check if admin
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-      
-      setIsAdmin(!!roleData);
+      // Fetch profile, agent phone, and assignments in parallel
+      const [profileResult, agentResult, assignmentResult] = await Promise.all([
+        supabase.from("profiles").select("first_name, last_name").eq("user_id", userId).maybeSingle(),
+        supabase.from("agents").select("phone_number").eq("user_id", userId).maybeSingle(),
+        supabase.from("lead_assignments").select("lead_id").eq("user_id", userId),
+      ]);
 
-      // Fetch profile name
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("first_name, last_name")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (profileData) {
-        const fullName = `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim();
+      if (profileResult.data) {
+        const fullName = `${profileResult.data.first_name || ''} ${profileResult.data.last_name || ''}`.trim();
         setCurrentUserName(fullName || null);
       }
 
-      const { data, error } = await supabase
-        .from("agents")
-        .select("phone_number")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      setCurrentUserPhone(agentResult.data?.phone_number || null);
 
-      if (error) throw error;
-      setCurrentUserPhone(data?.phone_number || null);
-
-      // Fetch lead IDs assigned to this user from lead_assignments table
-      const { data: assignmentData } = await supabase
-        .from("lead_assignments")
-        .select("lead_id")
-        .eq("user_id", user.id);
-
-      if (assignmentData) {
-        setMyAssignedLeadIds(new Set(assignmentData.map(a => a.lead_id)));
+      if (assignmentResult.data) {
+        setMyAssignedLeadIds(new Set(assignmentResult.data.map(a => a.lead_id)));
       }
-      
+
       // Default to "My Leads" for non-admins
-      if (!roleData) {
+      if (!cachedIsAdmin) {
         setShowMyLeadsOnly(true);
       }
     } catch (error: any) {
       console.error("Error fetching current user phone:", error);
     }
-  }, []);
+  }, [session?.user?.id, cachedIsAdmin]);
 
   const fetchAvailableUsers = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const userId = session?.user?.id;
+      if (!userId) return;
 
       // Get current user's organization
       const { data: currentProfile } = await supabase
         .from("profiles")
         .select("organization_id")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .single();
 
       if (!currentProfile?.organization_id) {
@@ -264,7 +244,7 @@ const Leads = () => {
     } catch (error: any) {
       console.error("Error fetching available users:", error);
     }
-  }, []);
+  }, [session?.user?.id]);
 
   useEffect(() => {
     Promise.all([
