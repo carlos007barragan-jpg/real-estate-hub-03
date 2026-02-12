@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type AppRole = 'admin' | 'agent' | 'marketing_manager' | 'marketing' | 'owner_user';
+type AppRole = 'admin' | 'agent' | 'marketing_manager' | 'marketing' | 'owner_user' | 'supreme_admin';
 
 interface AuthContextValue {
   session: Session | null;
@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profileComplete, setProfileComplete] = useState(false);
   const [profileChecking, setProfileChecking] = useState(true);
 
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'admin' || role === 'supreme_admin';
 
   const checkRoleAndProfile = useCallback(async (userId: string) => {
     try {

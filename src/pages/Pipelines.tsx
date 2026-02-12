@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical, Trash2, Edit } from "lucide-react";
 import { EditDealDialog } from "@/components/EditDealDialog";
 import { OfferMadeValidationDialog } from "@/components/OfferMadeValidationDialog";
+import { CommissionDialog } from "@/components/CommissionDialog";
+import { fireDealWonConfetti } from "@/lib/confetti";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -273,7 +276,15 @@ const Pipelines = () => {
   const [selectedDealLeadId, setSelectedDealLeadId] = useState<string | undefined>();
   const [pendingStageChange, setPendingStageChange] = useState<{ dealId: string; stage: string } | null>(null);
   const [pipelineManagerOpen, setPipelineManagerOpen] = useState(false);
+  const [commissionDialogOpen, setCommissionDialogOpen] = useState(false);
+  const [commissionLeadId, setCommissionLeadId] = useState("");
+  const [commissionLeadName, setCommissionLeadName] = useState("");
+  const [commissionStageName, setCommissionStageName] = useState("");
   const { toast } = useToast();
+  const { role } = useAuth();
+
+  // Final/won stage names that trigger confetti
+  const wonStageNames = ["closed", "sold", "funded"];
 
   // Map lead_temperature values to pipeline names for auto-assignment
   const temperatureToPipelineMap: Record<string, string> = {
@@ -699,6 +710,10 @@ const Pipelines = () => {
 
     if (!activeStage || !overStage) return;
 
+    // Check if this is the last stage (deal won)
+    const isLastStage = currentPipeline.stages[currentPipeline.stages.length - 1]?.id === overStage.id;
+    const isWonStage = wonStageNames.includes(newStageName.toLowerCase().trim());
+
     // Update the database
     const activeDeal = activeStage.deals.find((deal) => deal.id === dealId);
     if (activeDeal?.leadId) {
@@ -718,14 +733,12 @@ const Pipelines = () => {
 
         const newStages = pipeline.stages.map((stage) => {
           if (stage.id === activeStage.id) {
-            // Remove from source stage
             return {
               ...stage,
               deals: stage.deals.filter((d) => d.id !== dealId),
             };
           }
           if (stage.id === overStage!.id) {
-            // Add to target stage
             return {
               ...stage,
               deals: [...stage.deals, deal],
@@ -737,6 +750,21 @@ const Pipelines = () => {
         return { ...pipeline, stages: newStages };
       })
     );
+
+    // Fire confetti and prompt commission for won deals
+    if (isLastStage || isWonStage) {
+      fireDealWonConfetti();
+      
+      // Prompt supreme admins/admins for commission
+      if (role === 'supreme_admin' || role === 'admin') {
+        if (activeDeal?.leadId) {
+          setCommissionLeadId(activeDeal.leadId);
+          setCommissionLeadName(activeDeal.client);
+          setCommissionStageName(newStageName);
+          setCommissionDialogOpen(true);
+        }
+      }
+    }
   };
 
   const fetchDeals = () => {
@@ -1046,6 +1074,15 @@ const Pipelines = () => {
               setPendingStageChange(null);
             }
           }}
+        />
+
+        <CommissionDialog
+          open={commissionDialogOpen}
+          onOpenChange={setCommissionDialogOpen}
+          leadId={commissionLeadId}
+          leadName={commissionLeadName}
+          stageName={commissionStageName}
+          onSuccess={fetchDeals}
         />
       </div>
     </div>
