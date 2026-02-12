@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useCachedState } from "@/hooks/useCachedState";
 import { Calendar as BigCalendar, dateFnsLocalizer, View } from "react-big-calendar";
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay, startOfDay } from "date-fns";
@@ -59,8 +60,8 @@ interface Task {
 
 const CalendarPage = () => {
   const { session, isAdmin } = useAuth();
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [events, setEvents] = useCachedState<CalendarEvent[]>("calendar-events", []);
+  const [tasks, setTasks] = useCachedState<Task[]>("calendar-tasks", []);
   const [view, setView] = useState<'team' | 'individual'>('individual');
   const [calendarView, setCalendarView] = useState<View>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
