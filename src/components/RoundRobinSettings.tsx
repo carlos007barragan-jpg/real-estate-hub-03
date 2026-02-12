@@ -16,9 +16,15 @@ export const RoundRobinSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
-  const { role, roleLoading } = useAuth();
+  const { role, roleLoading, refreshProfile } = useAuth();
 
   const isSupremeAdmin = role === 'supreme_admin';
+  const isAdminOrAbove = role === 'admin' || role === 'supreme_admin';
+
+  // Refresh role on mount to pick up any DB changes
+  useEffect(() => {
+    refreshProfile();
+  }, [refreshProfile]);
 
   // While role is loading, don't lock the UI
   const isLocked = !roleLoading && !isSupremeAdmin;
