@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -16,19 +16,9 @@ export const RoundRobinSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
-  const { role, roleLoading, refreshProfile } = useAuth();
+  const { role, roleLoading } = useAuth();
 
   const isSupremeAdmin = role === 'supreme_admin';
-  const isAdminOrAbove = role === 'admin' || role === 'supreme_admin';
-
-  // Refresh role once on mount to pick up any DB changes
-  const hasRefreshed = useRef(false);
-  useEffect(() => {
-    if (!hasRefreshed.current) {
-      hasRefreshed.current = true;
-      refreshProfile();
-    }
-  }, []);
 
   // While role is loading, don't lock the UI
   const isLocked = !roleLoading && !isSupremeAdmin;
