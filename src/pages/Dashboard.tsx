@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react";
-import { useCachedState } from "@/hooks/useCachedState";
 import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -87,23 +86,23 @@ interface DealsData {
 
 const Dashboard = () => {
   const { session, isAdmin: cachedIsAdmin, role } = useAuth();
-  const [loading, setLoading] = useState(false); // Never block rendering - cached data shows instantly
-  const [totalCalls, setTotalCalls] = useCachedState("dash-totalCalls", 0);
-  const [totalMessages, setTotalMessages] = useCachedState("dash-totalMessages", 0);
-  const [totalNewLeads, setTotalNewLeads] = useCachedState("dash-totalNewLeads", 0);
+  const [loading, setLoading] = useState(false);
+  const [totalCalls, setTotalCalls] = useState(0);
+  const [totalMessages, setTotalMessages] = useState(0);
+  const [totalNewLeads, setTotalNewLeads] = useState(0);
   const [activeAgents, setActiveAgents] = useState(0);
-  const [agentStats, setAgentStats] = useCachedState<AgentStats[]>("dash-agentStats", []);
-  const [todayTasks, setTodayTasks] = useCachedState<Task[]>("dash-todayTasks", []);
-  const [pastDueTasks, setPastDueTasks] = useCachedState<Task[]>("dash-pastDueTasks", []);
-  const [pastDueTasksByMember, setPastDueTasksByMember] = useCachedState<PastDueTasksByMember[]>("dash-pastDueByMember", []);
-  const [upcomingAppointments, setUpcomingAppointments] = useCachedState<Appointment[]>("dash-appointments", []);
+  const [agentStats, setAgentStats] = useState<AgentStats[]>([]);
+  const [todayTasks, setTodayTasks] = useState<Task[]>([]);
+  const [pastDueTasks, setPastDueTasks] = useState<Task[]>([]);
+  const [pastDueTasksByMember, setPastDueTasksByMember] = useState<PastDueTasksByMember[]>([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [liveUsers, setLiveUsers] = useState<LiveUser[]>([]);
-  const [revenueData, setRevenueData] = useCachedState<RevenueData[]>("dash-revenue", []);
-  const [dealsData, setDealsData] = useCachedState<DealsData[]>("dash-deals", []);
+  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
+  const [dealsData, setDealsData] = useState<DealsData[]>([]);
   const [chartView, setChartView] = useState<'daily' | 'monthly' | 'ytd'>('monthly');
-  const [totalAppointments, setTotalAppointments] = useCachedState("dash-totalAppointments", 0);
+  const [totalAppointments, setTotalAppointments] = useState(0);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
