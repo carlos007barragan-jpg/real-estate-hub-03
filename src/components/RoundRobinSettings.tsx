@@ -16,9 +16,12 @@ export const RoundRobinSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
-  const { role } = useAuth();
+  const { role, roleLoading } = useAuth();
 
   const isSupremeAdmin = role === 'supreme_admin';
+
+  // While role is loading, don't lock the UI
+  const isLocked = !roleLoading && !isSupremeAdmin;
 
   useEffect(() => {
     fetchSettings();
@@ -156,7 +159,7 @@ export const RoundRobinSettings = () => {
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-foreground">Call Routing Settings</h2>
-        {!isSupremeAdmin && (
+        {isLocked && (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <ShieldAlert className="h-4 w-4" />
             <span>Supreme Admin only</span>
@@ -180,7 +183,7 @@ export const RoundRobinSettings = () => {
             id="auto-roundrobin"
             checked={autoRoundRobin}
             onCheckedChange={handleToggle}
-            disabled={!isSupremeAdmin}
+            disabled={isLocked}
           />
         </div>
 
@@ -203,7 +206,7 @@ export const RoundRobinSettings = () => {
               placeholder="+1234567890"
               value={fallbackPhone1}
               onChange={(e) => setFallbackPhone1(e.target.value)}
-              disabled={!isSupremeAdmin}
+              disabled={isLocked}
             />
           </div>
 
@@ -215,11 +218,11 @@ export const RoundRobinSettings = () => {
               placeholder="+1234567890"
               value={fallbackPhone2}
               onChange={(e) => setFallbackPhone2(e.target.value)}
-              disabled={!isSupremeAdmin}
+              disabled={isLocked}
             />
           </div>
 
-          {isSupremeAdmin && (
+          {!isLocked && (
             <Button 
               onClick={handleSavePhoneNumbers} 
               disabled={saving}
