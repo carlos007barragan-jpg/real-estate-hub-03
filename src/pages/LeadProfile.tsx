@@ -9,6 +9,9 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { TwoColumnLayout } from "@/components/layouts/TwoColumnLayout";
 import { PipelineAssignmentDialog } from "@/components/PipelineAssignmentDialog";
+import { CommissionDialog } from "@/components/CommissionDialog";
+import { fireDealWonConfetti } from "@/lib/confetti";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Message {
   id: string;
@@ -44,6 +47,9 @@ const LeadProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { role } = useAuth();
+  
+  const wonStageNames = ["closed", "sold", "funded"];
   
   const [leadData, setLeadData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -58,7 +64,8 @@ const LeadProfile = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [newNote, setNewNote] = useState("");
-
+  const [commissionDialogOpen, setCommissionDialogOpen] = useState(false);
+  const [commissionStageName, setCommissionStageName] = useState("");
   const fetchNotes = async () => {
     if (!id) return;
     
@@ -435,6 +442,19 @@ const LeadProfile = () => {
 
       setCurrentStage(newStage);
       await fetchLead();
+      
+      // Check if this is a won stage
+      const isWonStage = wonStageNames.includes(newStage.toLowerCase().trim());
+      const isLastStage = pipelineStages.length > 0 && pipelineStages[pipelineStages.length - 1]?.name === newStage;
+      
+      if (isWonStage || isLastStage) {
+        fireDealWonConfetti();
+        if (role === 'supreme_admin' || role === 'admin') {
+          setCommissionStageName(newStage);
+          setCommissionDialogOpen(true);
+        }
+      }
+      
       toast({
         title: "Pipeline Stage Updated",
         description: `Lead moved to ${newStage}`,
@@ -658,6 +678,15 @@ const LeadProfile = () => {
           onOpenChange={setPipelineDialogOpen}
           leadId={leadData.id}
           leadName={leadData.name}
+          onSuccess={fetchLead}
+        />
+
+        <CommissionDialog
+          open={commissionDialogOpen}
+          onOpenChange={setCommissionDialogOpen}
+          leadId={leadData.id}
+          leadName={leadData.name}
+          stageName={commissionStageName}
           onSuccess={fetchLead}
         />
       </div>
