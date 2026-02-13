@@ -441,7 +441,7 @@ export default function OwnerPortalDashboard() {
                   setPhotoFiles(newFiles);
                   setExistingPhotoUrls(existingUrls);
                 }}
-                maxPhotos={10}
+                maxPhotos={0}
               />
             </div>
             <DialogFooter>
