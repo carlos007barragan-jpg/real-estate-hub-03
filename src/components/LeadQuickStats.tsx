@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Phone, CheckCircle2, Calendar, Clock, MessageSquare, AlertTriangle } from "lucide-react";
+import { Phone, CheckCircle2, Calendar, Clock, MessageSquare, AlertTriangle, Zap } from "lucide-react";
 
 interface LeadQuickStatsProps {
   leadId: string;
@@ -16,16 +16,19 @@ export const LeadQuickStats = ({ leadId, refreshKey = 0 }: LeadQuickStatsProps) 
     totalTasks: 0,
     nextAppointment: null as string | null,
     totalMessages: 0,
+    nextFollowUp: null as string | null,
+    nextFollowUpType: null as string | null,
   });
 
   useEffect(() => {
     const fetchStats = async () => {
       // Fetch all stats in parallel
-      const [callsRes, tasksRes, appointmentsRes, smsRes] = await Promise.all([
+      const [callsRes, tasksRes, appointmentsRes, smsRes, followUpRes] = await Promise.all([
         supabase.from("call_logs").select("created_at", { count: "exact" }).eq("lead_id", leadId).order("created_at", { ascending: false }),
         supabase.from("tasks").select("status", { count: "exact" }).eq("lead_id", leadId),
         supabase.from("appointments").select("appointment_date, status").eq("lead_id", leadId).gte("appointment_date", new Date().toISOString()).eq("status", "pending").order("appointment_date", { ascending: true }).limit(1),
         supabase.from("sms_logs").select("created_at", { count: "exact" }).eq("lead_id", leadId).order("created_at", { ascending: false }),
+        supabase.from("follow_ups").select("scheduled_date, action_type").eq("lead_id", leadId).eq("status", "pending").order("scheduled_date", { ascending: true }).limit(1),
       ]);
 
       // Calculate days since last contact (most recent call or SMS)
@@ -41,6 +44,9 @@ export const LeadQuickStats = ({ leadId, refreshKey = 0 }: LeadQuickStatsProps) 
       const totalTasks = tasksRes.count || 0;
       const nextAppointment = appointmentsRes.data?.[0]?.appointment_date || null;
 
+      const nextFollowUp = followUpRes.data?.[0]?.scheduled_date || null;
+      const nextFollowUpType = followUpRes.data?.[0]?.action_type || null;
+
       setStats({
         daysSinceContact,
         totalCalls: callsRes.count || 0,
@@ -48,6 +54,8 @@ export const LeadQuickStats = ({ leadId, refreshKey = 0 }: LeadQuickStatsProps) 
         totalTasks,
         nextAppointment,
         totalMessages: smsRes.count || 0,
+        nextFollowUp,
+        nextFollowUpType,
       });
     };
 
@@ -72,8 +80,22 @@ export const LeadQuickStats = ({ leadId, refreshKey = 0 }: LeadQuickStatsProps) 
 
   const contactUrgent = stats.daysSinceContact >= 3 || stats.daysSinceContact === -1;
 
+  const formatFollowUp = (date: string | null, type: string | null) => {
+    if (!date) return "None";
+    const d = new Date(date);
+    const now = new Date();
+    const diffDays = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const typeIcon = type === "call" ? "📞" : type === "sms" ? "💬" : type === "email" ? "📧" : "📝";
+    if (diffDays < 0) return `${typeIcon} Overdue`;
+    if (diffDays === 0) return `${typeIcon} Today`;
+    if (diffDays === 1) return `${typeIcon} Tomorrow`;
+    return `${typeIcon} ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  };
+
+  const followUpUrgent = stats.nextFollowUp && new Date(stats.nextFollowUp) <= new Date();
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       <Card className={`p-3 border ${contactUrgent ? 'border-destructive/30 bg-destructive/5' : ''}`}>
         <div className="flex items-center gap-2 mb-1">
           {contactUrgent ? (
@@ -85,6 +107,16 @@ export const LeadQuickStats = ({ leadId, refreshKey = 0 }: LeadQuickStatsProps) 
         </div>
         <p className={`text-lg font-bold ${contactUrgent ? 'text-destructive' : 'text-foreground'}`}>
           {contactLabel}
+        </p>
+      </Card>
+
+      <Card className={`p-3 border ${followUpUrgent ? 'border-warning/30 bg-warning/5' : ''}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <Zap className={`h-3.5 w-3.5 ${followUpUrgent ? 'text-warning' : 'text-muted-foreground'}`} />
+          <span className="text-[11px] text-muted-foreground uppercase tracking-wide font-medium">Next Follow-Up</span>
+        </div>
+        <p className={`text-lg font-bold ${followUpUrgent ? 'text-warning' : 'text-foreground'}`}>
+          {formatFollowUp(stats.nextFollowUp, stats.nextFollowUpType)}
         </p>
       </Card>
 

@@ -378,6 +378,59 @@ export type Database = {
           },
         ]
       }
+      follow_ups: {
+        Row: {
+          action_type: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          scheduled_date: string
+          sequence_order: number
+          status: string
+          template_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_type?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          scheduled_date: string
+          sequence_order?: number
+          status?: string
+          template_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          scheduled_date?: string
+          sequence_order?: number
+          status?: string
+          template_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_ups_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           acquisition_price: number | null
