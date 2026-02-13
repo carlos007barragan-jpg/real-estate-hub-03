@@ -10,12 +10,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings, FileText, ExternalLink, Bed, Bath, Maximize2 } from "lucide-react";
+import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings, FileText, ExternalLink, Bed, Bath, Maximize2, Upload } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 import MultiPhotoUpload from "@/components/MultiPhotoUpload";
-
+import BulkPropertyUpload from "@/components/BulkPropertyUpload";
 import { PropertyApprovalDialog } from "@/components/PropertyApprovalDialog";
 
 interface InventoryItem {
@@ -74,6 +75,7 @@ export default function Inventory() {
   const [customFieldOptions, setCustomFieldOptions] = useState<any[]>([]);
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [selectedPropertyForApproval, setSelectedPropertyForApproval] = useState<any>(null);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const { toast } = useToast();
 
   // Filter states
@@ -723,6 +725,29 @@ export default function Inventory() {
     }
   };
 
+  const handleQuickStatusChange = async (itemId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("inventory")
+        .update({ status: newStatus })
+        .eq("id", itemId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Status Updated",
+        description: `Property marked as ${newStatus.replace('_', ' ')}`,
+      });
+      fetchInventory();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update status",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadgeVariant = (status: string | null) => {
     switch (status) {
       case "available": return "default";
@@ -927,6 +952,10 @@ export default function Inventory() {
               </Dialog>
             </>
           )}
+          <Button variant="outline" size="lg" onClick={() => setIsBulkUploadOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Bulk Upload
+          </Button>
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
             if (!open) resetForm();
@@ -1448,9 +1477,29 @@ export default function Inventory() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusBadgeVariant(item.status)} className="text-xs">
-                          {item.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
-                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="focus:outline-none"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Badge variant={getStatusBadgeVariant(item.status)} className="text-xs cursor-pointer hover:opacity-80">
+                                {item.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
+                              </Badge>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                            {getUniqueStatuses().map(s => (
+                              <DropdownMenuItem
+                                key={s}
+                                onClick={() => handleQuickStatusChange(item.id, s)}
+                                className={item.status === s ? "bg-accent" : ""}
+                              >
+                                {s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">{item.property_type || '—'}</span>
@@ -1558,6 +1607,12 @@ export default function Inventory() {
           }}
         />
       )}
+      {/* Bulk Upload Dialog */}
+      <BulkPropertyUpload
+        open={isBulkUploadOpen}
+        onOpenChange={setIsBulkUploadOpen}
+        onSuccess={fetchInventory}
+      />
     </div>
   );
 }
