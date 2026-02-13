@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { X, GripVertical, Upload } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { X, GripVertical, Upload, Star, ImagePlus } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -20,7 +21,7 @@ interface MultiPhotoUploadProps {
   maxPhotos?: number;
 }
 
-function SortablePhotoItem({ photo, onRemove }: { photo: PhotoItem; onRemove: (id: string) => void }) {
+function SortablePhotoItem({ photo, onRemove, isFeatured }: { photo: PhotoItem; onRemove: (id: string) => void; isFeatured: boolean }) {
   const {
     attributes,
     listeners,
@@ -38,7 +39,7 @@ function SortablePhotoItem({ photo, onRemove }: { photo: PhotoItem; onRemove: (i
     <div
       ref={setNodeRef}
       style={style}
-      className="relative group bg-muted rounded-lg overflow-hidden border-2 border-border"
+      className={`relative group bg-muted rounded-lg overflow-hidden border-2 ${isFeatured ? 'border-primary ring-2 ring-primary/30' : 'border-border'}`}
     >
       <img
         src={photo.preview}
@@ -62,9 +63,16 @@ function SortablePhotoItem({ photo, onRemove }: { photo: PhotoItem; onRemove: (i
           <X className="h-4 w-4 text-destructive-foreground" />
         </button>
       </div>
-      <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded">
-        {photo.file ? 'New' : 'Existing'}
-      </div>
+      {isFeatured ? (
+        <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded flex items-center gap-1">
+          <Star className="h-3 w-3 fill-current" />
+          Featured
+        </div>
+      ) : (
+        <div className="absolute top-2 left-2 bg-muted-foreground/70 text-white text-xs px-2 py-1 rounded">
+          {photo.file ? 'New' : 'Saved'}
+        </div>
+      )}
     </div>
   );
 }
@@ -92,42 +100,25 @@ export default function MultiPhotoUpload({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const files = Array.from(e.target.files || []);
-      console.log('📸 Files selected:', files.length, 'files');
-      console.log('📸 Current photos:', photos.length);
-      console.log('📸 Max photos:', maxPhotos);
-      
-      if (files.length === 0) {
-        console.log('📸 No files selected');
-        return;
-      }
+      if (files.length === 0) return;
       
       const remainingSlots = maxPhotos - photos.length;
-      if (remainingSlots <= 0) {
-        console.log('📸 No remaining slots');
-        return;
-      }
+      if (remainingSlots <= 0) return;
       
       const filesToAdd = files.slice(0, remainingSlots);
-      console.log('📸 Files to add:', filesToAdd.length);
 
-      const newPhotos: PhotoItem[] = filesToAdd.map((file, index) => {
-        console.log('📸 Creating preview for:', file.name);
-        return {
-          id: `new-${Date.now()}-${index}`,
-          file,
-          preview: URL.createObjectURL(file),
-        };
-      });
+      const newPhotos: PhotoItem[] = filesToAdd.map((file, index) => ({
+        id: `new-${Date.now()}-${index}`,
+        file,
+        preview: URL.createObjectURL(file),
+      }));
 
       const updatedPhotos = [...photos, ...newPhotos];
-      console.log('📸 Updated photos total:', updatedPhotos.length);
       setPhotos(updatedPhotos);
       updateParent(updatedPhotos);
-
-      // Reset input
       e.target.value = '';
     } catch (error) {
-      console.error('📸 Error handling file selection:', error);
+      console.error('Error handling file selection:', error);
     }
   };
 
@@ -158,15 +149,20 @@ export default function MultiPhotoUpload({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label>Property Photos ({photos.length}/{maxPhotos})</Label>
+        <div>
+          <Label className="text-lg font-semibold">Property Photos</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {photos.length}/{maxPhotos} photos · First photo is the featured image
+          </p>
+        </div>
         {photos.length < maxPhotos && (
           <Button
             type="button"
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={() => document.getElementById('photo-upload')?.click()}
           >
-            <Upload className="h-4 w-4 mr-2" />
+            <ImagePlus className="h-4 w-4 mr-2" />
             Add Photos
           </Button>
         )}
@@ -184,7 +180,7 @@ export default function MultiPhotoUpload({
       {photos.length > 0 ? (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Drag photos to reorder them. First photo will be the main image.
+            Drag photos to reorder. First photo = featured image.
           </p>
           <DndContext
             sensors={sensors}
@@ -193,13 +189,24 @@ export default function MultiPhotoUpload({
           >
             <SortableContext items={photos.map(p => p.id)} strategy={verticalListSortingStrategy}>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {photos.map((photo) => (
+                {photos.map((photo, index) => (
                   <SortablePhotoItem
                     key={photo.id}
                     photo={photo}
                     onRemove={handleRemove}
+                    isFeatured={index === 0}
                   />
                 ))}
+                {/* Add More Photos Card */}
+                {photos.length < maxPhotos && (
+                  <div
+                    onClick={() => document.getElementById('photo-upload')?.click()}
+                    className="border-2 border-dashed border-muted-foreground/25 rounded-lg h-32 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors"
+                  >
+                    <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                    <p className="text-xs text-muted-foreground">Add More</p>
+                  </div>
+                )}
               </div>
             </SortableContext>
           </DndContext>
