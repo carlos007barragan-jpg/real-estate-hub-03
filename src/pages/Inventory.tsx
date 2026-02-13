@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings, FileText, ExternalLink } from "lucide-react";
+import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings, FileText, ExternalLink, Bed, Bath, Maximize2 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 import MultiPhotoUpload from "@/components/MultiPhotoUpload";
@@ -1384,11 +1385,11 @@ export default function Inventory() {
         </CardContent>
       </Card>
 
-      {/* Property Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredItems.length === 0 ? (
-          <Card className="col-span-full">
-            <CardContent className="flex flex-col items-center justify-center py-12">
+      {/* Property Table */}
+      <Card>
+        <CardContent className="p-0">
+          {filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16">
               <Home className="h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-lg font-medium text-muted-foreground">
                 {items.length === 0 ? "No properties yet" : "No properties match your filters"}
@@ -1396,192 +1397,153 @@ export default function Inventory() {
               <p className="text-sm text-muted-foreground mt-1">
                 {items.length === 0 ? "Add your first property to get started" : "Try adjusting your search criteria"}
               </p>
-            </CardContent>
-          </Card>
-        ) : (
-          filteredItems.map((item) => (
-            <Card 
-              key={item.id} 
-              className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => navigate(`/inventory/${item.id}`)}
-            >
-              <div className="relative h-48 bg-muted">
-                {(() => {
-                  // Try to get photo from photo_urls array first, then fall back to photo_url
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[280px]">Property</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead className="text-center">Details</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.map((item) => {
                   const photoUrl = item.photo_urls && Array.isArray(item.photo_urls) && item.photo_urls.length > 0
                     ? item.photo_urls[0]
                     : item.photo_url;
-                  
-                  return photoUrl ? (
-                    <img
-                      src={photoUrl}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Building2 className="h-16 w-16 text-muted-foreground" />
-                    </div>
+
+                  return (
+                    <TableRow
+                      key={item.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/inventory/${item.id}`)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-md bg-muted overflow-hidden shrink-0">
+                            {photoUrl ? (
+                              <img src={photoUrl} alt={item.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center">
+                                <Building2 className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{item.name}</p>
+                            {item.is_wholesale && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-0.5">Wholesale</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-semibold text-primary">
+                          ${item.price?.toLocaleString() || '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(item.status)} className="text-xs">
+                          {item.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">{item.property_type || '—'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">{item.category || '—'}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+                          {item.bedrooms > 0 && (
+                            <span className="flex items-center gap-1" title="Bedrooms">
+                              <Bed className="h-3.5 w-3.5" /> {item.bedrooms}
+                            </span>
+                          )}
+                          {item.bathrooms > 0 && (
+                            <span className="flex items-center gap-1" title="Bathrooms">
+                              <Bath className="h-3.5 w-3.5" /> {item.bathrooms}
+                            </span>
+                          )}
+                          {item.sqft > 0 && (
+                            <span className="flex items-center gap-1" title="Sq Ft">
+                              <Maximize2 className="h-3.5 w-3.5" /> {item.sqft.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          {isAdmin && item.public_approval_status !== 'approved' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPropertyForApproval(item);
+                                setApprovalDialogOpen(true);
+                              }}
+                            >
+                              Review
+                            </Button>
+                          )}
+                          {isAdmin && item.is_wholesale && item.public_approval_status === 'approved' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const dispoLink = `${window.location.origin}/dispo-sheet?id=${item.id}`;
+                                navigator.clipboard.writeText(dispoLink);
+                                toast({
+                                  title: "Link Copied!",
+                                  description: "Dispo sheet link copied to clipboard",
+                                });
+                                window.open(dispoLink, '_blank');
+                              }}
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(item);
+                            }}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(item.id, item.name);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   );
-                })()}
-                <div className="absolute top-2 right-2 flex gap-2">
-                  <Badge variant={getStatusBadgeVariant(item.status)}>
-                    {item.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
-                  </Badge>
-                  {item.is_wholesale && (
-                    <Badge variant="outline" className="bg-background">Wholesale</Badge>
-                  )}
-                </div>
-                {(() => {
-                  const photoUrl = item.photo_urls && Array.isArray(item.photo_urls) && item.photo_urls.length > 0
-                    ? item.photo_urls[0]
-                    : item.photo_url;
-                  
-                  return photoUrl ? (
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="absolute bottom-2 right-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        downloadPhoto(photoUrl, item.name);
-                      }}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  ) : null;
-                })()}
-              </div>
-              
-              <CardHeader>
-                <CardTitle className="flex items-start justify-between">
-                  <span className="line-clamp-1">{item.name}</span>
-                </CardTitle>
-                <CardDescription className="line-clamp-2">
-                  {item.description || "No description available"}
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {/* Property Details */}
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  {item.bedrooms > 0 && (
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">Beds</span>
-                      <span className="font-medium">{item.bedrooms}</span>
-                    </div>
-                  )}
-                  {item.bathrooms > 0 && (
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">Baths</span>
-                      <span className="font-medium">{item.bathrooms}</span>
-                    </div>
-                  )}
-                  {item.sqft > 0 && (
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">Sq Ft</span>
-                      <span className="font-medium">{item.sqft.toLocaleString()}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Pricing */}
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Listing Price</span>
-                    <span className="text-xl font-bold text-primary">
-                      ${item.price?.toLocaleString() || '0'}
-                    </span>
-                  </div>
-                  {item.arv > 0 && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">ARV</span>
-                      <span className="font-medium">${item.arv.toLocaleString()}</span>
-                    </div>
-                  )}
-                  {isAdmin && item.commission > 0 && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Commission</span>
-                      <span className="font-medium text-green-600">${item.commission.toLocaleString()}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Additional Info */}
-                <div className="flex flex-wrap gap-2">
-                  {item.property_type && (
-                    <Badge variant="outline">{item.property_type}</Badge>
-                  )}
-                  {item.category && (
-                    <Badge variant="secondary">{item.category}</Badge>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-2">
-                  {isAdmin && item.public_approval_status !== 'approved' && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPropertyForApproval(item);
-                        setApprovalDialogOpen(true);
-                      }}
-                    >
-                      Review & Approve
-                    </Button>
-                  )}
-                  {isAdmin && item.is_wholesale && item.public_approval_status === 'approved' && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const dispoLink = `${window.location.origin}/dispo-sheet?id=${item.id}`;
-                        navigator.clipboard.writeText(dispoLink);
-                        toast({
-                          title: "Link Copied!",
-                          description: "Dispo sheet link copied to clipboard",
-                        });
-                        // Also open in new tab
-                        window.open(dispoLink, '_blank');
-                      }}
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      Dispo Sheet
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={isAdmin && item.public_approval_status !== 'approved' ? "" : "flex-1"}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(item);
-                    }}
-                  >
-                    <Edit className={`h-4 w-4 ${isAdmin && item.public_approval_status !== 'approved' ? "" : "mr-2"}`} />
-                    {!(isAdmin && item.public_approval_status !== 'approved') && "Edit"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(item.id, item.name);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
 
       {/* Property Approval Dialog */}
