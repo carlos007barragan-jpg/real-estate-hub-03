@@ -190,7 +190,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         {/* Action Buttons */}
         <Card className="border sticky top-0 z-20 bg-background">
           <CardContent className="p-3">
-            <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} />
+            <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} leadId={id} />
           </CardContent>
         </Card>
 

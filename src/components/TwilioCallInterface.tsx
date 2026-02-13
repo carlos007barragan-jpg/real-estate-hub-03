@@ -5,14 +5,16 @@ import { Phone, PhoneOff, Mic, MicOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Device, Call } from "@twilio/voice-sdk";
+import { CallOptionsDialog } from "@/components/CallOptionsDialog";
 
 interface TwilioCallInterfaceProps {
   leadPhone: string;
   leadName: string;
+  leadId?: string;
   onCallEnd?: () => void;
 }
 
-export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCallInterfaceProps) => {
+export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd }: TwilioCallInterfaceProps) => {
   const { toast } = useToast();
   const [device, setDevice] = useState<Device | null>(null);
   const [call, setCall] = useState<Call | null>(null);
@@ -20,6 +22,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [showCallOptions, setShowCallOptions] = useState(false);
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -302,18 +305,31 @@ export const TwilioCallInterface = ({ leadPhone, leadName, onCallEnd }: TwilioCa
     );
   }
 
+  const derivedLeadId = leadId || window.location.pathname.split('/').pop() || "";
+
   return (
-    <Button
-      id="start-call-button"
-      onClick={startCall}
-      disabled={isInitializing}
-      size="default"
-      className="w-full gap-2 bg-success hover:bg-success/90 hover-scale"
-      title="Start Call"
-      aria-label="Start Call"
-    >
-      <Phone className="h-4 w-4" />
-      Start Call
-    </Button>
+    <>
+      <Button
+        id="start-call-button"
+        onClick={() => setShowCallOptions(true)}
+        disabled={isInitializing}
+        size="default"
+        className="w-full gap-2 bg-success hover:bg-success/90 hover-scale"
+        title="Call Options"
+        aria-label="Call Options"
+      >
+        <Phone className="h-4 w-4" />
+        Call
+      </Button>
+      <CallOptionsDialog
+        open={showCallOptions}
+        onOpenChange={setShowCallOptions}
+        leadPhone={leadPhone}
+        leadName={leadName}
+        leadId={derivedLeadId}
+        onSystemCall={startCall}
+        onCallLogged={onCallEnd}
+      />
+    </>
   );
 };
