@@ -80,6 +80,16 @@ export const CallOptionsDialog = ({
         });
       }
 
+      // Auto-complete matching pending follow-up (call type)
+      await supabase
+        .from("follow_ups")
+        .update({ status: "completed", completed_at: new Date().toISOString() })
+        .eq("lead_id", leadId)
+        .eq("action_type", "call")
+        .eq("status", "pending")
+        .order("sequence_order", { ascending: true })
+        .limit(1);
+
       toast({ title: "Call logged", description: "Manual call has been recorded successfully" });
       setShowLogForm(false);
       setDuration("");
