@@ -17,7 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 import MultiPhotoUpload from "@/components/MultiPhotoUpload";
 import BulkPropertyUpload from "@/components/BulkPropertyUpload";
-import { PropertyApprovalDialog } from "@/components/PropertyApprovalDialog";
+
 
 interface InventoryItem {
   id: string;
@@ -74,8 +74,6 @@ export default function Inventory() {
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [editingSeller, setEditingSeller] = useState<Seller | null>(null);
   const [customFieldOptions, setCustomFieldOptions] = useState<any[]>([]);
-  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
-  const [selectedPropertyForApproval, setSelectedPropertyForApproval] = useState<any>(null);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const { toast } = useToast();
 
@@ -1656,39 +1654,6 @@ export default function Inventory() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
-                          {isAdmin && item.public_approval_status !== 'approved' && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedPropertyForApproval(item);
-                                setApprovalDialogOpen(true);
-                              }}
-                            >
-                              Review
-                            </Button>
-                          )}
-                          {isAdmin && item.is_wholesale && item.public_approval_status === 'approved' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const dispoLink = `${window.location.origin}/dispo-sheet?id=${item.id}`;
-                                navigator.clipboard.writeText(dispoLink);
-                                toast({
-                                  title: "Link Copied!",
-                                  description: "Dispo sheet link copied to clipboard",
-                                });
-                                window.open(dispoLink, '_blank');
-                              }}
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1723,18 +1688,8 @@ export default function Inventory() {
       </Card>
 
 
-      {/* Property Approval Dialog */}
-      {selectedPropertyForApproval && (
-        <PropertyApprovalDialog
-          property={selectedPropertyForApproval}
-          open={approvalDialogOpen}
-          onOpenChange={setApprovalDialogOpen}
-          onSuccess={() => {
-            fetchInventory();
-            setSelectedPropertyForApproval(null);
-          }}
-        />
-      )}
+
+
       {/* Bulk Upload Dialog */}
       <BulkPropertyUpload
         open={isBulkUploadOpen}
