@@ -61,7 +61,8 @@ interface Seller {
 
 export default function Inventory() {
   const navigate = useNavigate();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, role } = useUserRole();
+  const isSupremeAdmin = role === 'supreme_admin';
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
@@ -1477,29 +1478,35 @@ export default function Inventory() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              className="focus:outline-none"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Badge variant={getStatusBadgeVariant(item.status)} className="text-xs cursor-pointer hover:opacity-80">
-                                {item.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
-                              </Badge>
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-                            {getUniqueStatuses().map(s => (
-                              <DropdownMenuItem
-                                key={s}
-                                onClick={() => handleQuickStatusChange(item.id, s)}
-                                className={item.status === s ? "bg-accent" : ""}
+                        {isSupremeAdmin ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="focus:outline-none"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                {s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                                <Badge variant={getStatusBadgeVariant(item.status)} className="text-xs cursor-pointer hover:opacity-80">
+                                  {item.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
+                                </Badge>
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                              {getUniqueStatuses().map(s => (
+                                <DropdownMenuItem
+                                  key={s}
+                                  onClick={() => handleQuickStatusChange(item.id, s)}
+                                  className={item.status === s ? "bg-accent" : ""}
+                                >
+                                  {s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <Badge variant={getStatusBadgeVariant(item.status)} className="text-xs">
+                            {item.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">{item.property_type || '—'}</span>
