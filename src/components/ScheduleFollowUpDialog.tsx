@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,33 +18,20 @@ interface ScheduleFollowUpDialogProps {
   onScheduled?: () => void;
 }
 
-const TEMPLATES = [
-  {
-    name: "Hot Lead (3 Day)",
-    steps: [
-      { action_type: "call", day: 0 },
-      { action_type: "sms", day: 1 },
-      { action_type: "call", day: 3 },
-    ],
-  },
-  {
-    name: "Standard (7 Day)",
-    steps: [
-      { action_type: "call", day: 0 },
-      { action_type: "sms", day: 2 },
-      { action_type: "email", day: 5 },
-      { action_type: "call", day: 7 },
-    ],
-  },
-  {
-    name: "Re-engagement (14 Day)",
-    steps: [
-      { action_type: "sms", day: 0 },
-      { action_type: "call", day: 3 },
-      { action_type: "sms", day: 7 },
-      { action_type: "call", day: 14 },
-    ],
-  },
+interface TemplateStep {
+  action_type: string;
+  day: number;
+}
+
+interface Template {
+  name: string;
+  steps: TemplateStep[];
+}
+
+const FALLBACK_TEMPLATES: Template[] = [
+  { name: "Hot Lead (3 Day)", steps: [{ action_type: "call", day: 0 }, { action_type: "sms", day: 1 }, { action_type: "call", day: 3 }] },
+  { name: "Standard (7 Day)", steps: [{ action_type: "call", day: 0 }, { action_type: "sms", day: 2 }, { action_type: "email", day: 5 }, { action_type: "call", day: 7 }] },
+  { name: "Re-engagement (14 Day)", steps: [{ action_type: "sms", day: 0 }, { action_type: "call", day: 3 }, { action_type: "sms", day: 7 }, { action_type: "call", day: 14 }] },
 ];
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -65,10 +52,24 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
   const { toast } = useToast();
   const [mode, setMode] = useState<"template" | "custom">("template");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [customSteps, setCustomSteps] = useState<{ action_type: string; day: number }[]>([
-    { action_type: "call", day: 0 },
-  ]);
+  const [customSteps, setCustomSteps] = useState<TemplateStep[]>([{ action_type: "call", day: 0 }]);
   const [saving, setSaving] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>(FALLBACK_TEMPLATES);
+
+  useEffect(() => {
+    if (!open) return;
+    const load = async () => {
+      const { data } = await supabase
+        .from("follow_up_templates")
+        .select("name, steps")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (data && data.length > 0) {
+        setTemplates(data.map((t: any) => ({ name: t.name, steps: t.steps as unknown as TemplateStep[] })));
+      }
+    };
+    load();
+  }, [open]);
 
   const addStep = () => {
     const lastDay = customSteps.length > 0 ? customSteps[customSteps.length - 1].day : 0;
@@ -91,11 +92,11 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      let steps: { action_type: string; day: number }[];
+      let steps: TemplateStep[];
       let templateName: string | null = null;
 
       if (mode === "template") {
-        const template = TEMPLATES.find(t => t.name === selectedTemplate);
+        const template = templates.find(t => t.name === selectedTemplate);
         if (!template) throw new Error("Select a template");
         steps = template.steps;
         templateName = template.name;
@@ -149,7 +150,7 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
   };
 
   const previewSteps = mode === "template"
-    ? TEMPLATES.find(t => t.name === selectedTemplate)?.steps || []
+    ? templates.find(t => t.name === selectedTemplate)?.steps || []
     : customSteps;
 
   return (
@@ -188,7 +189,7 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
 
           {mode === "template" ? (
             <div className="space-y-3">
-              {TEMPLATES.map((template) => (
+              {templates.map((template) => (
                 <button
                   key={template.name}
                   onClick={() => setSelectedTemplate(template.name)}

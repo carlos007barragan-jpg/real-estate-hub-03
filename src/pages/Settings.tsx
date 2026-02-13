@@ -12,6 +12,7 @@ import { TransactionTypesManager } from "@/components/TransactionTypesManager";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { TeamManagement } from "@/components/TeamManagement";
 import { LeadFieldsManager } from "@/components/LeadFieldsManager";
+import { FollowUpTemplatesManager } from "@/components/FollowUpTemplatesManager";
 import { ContactFieldsManager } from "@/components/ContactFieldsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -60,6 +61,7 @@ const Settings = () => {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {isAdmin && <TabsTrigger value="lead-fields">Lead Form</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="follow-ups">Follow-Ups</TabsTrigger>}
           {isAdmin && <TabsTrigger value="contact-fields">Contact Form</TabsTrigger>}
           {isAdmin && <TabsTrigger value="public-page">Public Page</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
@@ -107,6 +109,12 @@ const Settings = () => {
         {isAdmin && (
           <TabsContent value="lead-fields">
             <LeadFieldsManager />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="follow-ups">
+            <FollowUpTemplatesManager />
           </TabsContent>
         )}
 
