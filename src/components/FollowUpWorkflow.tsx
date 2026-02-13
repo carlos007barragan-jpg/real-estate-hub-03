@@ -25,11 +25,11 @@ interface FollowUp {
   notes: string | null;
 }
 
-const ACTION_META: Record<string, { icon: React.ReactNode; label: string; color: string; btnLabel: string }> = {
+const ACTION_META: Record<string, {icon: React.ReactNode;label: string;color: string;btnLabel: string;}> = {
   call: { icon: <Phone className="h-4 w-4" />, label: "Call", color: "text-primary", btnLabel: "Call Now" },
   sms: { icon: <MessageSquare className="h-4 w-4" />, label: "SMS", color: "text-success", btnLabel: "Send SMS" },
   email: { icon: <Mail className="h-4 w-4" />, label: "Email", color: "text-warning", btnLabel: "Send Email" },
-  note: { icon: <FileText className="h-4 w-4" />, label: "Note", color: "text-muted-foreground", btnLabel: "Add Note" },
+  note: { icon: <FileText className="h-4 w-4" />, label: "Note", color: "text-muted-foreground", btnLabel: "Add Note" }
 };
 
 export const FollowUpWorkflow = ({ leadId, leadName, refreshKey = 0, onAction }: FollowUpWorkflowProps) => {
@@ -39,12 +39,12 @@ export const FollowUpWorkflow = ({ leadId, leadName, refreshKey = 0, onAction }:
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const fetchFollowUps = async () => {
-    const { data } = await supabase
-      .from("follow_ups")
-      .select("*")
-      .eq("lead_id", leadId)
-      .order("sequence_order", { ascending: true });
-    setFollowUps((data as FollowUp[]) || []);
+    const { data } = await supabase.
+    from("follow_ups").
+    select("*").
+    eq("lead_id", leadId).
+    order("sequence_order", { ascending: true });
+    setFollowUps(data as FollowUp[] || []);
     setLoading(false);
   };
 
@@ -52,8 +52,8 @@ export const FollowUpWorkflow = ({ leadId, leadName, refreshKey = 0, onAction }:
     fetchFollowUps();
   }, [leadId, refreshKey]);
 
-  const nextPending = followUps.find(f => f.status === "pending");
-  const completedCount = followUps.filter(f => f.status === "completed").length;
+  const nextPending = followUps.find((f) => f.status === "pending");
+  const completedCount = followUps.filter((f) => f.status === "completed").length;
   const totalCount = followUps.length;
 
   const isOverdue = nextPending && new Date(nextPending.scheduled_date) < new Date();
@@ -108,37 +108,37 @@ export const FollowUpWorkflow = ({ leadId, leadName, refreshKey = 0, onAction }:
           onOpenChange={setScheduleOpen}
           leadId={leadId}
           leadName={leadName}
-          onScheduled={fetchFollowUps}
-        />
-      </>
-    );
+          onScheduled={fetchFollowUps} />
+
+      </>);
+
   }
 
   // All completed
   if (!loading && !nextPending && totalCount > 0) {
     return (
       <>
-        <Card className="p-3 border border-success/20 bg-success/5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-success" />
-              <span className="text-sm font-medium text-success">Sequence Complete</span>
-              <span className="text-xs text-muted-foreground">({completedCount}/{totalCount} steps)</span>
-            </div>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setScheduleOpen(true)}>
-              New Sequence
-            </Button>
-          </div>
-        </Card>
+        
+
+
+
+
+
+
+
+
+
+
+
         <ScheduleFollowUpDialog
           open={scheduleOpen}
           onOpenChange={setScheduleOpen}
           leadId={leadId}
           leadName={leadName}
-          onScheduled={fetchFollowUps}
-        />
-      </>
-    );
+          onScheduled={fetchFollowUps} />
+
+      </>);
+
   }
 
   if (loading || !nextPending) return null;
@@ -164,23 +164,23 @@ export const FollowUpWorkflow = ({ leadId, leadName, refreshKey = 0, onAction }:
               </div>
               {/* Mini timeline */}
               <div className="flex items-center gap-0.5 mt-2">
-                {followUps.map((f, i) => (
-                  <div
-                    key={f.id}
-                    className={`h-1.5 flex-1 rounded-full ${
-                      f.status === "completed" ? "bg-success" :
-                      f.status === "skipped" ? "bg-muted-foreground/30" :
-                      f.id === nextPending.id ? (isOverdue ? "bg-destructive" : "bg-primary") :
-                      "bg-muted"
-                    }`}
-                  />
-                ))}
+                {followUps.map((f, i) =>
+                <div
+                  key={f.id}
+                  className={`h-1.5 flex-1 rounded-full ${
+                  f.status === "completed" ? "bg-success" :
+                  f.status === "skipped" ? "bg-muted-foreground/30" :
+                  f.id === nextPending.id ? isOverdue ? "bg-destructive" : "bg-primary" :
+                  "bg-muted"}`
+                  } />
+
+                )}
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            <Button size="sm" className="h-8 text-xs gap-1" onClick={() => { handleComplete(nextPending.id); handleActionClick(nextPending.action_type); }}>
+            <Button size="sm" className="h-8 text-xs gap-1" onClick={() => {handleComplete(nextPending.id);handleActionClick(nextPending.action_type);}}>
               {meta.btnLabel}
             </Button>
             <DropdownMenu>
@@ -213,8 +213,8 @@ export const FollowUpWorkflow = ({ leadId, leadName, refreshKey = 0, onAction }:
         onOpenChange={setScheduleOpen}
         leadId={leadId}
         leadName={leadName}
-        onScheduled={fetchFollowUps}
-      />
-    </>
-  );
+        onScheduled={fetchFollowUps} />
+
+    </>);
+
 };
