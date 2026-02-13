@@ -55,10 +55,12 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
   const [customSteps, setCustomSteps] = useState<TemplateStep[]>([{ action_type: "call", day: 0 }]);
   const [saving, setSaving] = useState(false);
   const [templates, setTemplates] = useState<Template[]>(FALLBACK_TEMPLATES);
+  const [manualWorkflows, setManualWorkflows] = useState<{ id: string; name: string; steps: TemplateStep[] }[]>([]);
 
   useEffect(() => {
     if (!open) return;
     const load = async () => {
+      // Load follow-up templates
       const { data } = await supabase
         .from("follow_up_templates")
         .select("name, steps")
@@ -66,6 +68,24 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
         .order("display_order", { ascending: true });
       if (data && data.length > 0) {
         setTemplates(data.map((t: any) => ({ name: t.name, steps: t.steps as unknown as TemplateStep[] })));
+      }
+
+      // Load manual-trigger workflows
+      const { data: wfData } = await supabase
+        .from("workflows")
+        .select("id, name, steps")
+        .eq("trigger_type", "manual")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (wfData) {
+        setManualWorkflows(wfData.map((w: any) => ({
+          id: w.id,
+          name: w.name,
+          steps: (w.steps as unknown as { action_type: string; day_offset: number; title: string }[]).map(s => ({
+            action_type: s.action_type,
+            day: s.day_offset,
+          })),
+        })));
       }
     };
     load();

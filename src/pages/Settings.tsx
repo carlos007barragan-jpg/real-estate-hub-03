@@ -12,15 +12,18 @@ import { TransactionTypesManager } from "@/components/TransactionTypesManager";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { TeamManagement } from "@/components/TeamManagement";
 import { LeadFieldsManager } from "@/components/LeadFieldsManager";
-import { FollowUpTemplatesManager } from "@/components/FollowUpTemplatesManager";
+import { WorkflowBuilder } from "@/components/WorkflowBuilder";
 import { ContactFieldsManager } from "@/components/ContactFieldsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Settings = () => {
   const { toast } = useToast();
-  const { isAdmin, loading } = useUserRole();
+  const { isAdmin, role, loading } = useUserRole();
+  const isSupremeAdmin = role === "supreme_admin";
+  // Supreme admins also pass isAdmin check since has_role treats them as admin
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem("darkMode") === "true";
   });
@@ -28,7 +31,6 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState("general");
 
   useEffect(() => {
-    // Check URL for tab parameter
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
     if (tab) {
@@ -43,11 +45,8 @@ const Settings = () => {
     } else {
       document.documentElement.classList.remove("dark");
     }
-    // Dispatch custom event for same-page dark mode changes
     window.dispatchEvent(new Event("darkModeChange"));
   }, [darkMode]);
-
-
 
   return (
     <div className="p-8">
@@ -61,7 +60,7 @@ const Settings = () => {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           {isAdmin && <TabsTrigger value="lead-fields">Lead Form</TabsTrigger>}
-          {isAdmin && <TabsTrigger value="follow-ups">Follow-Ups</TabsTrigger>}
+          {isSupremeAdmin && <TabsTrigger value="workflows">Workflows</TabsTrigger>}
           {isAdmin && <TabsTrigger value="contact-fields">Contact Form</TabsTrigger>}
           {isAdmin && <TabsTrigger value="public-page">Public Page</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
@@ -112,9 +111,9 @@ const Settings = () => {
           </TabsContent>
         )}
 
-        {isAdmin && (
-          <TabsContent value="follow-ups">
-            <FollowUpTemplatesManager />
+        {isSupremeAdmin && (
+          <TabsContent value="workflows">
+            <WorkflowBuilder />
           </TabsContent>
         )}
 

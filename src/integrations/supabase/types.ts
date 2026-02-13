@@ -436,6 +436,7 @@ export type Database = {
           template_name: string | null
           updated_at: string
           user_id: string
+          workflow_instance_id: string | null
         }
         Insert: {
           action_type?: string
@@ -450,6 +451,7 @@ export type Database = {
           template_name?: string | null
           updated_at?: string
           user_id: string
+          workflow_instance_id?: string | null
         }
         Update: {
           action_type?: string
@@ -464,6 +466,7 @@ export type Database = {
           template_name?: string | null
           updated_at?: string
           user_id?: string
+          workflow_instance_id?: string | null
         }
         Relationships: [
           {
@@ -471,6 +474,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_ups_workflow_instance_id_fkey"
+            columns: ["workflow_instance_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_instances"
             referencedColumns: ["id"]
           },
         ]
@@ -1515,6 +1525,110 @@ export type Database = {
           },
         ]
       }
+      workflow_instances: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          id: string
+          lead_id: string
+          started_at: string
+          status: string
+          user_id: string
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          lead_id: string
+          started_at?: string
+          status?: string
+          user_id: string
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          lead_id?: string
+          started_at?: string
+          status?: string
+          user_id?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_instances_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_instances_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflows: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string | null
+          steps: Json
+          stop_condition: string
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id?: string | null
+          steps?: Json
+          stop_condition?: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string | null
+          steps?: Json
+          stop_condition?: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflows_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1542,6 +1656,10 @@ export type Database = {
       remove_user_from_organization: {
         Args: { p_target_user_id: string }
         Returns: undefined
+      }
+      start_workflow_for_lead: {
+        Args: { p_lead_id: string; p_user_id: string; p_workflow_id: string }
+        Returns: string
       }
     }
     Enums: {
