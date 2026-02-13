@@ -113,6 +113,7 @@ export default function Inventory() {
   const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
   const [smartPasteText, setSmartPasteText] = useState("");
   const [isParsing, setIsParsing] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
   const [sellerFormData, setSellerFormData] = useState({
     name: "",
@@ -885,6 +886,34 @@ export default function Inventory() {
     }
   };
 
+  const handleGenerateDescription = async () => {
+    setIsGeneratingDescription(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-property-description", {
+        body: { propertyData: formData },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      if (data?.description) {
+        setFormData(prev => ({ ...prev, description: data.description }));
+        toast({
+          title: "Description Generated",
+          description: "AI-generated description has been added. Feel free to edit it.",
+        });
+      }
+    } catch (error: any) {
+      console.error("Generate description error:", error);
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Could not generate description. Try filling in more property details first.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
+
   const handleSellerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -1139,7 +1168,28 @@ export default function Inventory() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="description">Description</Label>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleGenerateDescription}
+                      disabled={isGeneratingDescription}
+                    >
+                      {isGeneratingDescription ? (
+                        <>
+                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-3 w-3" />
+                          AI Description
+                        </>
+                      )}
+                    </Button>
+                  </div>
                   <Textarea
                     id="description"
                     value={formData.description}
