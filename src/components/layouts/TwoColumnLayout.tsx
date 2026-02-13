@@ -30,6 +30,9 @@ import { DocumentsSection } from "@/components/DocumentsSection";
 import { MessagingSection } from "@/components/MessagingSection";
 import { ActivitySection } from "@/components/ActivitySection";
 import { MultiAgentSelect } from "@/components/MultiAgentSelect";
+import { LeadQuickStats } from "@/components/LeadQuickStats";
+import { ActivityTimeline } from "@/components/ActivityTimeline";
+import { FollowUpReminder } from "@/components/FollowUpReminder";
 
 export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const { toast } = useToast();
@@ -482,9 +485,15 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         </Card>
       </div>
 
-      {/* Right: Activity, Tasks, Appointments, and Messaging sections */}
+      {/* Right: Stats, Follow-up, Activity, Tasks, Appointments, Timeline, Messaging */}
       <div className="space-y-4">
-        {/* 1. Activity & History Section (at top) */}
+        {/* Follow-up Reminder Banner */}
+        <FollowUpReminder leadId={id} leadName={leadData.name} />
+
+        {/* Lead Summary Stats */}
+        <LeadQuickStats leadId={id} />
+
+        {/* 1. Activity & History Section */}
         <ActivitySection 
           leadId={id}
           notes={notes}
@@ -499,7 +508,10 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         {/* 3. Appointments Section */}
         <AppointmentsSection leadId={id} leadName={leadData.name} />
 
-        {/* 4. Messaging Section */}
+        {/* 4. Activity Timeline */}
+        <ActivityTimeline leadId={id} notes={notes} />
+
+        {/* 5. Messaging Section */}
         <MessagingSection 
           messages={messages}
           newMessage={newMessage}
