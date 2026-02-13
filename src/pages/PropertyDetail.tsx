@@ -50,7 +50,7 @@ export default function PropertyDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, role } = useUserRole();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [seller, setSeller] = useState<Seller | null>(null);
   const [loading, setLoading] = useState(false);
@@ -364,11 +364,11 @@ export default function PropertyDetail() {
                 </>
               )}
 
-              {isAdmin && property.commission > 0 && (
+              {role === 'supreme_admin' && property.commission > 0 && (
                 <>
                   <Separator />
                   <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">Commission (Admin Only)</div>
+                    <div className="text-sm text-muted-foreground">Commission (Supreme Admin Only)</div>
                     <div className="text-2xl font-bold text-green-600">
                       ${property.commission.toLocaleString()}
                     </div>
