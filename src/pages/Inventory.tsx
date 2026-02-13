@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
-import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings, FileText, ExternalLink, Bed, Bath, Maximize2, Upload } from "lucide-react";
+import { Plus, Trash2, Edit, Download, Search, Filter, Home, Building2, Warehouse, Settings, FileText, ExternalLink, Bed, Bath, Maximize2, Upload, Sparkles, Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -111,6 +111,8 @@ export default function Inventory() {
   });
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
+  const [smartPasteText, setSmartPasteText] = useState("");
+  const [isParsing, setIsParsing] = useState(false);
 
   const [sellerFormData, setSellerFormData] = useState({
     name: "",
@@ -827,6 +829,60 @@ export default function Inventory() {
     setPhotoFiles([]);
     setExistingPhotoUrls([]);
     setEditingItem(null);
+    setSmartPasteText("");
+  };
+
+  const handleSmartPaste = async () => {
+    if (!smartPasteText.trim()) return;
+    setIsParsing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("parse-property-info", {
+        body: { text: smartPasteText },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      const parsed = data?.data;
+      if (!parsed) throw new Error("No data returned");
+
+      setFormData(prev => ({
+        ...prev,
+        name: parsed.name || prev.name,
+        sku: parsed.sku || prev.sku,
+        description: parsed.description || prev.description,
+        price: parsed.price ?? prev.price,
+        bedrooms: parsed.bedrooms ?? prev.bedrooms,
+        bathrooms: parsed.bathrooms ?? prev.bathrooms,
+        sqft: parsed.sqft ?? prev.sqft,
+        property_type: parsed.property_type || prev.property_type,
+        category: parsed.category || prev.category,
+        status: parsed.status || prev.status,
+        market_status: parsed.market_status || prev.market_status,
+        finance_type: parsed.finance_type || prev.finance_type,
+        transaction_type: parsed.transaction_type || prev.transaction_type,
+        arv: parsed.arv ?? prev.arv,
+        payment: parsed.payment ?? prev.payment,
+        interest_rate: parsed.interest_rate ?? prev.interest_rate,
+        down_payment: parsed.down_payment ?? prev.down_payment,
+        commission: parsed.commission ?? prev.commission,
+        is_wholesale: parsed.is_wholesale ?? prev.is_wholesale,
+      }));
+
+      toast({
+        title: "Fields Auto-Populated",
+        description: "Property information has been extracted and filled in. Review and adjust as needed.",
+      });
+      setSmartPasteText("");
+    } catch (error: any) {
+      console.error("Smart paste error:", error);
+      toast({
+        title: "Parsing Failed",
+        description: error.message || "Could not extract property information. Try adding more details.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsParsing(false);
+    }
   };
 
   const handleSellerSubmit = async (e: React.FormEvent) => {
@@ -975,6 +1031,43 @@ export default function Inventory() {
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Smart Paste */}
+              <div className="space-y-3 p-4 bg-accent/30 border border-accent rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Smart Paste</h3>
+                  <Badge variant="outline" className="text-xs">AI</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Paste property details in any format and AI will auto-fill the fields below
+                </p>
+                <Textarea
+                  value={smartPasteText}
+                  onChange={(e) => setSmartPasteText(e.target.value)}
+                  placeholder="e.g. 123 Main St, 3 bed 2 bath, 1500 sqft single family home listed at $250,000. Off market, owner finance available..."
+                  rows={3}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSmartPaste}
+                  disabled={isParsing || !smartPasteText.trim()}
+                >
+                  {isParsing ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Parsing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-3 w-3" />
+                      Auto-Fill Fields
+                    </>
+                  )}
+                </Button>
+              </div>
+
               {/* Property Classification - Primary Search Fields */}
               <div className="space-y-4 p-4 bg-primary/5 border-2 border-primary/20 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
@@ -1270,28 +1363,6 @@ export default function Inventory() {
                 </div>
               </div>
 
-              {/* Seller Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Seller Information</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="seller_id">Property Seller</Label>
-                  <Select
-                    value={formData.seller_id}
-                    onValueChange={(value) => setFormData({ ...formData, seller_id: value })}
-                  >
-                    <SelectTrigger id="seller_id">
-                      <SelectValue placeholder="Select seller (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sellers.map((seller) => (
-                        <SelectItem key={seller.id} value={seller.id}>
-                          {seller.name} {seller.company ? `(${seller.company})` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
               {/* Photo Upload */}
               <MultiPhotoUpload
