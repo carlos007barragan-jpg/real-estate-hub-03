@@ -1,98 +1,79 @@
 
 
-# Platform Audit and Improvement Plan
+# Follow-Up Workflow System
 
-## What's Working Well
-- Dashboard, Leads, Pipelines, Contacts, Inventory, Calendar are all connected to the database
-- Tasks exist in lead profiles with inline editing support
-- Pipeline drag-and-drop is functional
-- Authentication and role-based access are in place
+## Overview
+Build a structured follow-up workflow that automatically creates and manages follow-up sequences for leads. This goes beyond the current passive reminder banner by giving agents an actionable, step-by-step follow-up process tied to each lead.
 
----
+## What It Does
 
-## Issues Found
+1. **Follow-Up Sequences**: When a lead needs follow-up, agents can schedule a sequence of follow-up steps (e.g., Day 1: Call, Day 3: SMS, Day 7: Email) or pick from pre-built templates.
 
-### 1. Inbox Page is Entirely Fake
-The Inbox page (`/pages/Inbox.tsx`) uses hardcoded mock email data. It is not connected to the database at all -- no emails are sent, received, or stored. It's purely a static UI mockup.
+2. **Actionable Follow-Up Cards**: The current reminder banner becomes interactive -- agents can take action directly from it (schedule a call, send SMS, snooze, or mark as completed).
 
-**Recommendation:** Either remove it from the navigation to avoid confusion, or flag it as "Coming Soon" so users don't mistake it for a working feature.
+3. **Follow-Up Task Auto-Creation**: When a follow-up is due, the system auto-creates a task assigned to the lead's agent with the appropriate action type.
 
-### 2. Pipeline Page Has Hardcoded Fallback Data
-The Pipelines page (`/pages/Pipelines.tsx`) contains `mockPipelines` with fake deals (Sarah Johnson, David Kim, Tech Corp Inc, etc.). While real data loads from the database, these mock deals can appear briefly or mix in under certain conditions, causing confusion.
-
-**Recommendation:** Remove the mock deal entries from `mockPipelines` -- keep only the stage structure as a fallback template for new organizations.
-
-### 3. Dashboard Makes 16+ Parallel Database Queries
-The Dashboard fires a massive `Promise.all` with 16 separate queries on every load. This is the primary reason it feels slow.
-
-**Recommendation:** Consolidate where possible. For example, several queries fetch from the same table (`call_logs`, `leads`, `appointments`) with slightly different filters -- these can be merged and filtered client-side.
-
-### 4. Leads Page Fetches User Role Redundantly
-The Leads page calls `supabase.auth.getUser()` and checks admin role separately, even though `useAuth()` already provides this via `AuthContext`.
-
-**Recommendation:** Use the existing `useAuth()` hook instead of re-fetching.
+4. **Follow-Up Status Tracking**: Each lead shows its follow-up status: Active sequence, Next step due, Completed, or Snoozed.
 
 ---
 
-## Tasks Feature Improvements
+## Implementation Details
 
-### 5. Show "Created Date" and "Assigned To" on Tasks
-Currently, the `TasksSection` component only shows the task title, description, and due date. You asked to also see:
-- **When the task was created** (the `created_at` field already exists in the database)
-- **Who the task is assigned to** (the `user_id` field exists -- we just need to look up the user's name)
+### 1. New Database Table: `follow_ups`
 
-**Changes:**
-- Fetch the profile name for each task's `user_id` and display it as "Assigned to: [Name]"
-- Display the `created_at` date formatted as "Created: [date]"
-- Show both fields in the task card view mode, beneath the description
+Create a `follow_ups` table to track scheduled follow-up actions per lead:
 
----
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| lead_id | uuid | FK to leads |
+| user_id | uuid | Assigned agent |
+| action_type | text | "call", "sms", "email", "note" |
+| scheduled_date | timestamptz | When this follow-up is due |
+| status | text | "pending", "completed", "skipped", "snoozed" |
+| notes | text | Optional context |
+| completed_at | timestamptz | When it was done |
+| template_name | text | Which template was used (if any) |
+| sequence_order | integer | Position in a multi-step sequence |
+| created_at / updated_at | timestamptz | Timestamps |
 
-## Performance Improvements
+RLS policies will restrict access to users in the same organization.
 
-### 6. Reduce Redundant `supabase.auth.getUser()` Calls
-Multiple pages call `supabase.auth.getUser()` independently on mount. The `AuthContext` already stores the session and user info.
+### 2. Upgraded Follow-Up Reminder Component
 
-**Recommendation:** Replace direct `getUser()` calls with `useAuth()` session data across Leads, Dashboard, and Inventory pages.
+Replace the passive banner with an interactive follow-up workflow card that shows:
+- The next scheduled follow-up action with its type (Call / SMS / Email)
+- Quick-action buttons to execute the follow-up right from the card (e.g., "Call Now", "Send SMS")
+- Options to snooze (push back 1 day, 3 days, custom), skip, or mark complete
+- A mini-timeline showing upcoming follow-up steps in the sequence
 
-### 7. Leads Page Makes 4 Separate Init Calls
-`fetchLeads`, `fetchTransactionTypes`, `fetchCurrentUserPhone`, and `fetchAvailableUsers` all run on mount -- each calling `getUser()` separately.
+### 3. Follow-Up Scheduling Dialog
 
-**Recommendation:** Consolidate into a single init function that calls `getUser()` once, then parallelizes the data fetches.
+A new dialog accessible from the lead profile that lets agents:
+- Pick a pre-built template (e.g., "New Lead - 7 Day", "Re-engagement - 14 Day", "Hot Lead - 3 Day")
+- Or create a custom sequence by adding individual steps with action type + day offset
+- Assign the sequence to themselves or another team member
 
----
+**Pre-built Templates:**
+- **Hot Lead (3 Day)**: Day 0 Call, Day 1 SMS, Day 3 Call
+- **Standard (7 Day)**: Day 0 Call, Day 2 SMS, Day 5 Email, Day 7 Call
+- **Re-engagement (14 Day)**: Day 0 SMS, Day 3 Call, Day 7 SMS, Day 14 Call
 
-## Summary of Changes
+### 4. Integration Points
 
-| Area | Change | Impact |
-|------|--------|--------|
-| Inbox | Mark as "Coming Soon" or hide from nav | Prevents user confusion |
-| Pipelines | Remove mock deal data from fallback | Cleaner data, no fake entries |
-| Dashboard | Merge duplicate queries on same tables | Faster load |
-| Tasks | Add created date and assigned-to name | Better task visibility |
-| Leads/Dashboard | Use `useAuth()` instead of `getUser()` | Fewer API calls per page |
-| Leads | Consolidate 4 init functions into 1 | Fewer round-trips |
+- **Follow-Up Reminder** component updated to query `follow_ups` table and show the next due action
+- **Activity Timeline** will include follow-up completions/skips as events
+- **LeadQuickStats** will show "Next Follow-Up" date instead of just "Last Contact"
+- **Manual call logging and SMS sending** will auto-complete matching pending follow-ups
 
----
+### Files to Create
+- `src/components/FollowUpWorkflow.tsx` -- Main workflow card with actionable next step
+- `src/components/ScheduleFollowUpDialog.tsx` -- Dialog for creating/choosing follow-up sequences
 
-## Technical Details
-
-### Task Card Enhancement (TasksSection.tsx)
-- After fetching tasks, batch-fetch profiles for all unique `user_id` values using a single `.in("user_id", ids)` query
-- Display in each task card:
-  - "Assigned to: First Last" below description
-  - "Created: MMM DD, YYYY" next to or below the due date
-- No database schema changes needed -- `created_at` and `user_id` already exist on the `tasks` table
-
-### Inbox "Coming Soon" Treatment
-- Replace the mock email UI with a simple centered "Coming Soon" message with an icon
-- Or add a "Coming Soon" badge overlay to the existing UI
-
-### Dashboard Query Consolidation
-- Merge the duplicate `call_logs` queries (lines 351 vs 369) into one fetch, then filter client-side for totals vs per-agent counts
-- Same for `leads` (lines 357 vs 375) and `appointments` (lines 359 vs 377)
-- This cuts roughly 6-8 queries down
-
-### Pipeline Mock Data Cleanup
-- Keep `mockPipelines` structure but empty the `deals` arrays so no fake names appear
+### Files to Modify
+- `src/components/FollowUpReminder.tsx` -- Replace with the new interactive workflow card
+- `src/components/layouts/TwoColumnLayout.tsx` -- Integrate new components and pass callbacks
+- `src/components/LeadQuickStats.tsx` -- Add "Next Follow-Up" stat
+- `src/components/CallOptionsDialog.tsx` -- Auto-complete follow-ups on call log
+- Database migration for `follow_ups` table + RLS policies
 
