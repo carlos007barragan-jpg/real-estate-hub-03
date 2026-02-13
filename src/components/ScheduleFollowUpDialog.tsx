@@ -116,10 +116,19 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
       let templateName: string | null = null;
 
       if (mode === "template") {
-        const template = templates.find(t => t.name === selectedTemplate);
-        if (!template) throw new Error("Select a template");
-        steps = template.steps;
-        templateName = template.name;
+        // Check if it's a manual workflow
+        if (selectedTemplate.startsWith("wf:")) {
+          const wfName = selectedTemplate.slice(3);
+          const wf = manualWorkflows.find(w => w.name === wfName);
+          if (!wf) throw new Error("Select a workflow");
+          steps = wf.steps;
+          templateName = wf.name;
+        } else {
+          const template = templates.find(t => t.name === selectedTemplate);
+          if (!template) throw new Error("Select a template");
+          steps = template.steps;
+          templateName = template.name;
+        }
       } else {
         if (customSteps.length === 0) throw new Error("Add at least one step");
         steps = customSteps;
@@ -170,7 +179,9 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
   };
 
   const previewSteps = mode === "template"
-    ? templates.find(t => t.name === selectedTemplate)?.steps || []
+    ? (selectedTemplate.startsWith("wf:")
+        ? manualWorkflows.find(w => w.name === selectedTemplate.slice(3))?.steps
+        : templates.find(t => t.name === selectedTemplate)?.steps) || []
     : customSteps;
 
   return (
@@ -209,6 +220,34 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
 
           {mode === "template" ? (
             <div className="space-y-3">
+              {manualWorkflows.length > 0 && (
+                <>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Workflows</p>
+                  {manualWorkflows.map((wf) => (
+                    <button
+                      key={`wf-${wf.id}`}
+                      onClick={() => setSelectedTemplate(`wf:${wf.name}`)}
+                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                        selectedTemplate === `wf:${wf.name}`
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <p className="text-sm font-medium">⚡ {wf.name}</p>
+                      <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                        {wf.steps.map((step, i) => (
+                          <Badge key={i} variant="secondary" className={`text-[10px] gap-1 ${ACTION_COLORS[step.action_type]}`}>
+                            {ACTION_ICONS[step.action_type]}
+                            Day {step.day}
+                          </Badge>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                  <Separator />
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Templates</p>
+                </>
+              )}
               {templates.map((template) => (
                 <button
                   key={template.name}
