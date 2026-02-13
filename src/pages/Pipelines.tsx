@@ -920,16 +920,20 @@ const Pipelines = () => {
 
         {/* Stats Bar */}
         <div className="flex flex-wrap gap-6 p-4 rounded-lg bg-muted/30">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-primary" />
-            </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Pipeline Value</p>
-            <p className="text-lg font-bold">${analytics.totalValue.toLocaleString()}</p>
-          </div>
-          </div>
-          <Separator orientation="vertical" className="h-12" />
+          {role === 'supreme_admin' && (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Pipeline Value</p>
+                  <p className="text-lg font-bold">${analytics.totalValue.toLocaleString()}</p>
+                </div>
+              </div>
+              <Separator orientation="vertical" className="h-12" />
+            </>
+          )}
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center">
               <TrendingUp className="h-5 w-5 text-success" />
@@ -939,16 +943,20 @@ const Pipelines = () => {
               <p className="text-lg font-bold">{analytics.totalDeals}</p>
             </div>
           </div>
-          <Separator orientation="vertical" className="h-12" />
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-info/10 flex items-center justify-center">
-              <Layers className="h-5 w-5 text-info" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Avg Deal Size</p>
-              <p className="text-lg font-bold">${Math.round(analytics.avgDealSize).toLocaleString()}</p>
-            </div>
-          </div>
+          {role === 'supreme_admin' && (
+            <>
+              <Separator orientation="vertical" className="h-12" />
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-info/10 flex items-center justify-center">
+                  <Layers className="h-5 w-5 text-info" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Avg Deal Size</p>
+                  <p className="text-lg font-bold">${Math.round(analytics.avgDealSize).toLocaleString()}</p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Pipeline Stages */}
