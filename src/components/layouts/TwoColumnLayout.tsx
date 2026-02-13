@@ -44,6 +44,9 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
   const [createdByName, setCreatedByName] = useState<string>("Loading...");
   const [assignedAgentIds, setAssignedAgentIds] = useState<string[]>([]);
   const [transactionType, setTransactionType] = useState<string>(leadData.leadTemperature || "Unassigned");
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
+
+  const refreshStats = () => setStatsRefreshKey(k => k + 1);
 
   useEffect(() => {
     const fetchCreatorAndAssignments = async () => {
@@ -190,7 +193,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         {/* Action Buttons */}
         <Card className="border sticky top-0 z-20 bg-background">
           <CardContent className="p-3">
-            <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} leadId={id} />
+            <TwilioCallInterface leadPhone={leadData.phone} leadName={leadData.name} leadId={id} onCallLogged={refreshStats} />
           </CardContent>
         </Card>
 
@@ -488,10 +491,10 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
       {/* Right: Stats, Follow-up, Activity, Tasks, Appointments, Timeline, Messaging */}
       <div className="space-y-4">
         {/* Follow-up Reminder Banner */}
-        <FollowUpReminder leadId={id} leadName={leadData.name} />
+        <FollowUpReminder leadId={id} leadName={leadData.name} refreshKey={statsRefreshKey} />
 
         {/* Lead Summary Stats */}
-        <LeadQuickStats leadId={id} />
+        <LeadQuickStats leadId={id} refreshKey={statsRefreshKey} />
 
         {/* 1. Activity & History Section */}
         <ActivitySection 
@@ -516,7 +519,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
           messages={messages}
           newMessage={newMessage}
           setNewMessage={setNewMessage}
-          handleSendMessage={handleSendMessage}
+          handleSendMessage={async () => { await handleSendMessage(); refreshStats(); }}
         />
       </div>
 

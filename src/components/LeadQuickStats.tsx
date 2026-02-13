@@ -5,9 +5,10 @@ import { Phone, CheckCircle2, Calendar, Clock, MessageSquare, AlertTriangle } fr
 
 interface LeadQuickStatsProps {
   leadId: string;
+  refreshKey?: number;
 }
 
-export const LeadQuickStats = ({ leadId }: LeadQuickStatsProps) => {
+export const LeadQuickStats = ({ leadId, refreshKey = 0 }: LeadQuickStatsProps) => {
   const [stats, setStats] = useState({
     daysSinceContact: 0,
     totalCalls: 0,
@@ -51,7 +52,7 @@ export const LeadQuickStats = ({ leadId }: LeadQuickStatsProps) => {
     };
 
     fetchStats();
-  }, [leadId]);
+  }, [leadId, refreshKey]);
 
   const formatNextAppointment = (date: string | null) => {
     if (!date) return "None";
