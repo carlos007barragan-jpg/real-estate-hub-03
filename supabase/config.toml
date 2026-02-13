@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.public-property-detail]
 verify_jwt = false
+
+[functions.process-workflows]
+verify_jwt = false
