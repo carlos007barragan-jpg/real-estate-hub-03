@@ -12,9 +12,10 @@ interface TwilioCallInterfaceProps {
   leadName: string;
   leadId?: string;
   onCallEnd?: () => void;
+  onCallLogged?: () => void;
 }
 
-export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd }: TwilioCallInterfaceProps) => {
+export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd, onCallLogged }: TwilioCallInterfaceProps) => {
   const { toast } = useToast();
   const [device, setDevice] = useState<Device | null>(null);
   const [call, setCall] = useState<Call | null>(null);
@@ -328,7 +329,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd }: 
         leadName={leadName}
         leadId={derivedLeadId}
         onSystemCall={startCall}
-        onCallLogged={onCallEnd}
+        onCallLogged={() => { onCallEnd?.(); onCallLogged?.(); }}
       />
     </>
   );

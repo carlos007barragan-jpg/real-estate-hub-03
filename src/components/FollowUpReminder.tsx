@@ -5,9 +5,10 @@ import { AlertTriangle, Clock, ArrowRight } from "lucide-react";
 interface FollowUpReminderProps {
   leadId: string;
   leadName: string;
+  refreshKey?: number;
 }
 
-export const FollowUpReminder = ({ leadId, leadName }: FollowUpReminderProps) => {
+export const FollowUpReminder = ({ leadId, leadName, refreshKey = 0 }: FollowUpReminderProps) => {
   const [daysSinceContact, setDaysSinceContact] = useState<number | null>(null);
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export const FollowUpReminder = ({ leadId, leadName }: FollowUpReminderProps) =>
     };
 
     check();
-  }, [leadId]);
+  }, [leadId, refreshKey]);
 
   if (daysSinceContact === null) return null;
   if (daysSinceContact >= 0 && daysSinceContact < 3) return null;
