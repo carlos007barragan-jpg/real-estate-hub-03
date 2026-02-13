@@ -155,17 +155,19 @@ export default function MultiPhotoUpload({
             {photos.length}/{maxPhotos} photos · First photo is the featured image
           </p>
         </div>
-        {photos.length < maxPhotos && (
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            onClick={() => document.getElementById('photo-upload')?.click()}
-          >
-            <ImagePlus className="h-4 w-4 mr-2" />
-            Add Photos
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant={photos.length >= maxPhotos ? "outline" : "default"}
+          size="sm"
+          onClick={() => {
+            if (photos.length >= maxPhotos) return;
+            document.getElementById('photo-upload')?.click();
+          }}
+          disabled={photos.length >= maxPhotos}
+        >
+          <ImagePlus className="h-4 w-4 mr-2" />
+          {photos.length >= maxPhotos ? `Max ${maxPhotos} Photos` : "Add Photos"}
+        </Button>
       </div>
 
       <Input
@@ -198,15 +200,22 @@ export default function MultiPhotoUpload({
                   />
                 ))}
                 {/* Add More Photos Card */}
-                {photos.length < maxPhotos && (
-                  <div
-                    onClick={() => document.getElementById('photo-upload')?.click()}
-                    className="border-2 border-dashed border-muted-foreground/25 rounded-lg h-32 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-accent/30 transition-colors"
-                  >
-                    <Upload className="h-6 w-6 text-muted-foreground mb-1" />
-                    <p className="text-xs text-muted-foreground">Add More</p>
-                  </div>
-                )}
+                <div
+                  onClick={() => {
+                    if (photos.length >= maxPhotos) return;
+                    document.getElementById('photo-upload')?.click();
+                  }}
+                  className={`border-2 border-dashed rounded-lg h-32 flex flex-col items-center justify-center transition-colors ${
+                    photos.length >= maxPhotos
+                      ? 'border-muted-foreground/15 opacity-50 cursor-not-allowed'
+                      : 'border-muted-foreground/25 cursor-pointer hover:border-primary/50 hover:bg-accent/30'
+                  }`}
+                >
+                  <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                  <p className="text-xs text-muted-foreground">
+                    {photos.length >= maxPhotos ? `Max ${maxPhotos}` : 'Add More'}
+                  </p>
+                </div>
               </div>
             </SortableContext>
           </DndContext>
