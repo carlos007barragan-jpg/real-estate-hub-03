@@ -18,7 +18,7 @@ interface PhotoItem {
 interface MultiPhotoUploadProps {
   existingPhotos?: string[];
   onPhotosChange: (files: File[], existingUrls: string[]) => void;
-  maxPhotos?: number;
+  maxPhotos?: number; // 0 or undefined = unlimited
 }
 
 function SortablePhotoItem({ photo, onRemove, isFeatured }: { photo: PhotoItem; onRemove: (id: string) => void; isFeatured: boolean }) {
@@ -80,7 +80,7 @@ function SortablePhotoItem({ photo, onRemove, isFeatured }: { photo: PhotoItem; 
 export default function MultiPhotoUpload({ 
   existingPhotos = [], 
   onPhotosChange,
-  maxPhotos = 10 
+  maxPhotos = 0 
 }: MultiPhotoUploadProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(() => 
     existingPhotos.map((url, index) => ({
@@ -102,8 +102,9 @@ export default function MultiPhotoUpload({
       const files = Array.from(e.target.files || []);
       if (files.length === 0) return;
       
-      const remainingSlots = maxPhotos - photos.length;
-      if (remainingSlots <= 0) return;
+      const hasLimit = maxPhotos > 0;
+      const remainingSlots = hasLimit ? maxPhotos - photos.length : files.length;
+      if (hasLimit && remainingSlots <= 0) return;
       
       const filesToAdd = files.slice(0, remainingSlots);
 
@@ -152,21 +153,21 @@ export default function MultiPhotoUpload({
         <div>
           <Label className="text-lg font-semibold">Property Photos</Label>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {photos.length}/{maxPhotos} photos · First photo is the featured image
+            {photos.length} photo{photos.length !== 1 ? 's' : ''}{maxPhotos > 0 ? ` / ${maxPhotos}` : ''} · First photo is the featured image
           </p>
         </div>
         <Button
           type="button"
-          variant={photos.length >= maxPhotos ? "outline" : "default"}
+          variant={(maxPhotos > 0 && photos.length >= maxPhotos) ? "outline" : "default"}
           size="sm"
           onClick={() => {
-            if (photos.length >= maxPhotos) return;
+            if (maxPhotos > 0 && photos.length >= maxPhotos) return;
             document.getElementById('photo-upload')?.click();
           }}
-          disabled={photos.length >= maxPhotos}
+          disabled={maxPhotos > 0 && photos.length >= maxPhotos}
         >
           <ImagePlus className="h-4 w-4 mr-2" />
-          {photos.length >= maxPhotos ? `Max ${maxPhotos} Photos` : "Add Photos"}
+          {(maxPhotos > 0 && photos.length >= maxPhotos) ? `Max ${maxPhotos} Photos` : "Add Photos"}
         </Button>
       </div>
 
@@ -202,18 +203,18 @@ export default function MultiPhotoUpload({
                 {/* Add More Photos Card */}
                 <div
                   onClick={() => {
-                    if (photos.length >= maxPhotos) return;
+                    if (maxPhotos > 0 && photos.length >= maxPhotos) return;
                     document.getElementById('photo-upload')?.click();
                   }}
                   className={`border-2 border-dashed rounded-lg h-32 flex flex-col items-center justify-center transition-colors ${
-                    photos.length >= maxPhotos
+                    (maxPhotos > 0 && photos.length >= maxPhotos)
                       ? 'border-muted-foreground/15 opacity-50 cursor-not-allowed'
                       : 'border-muted-foreground/25 cursor-pointer hover:border-primary/50 hover:bg-accent/30'
                   }`}
                 >
                   <Upload className="h-6 w-6 text-muted-foreground mb-1" />
                   <p className="text-xs text-muted-foreground">
-                    {photos.length >= maxPhotos ? `Max ${maxPhotos}` : 'Add More'}
+                    {(maxPhotos > 0 && photos.length >= maxPhotos) ? `Max ${maxPhotos}` : 'Add More'}
                   </p>
                 </div>
               </div>

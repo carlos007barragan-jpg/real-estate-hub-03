@@ -1419,7 +1419,7 @@ export default function Inventory() {
                   setPhotoFiles(files);
                   setExistingPhotoUrls(urls);
                 }}
-                maxPhotos={10}
+                maxPhotos={0}
               />
 
               <DialogFooter>
