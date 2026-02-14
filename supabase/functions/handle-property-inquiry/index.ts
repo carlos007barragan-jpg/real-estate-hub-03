@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
 };
 
 serve(async (req) => {
@@ -28,6 +28,36 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Validate API key if provided
+    const apiKey = req.headers.get('x-api-key');
+    if (apiKey) {
+      const { data: keyRecord, error: keyError } = await supabase
+        .from('organization_api_keys')
+        .select('id, organization_id')
+        .eq('api_key', apiKey)
+        .eq('is_active', true)
+        .single();
+
+      if (keyError || !keyRecord) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid API key' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (organizationId && keyRecord.organization_id !== organizationId) {
+        return new Response(
+          JSON.stringify({ error: 'API key does not match organization' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      await supabase
+        .from('organization_api_keys')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', keyRecord.id);
+    }
 
     // Step 1: Check if lead exists
     const { data: existingLead, error: leadSearchError } = await supabase

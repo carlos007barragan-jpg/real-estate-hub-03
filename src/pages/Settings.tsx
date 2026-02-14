@@ -14,6 +14,7 @@ import { TeamManagement } from "@/components/TeamManagement";
 import { LeadFieldsManager } from "@/components/LeadFieldsManager";
 import { WorkflowBuilder } from "@/components/WorkflowBuilder";
 import { ContactFieldsManager } from "@/components/ContactFieldsManager";
+import { ApiKeysSettings } from "@/components/ApiKeysSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -63,6 +64,7 @@ const Settings = () => {
           {isSupremeAdmin && <TabsTrigger value="workflows">Workflows</TabsTrigger>}
           {isAdmin && <TabsTrigger value="contact-fields">Contact Form</TabsTrigger>}
           {isAdmin && <TabsTrigger value="public-page">Public Page</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="api-keys">API Keys</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
         </TabsList>
@@ -134,6 +136,12 @@ const Settings = () => {
                 Configure Public Page Settings
               </Button>
             </Card>
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="api-keys">
+            <ApiKeysSettings />
           </TabsContent>
         )}
 
