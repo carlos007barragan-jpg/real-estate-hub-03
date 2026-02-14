@@ -12,18 +12,28 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      propertyId, 
-      firstName, 
-      lastName, 
-      email, 
-      phone, 
-      preferredDate, 
-      message,
-      organizationId 
-    } = await req.json();
+    const body = await req.json();
 
-    console.log("Processing property inquiry for:", email);
+    // Support both formats: { name } (new) and { firstName, lastName } (legacy)
+    const firstName = body.firstName || (body.name ? body.name.split(' ')[0] : '');
+    const lastName = body.lastName || (body.name ? body.name.split(' ').slice(1).join(' ') : '');
+    const fullName = body.name || `${firstName} ${lastName}`.trim();
+
+    const {
+      propertyId, property_id,
+      email, phone,
+      preferredDate, preferred_date,
+      message,
+      organizationId, organization_id,
+      inquiry_type,
+    } = body;
+
+    // Normalize field names (snake_case from external app, camelCase from legacy)
+    const propId = propertyId || property_id;
+    const orgId = organizationId || organization_id;
+    const prefDate = preferredDate || preferred_date;
+
+    console.log("Processing property inquiry for:", email, "type:", inquiry_type || 'general');
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -46,7 +56,7 @@ serve(async (req) => {
         );
       }
 
-      if (organizationId && keyRecord.organization_id !== organizationId) {
+      if (orgId && keyRecord.organization_id !== orgId) {
         return new Response(
           JSON.stringify({ error: 'API key does not match organization' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -59,8 +69,8 @@ serve(async (req) => {
         .eq('id', keyRecord.id);
     }
 
-    // Step 1: Check if lead exists
-    const { data: existingLead, error: leadSearchError } = await supabase
+    // Check if lead exists
+    const { data: existingLead } = await supabase
       .from('leads')
       .select('*')
       .or(`email.eq.${email},phone.eq.${phone}`)
@@ -70,24 +80,23 @@ serve(async (req) => {
     let leadId = existingLead?.id;
     let isNewLead = false;
 
-    // Step 2: Create new lead if doesn't exist
+    // Create new lead if doesn't exist
     if (!existingLead) {
       console.log("Creating new lead for:", email);
-      
-      // Get property details
+
       const { data: property } = await supabase
         .from('inventory')
         .select('name, property_address, user_id')
-        .eq('id', propertyId)
+        .eq('id', propId)
         .single();
 
       const { data: newLead, error: createLeadError } = await supabase
         .from('leads')
         .insert({
-          name: `${firstName} ${lastName}`,
+          name: fullName,
           email,
           phone,
-          source: 'Public Property Inquiry',
+          source: inquiry_type === 'showing' ? 'Public Showing Request' : 'Public Property Inquiry',
           status: 'new',
           pipeline_stage: 'New Lead',
           lead_lifecycle: 'Contact',
@@ -102,33 +111,33 @@ serve(async (req) => {
       isNewLead = true;
     }
 
-    // Step 3: Create property inquiry record
+    // Create property inquiry record
     const { error: inquiryError } = await supabase
       .from('property_inquiries')
       .insert({
-        property_id: propertyId,
+        property_id: propId,
         lead_id: leadId,
         first_name: firstName,
         last_name: lastName,
         email,
         phone,
-        preferred_date: preferredDate,
+        preferred_date: prefDate,
         message,
-        organization_id: organizationId,
+        organization_id: orgId,
         status: 'pending'
       });
 
     if (inquiryError) throw inquiryError;
 
-    // Step 4: Get property and assigned agent info
+    // Get property and assigned agent info
     const { data: property } = await supabase
       .from('inventory')
       .select('name, property_address, assigned_agent_id')
-      .eq('id', propertyId)
+      .eq('id', propId)
       .single();
 
-    // Step 5: Create appointment if date provided
-    if (preferredDate && leadId) {
+    // Create appointment if date provided
+    if (prefDate && leadId) {
       const { error: appointmentError } = await supabase
         .from('appointments')
         .insert({
@@ -136,10 +145,10 @@ serve(async (req) => {
           user_id: property?.assigned_agent_id || (await supabase
             .from('profiles')
             .select('user_id')
-            .eq('organization_id', organizationId)
+            .eq('organization_id', orgId)
             .limit(1)
             .single()).data?.user_id,
-          appointment_date: preferredDate,
+          appointment_date: prefDate,
           title: `Showing Request: ${property?.name || property?.property_address}`,
           description: message,
           appointment_type: 'Property Showing',
@@ -149,24 +158,22 @@ serve(async (req) => {
       if (appointmentError) console.error("Error creating appointment:", appointmentError);
     }
 
-    // Step 6: Notify assigned agent or admins
+    // Notify assigned agent or admins
     if (property?.assigned_agent_id) {
-      // Notify assigned agent
       await supabase
         .from('notifications')
         .insert({
           user_id: property.assigned_agent_id,
           type: 'showing_request',
           title: 'New Showing Request',
-          description: `${firstName} ${lastName} requested a showing for ${property.name || property.property_address}`,
+          description: `${fullName} requested a showing for ${property.name || property.property_address}`,
           link: `/leads/${leadId}`
         });
     } else if (isNewLead) {
-      // Create task for admins to assign agent
       const { data: adminProfiles } = await supabase
         .from('profiles')
         .select('user_id')
-        .eq('organization_id', organizationId);
+        .eq('organization_id', orgId);
 
       const { data: adminIds } = await supabase
         .from('user_roles')
@@ -181,7 +188,7 @@ serve(async (req) => {
             lead_id: leadId,
             user_id: admin.user_id,
             title: 'Assign Agent for Property Inquiry',
-            description: `New inquiry from ${firstName} ${lastName} for ${property?.name}. Assign an agent to confirm appointment.`,
+            description: `New inquiry from ${fullName} for ${property?.name}. Assign an agent to confirm appointment.`,
             status: 'pending',
             due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
           });
@@ -189,8 +196,8 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         leadId,
         message: "Thank you! An agent will contact you shortly to confirm your appointment."
       }),
@@ -201,10 +208,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
