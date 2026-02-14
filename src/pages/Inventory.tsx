@@ -476,6 +476,7 @@ export default function Inventory() {
                 title: "Photos Uploaded",
                 description: "All new photos have been successfully uploaded",
               });
+              fetchInventory();
             })
             .catch((error) => {
               console.error('❌ Background photo upload error:', error);
@@ -542,6 +543,7 @@ export default function Inventory() {
                 title: "Photos Uploaded",
                 description: "All photos have been successfully uploaded",
               });
+              fetchInventory();
             })
             .catch((error) => {
               console.error('❌ Background photo upload error:', error);
