@@ -43,11 +43,32 @@ export default function NewLeads() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch unassigned inbound call leads
+      // Get user's organization to fetch all org leads
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+
+      const orgId = profile?.organization_id;
+
+      // Get all user_ids in the organization
+      let orgUserIds: string[] = [user.id];
+      if (orgId) {
+        const { data: orgProfiles } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('organization_id', orgId);
+        if (orgProfiles && orgProfiles.length > 0) {
+          orgUserIds = orgProfiles.map(p => p.user_id);
+        }
+      }
+
+      // Fetch unassigned inbound call leads for the whole org
       const { data: inboundData, error: inboundError } = await supabase
         .from('leads')
         .select(`id, name, email, phone, status, source, created_at, source_call_sid, assigned_to, property_of_interest`)
-        .eq('user_id', user.id)
+        .in('user_id', orgUserIds)
         .eq('is_inbound_call', true)
         .eq('assigned_to', 'unassigned')
         .order('created_at', { ascending: false });
@@ -74,11 +95,11 @@ export default function NewLeads() {
 
       setInboundLeads(mergedInbound);
 
-      // Fetch website leads (unassigned)
+      // Fetch website leads (unassigned) for the whole org
       const { data: webData, error: webError } = await supabase
         .from('leads')
         .select(`id, name, email, phone, status, source, created_at, assigned_to, property_of_interest`)
-        .eq('user_id', user.id)
+        .in('user_id', orgUserIds)
         .eq('source', 'Online Lead - Website')
         .eq('assigned_to', 'unassigned')
         .order('created_at', { ascending: false });
@@ -95,22 +116,22 @@ export default function NewLeads() {
         property_of_interest: l.property_of_interest,
       })));
 
-      // Inbound call stats
+      // Inbound call stats (org-wide)
       const { data: allInbound } = await supabase
         .from('leads')
         .select('id, assigned_to')
-        .eq('user_id', user.id)
+        .in('user_id', orgUserIds)
         .eq('is_inbound_call', true);
 
       const inTotal = allInbound?.length || 0;
       const inAnswered = allInbound?.filter(l => l.assigned_to !== 'unassigned').length || 0;
       setInboundStats({ total: inTotal, answered: inAnswered, unanswered: inTotal - inAnswered });
 
-      // Website lead stats
+      // Website lead stats (org-wide)
       const { data: allWebsite } = await supabase
         .from('leads')
         .select('id, assigned_to')
-        .eq('user_id', user.id)
+        .in('user_id', orgUserIds)
         .eq('source', 'Online Lead - Website');
 
       const webTotal = allWebsite?.length || 0;
