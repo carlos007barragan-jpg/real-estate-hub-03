@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle } from "lucide-react";
+import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle, Globe } from "lucide-react";
 import { LeadFilters } from "@/components/LeadFilters";
 import { CreateLeadDialog } from "@/components/CreateLeadDialog";
 import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
@@ -500,13 +500,21 @@ const Leads = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredLeads.map((lead) => (
+            {filteredLeads.map((lead) => {
+              const isWebsiteLead = lead.source === 'Online Lead - Website';
+              const isNewUnassigned = lead.status === 'new' && (!lead.assignedTo || lead.assignedTo === 'unassigned') && (!lead.transactionType || lead.transactionType === 'Unassigned');
+              const needsAttention = isNewUnassigned && !lead.isDemoData;
+              return (
               <TableRow 
                 key={lead.id} 
                 className={`hover:bg-muted/50 transition-colors cursor-pointer ${
-                  lead.isInboundCall 
-                    ? 'bg-info/10 border-l-4 border-l-info hover:bg-info/20' 
-                    : ''
+                  needsAttention
+                    ? 'bg-warning/10 border-l-4 border-l-warning hover:bg-warning/15'
+                    : lead.isInboundCall 
+                      ? 'bg-info/10 border-l-4 border-l-info hover:bg-info/20' 
+                      : isWebsiteLead
+                        ? 'bg-primary/5 border-l-4 border-l-primary hover:bg-primary/10'
+                        : ''
                 }`}
                 onClick={() => navigate(`/leads/${lead.id}`)}
               >
@@ -516,6 +524,18 @@ const Leads = () => {
                       <Badge variant="outline" className="gap-1 border-info text-info bg-info/5">
                         <PhoneIncoming className="h-3 w-3" />
                         <span className="text-xs">Inbound</span>
+                      </Badge>
+                    )}
+                    {isWebsiteLead && (
+                      <Badge variant="outline" className="gap-1 border-primary text-primary bg-primary/5">
+                        <Globe className="h-3 w-3" />
+                        <span className="text-xs">Website</span>
+                      </Badge>
+                    )}
+                    {needsAttention && (
+                      <Badge variant="outline" className="gap-1 border-warning text-warning bg-warning/5 animate-pulse">
+                        <AlertCircle className="h-3 w-3" />
+                        <span className="text-xs">New</span>
                       </Badge>
                     )}
                     {lead.isDemoData && (
@@ -622,7 +642,8 @@ const Leads = () => {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
           </div>
