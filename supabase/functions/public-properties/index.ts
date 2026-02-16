@@ -96,7 +96,8 @@ Deno.serve(async (req) => {
         arv, acquisition_price, estimated_repairs, calculated_rehab_budget,
         down_payment, interest_rate, payment, max_loan_amount,
         finance_type, transaction_type, market_status, status,
-        share_token, assigned_agent_id, show_on_public_page
+        share_token, assigned_agent_id, show_on_public_page,
+        city, state
       `)
       .in('user_id', userIds)
       .order('created_at', { ascending: false });
@@ -131,6 +132,8 @@ Deno.serve(async (req) => {
     const mappedProperties = (properties || []).map(p => ({
       property_id: p.id,
       address: p.name,
+      city: p.city || null,
+      state: p.state || null,
       price: p.price,
       terms: p.transaction_type,
       bedrooms: p.bedrooms,
