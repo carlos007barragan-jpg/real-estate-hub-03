@@ -30,7 +30,7 @@ serve(async (req) => {
 
     // Normalize field names (snake_case from external app, camelCase from legacy)
     const propId = propertyId || property_id;
-    const orgId = organizationId || organization_id;
+    let orgId = organizationId || organization_id;
     const prefDate = preferredDate || preferred_date;
 
     console.log("Processing property inquiry for:", email, "type:", inquiry_type || 'general');
@@ -50,17 +50,27 @@ serve(async (req) => {
         .single();
 
       if (keyError || !keyRecord) {
+        console.error('Invalid API key provided:', keyError?.message);
         return new Response(
           JSON.stringify({ error: 'Invalid API key' }),
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
+      console.log('API key org:', keyRecord.organization_id, 'Request org:', orgId);
+
       if (orgId && keyRecord.organization_id !== orgId) {
+        console.error('Org mismatch - key org:', keyRecord.organization_id, 'request org:', orgId);
         return new Response(
           JSON.stringify({ error: 'API key does not match organization' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      // Use the API key's organization if none provided in body
+      if (!orgId) {
+        orgId = keyRecord.organization_id;
+        console.log('No org in body, using API key org:', orgId);
       }
 
       await supabase
