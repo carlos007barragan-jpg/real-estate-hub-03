@@ -498,6 +498,7 @@ export type Database = {
           bedrooms: number | null
           calculated_rehab_budget: number | null
           category: string | null
+          city: string | null
           claimed_by_admin_id: string | null
           commission: number | null
           created_at: string
@@ -527,6 +528,7 @@ export type Database = {
           show_on_public_page: boolean | null
           sku: string | null
           sqft: number | null
+          state: string | null
           status: string | null
           transaction_type: string | null
           updated_at: string
@@ -545,6 +547,7 @@ export type Database = {
           bedrooms?: number | null
           calculated_rehab_budget?: number | null
           category?: string | null
+          city?: string | null
           claimed_by_admin_id?: string | null
           commission?: number | null
           created_at?: string
@@ -574,6 +577,7 @@ export type Database = {
           show_on_public_page?: boolean | null
           sku?: string | null
           sqft?: number | null
+          state?: string | null
           status?: string | null
           transaction_type?: string | null
           updated_at?: string
@@ -592,6 +596,7 @@ export type Database = {
           bedrooms?: number | null
           calculated_rehab_budget?: number | null
           category?: string | null
+          city?: string | null
           claimed_by_admin_id?: string | null
           commission?: number | null
           created_at?: string
@@ -621,6 +626,7 @@ export type Database = {
           show_on_public_page?: boolean | null
           sku?: string | null
           sqft?: number | null
+          state?: string | null
           status?: string | null
           transaction_type?: string | null
           updated_at?: string
