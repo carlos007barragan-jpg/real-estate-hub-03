@@ -146,8 +146,8 @@ export function NotificationBell() {
   const filterNotificationsByRole = (notifications: any[], userRole: string | null): any[] => {
     if (!userRole) return [];
     
-    // Admin sees everything
-    if (userRole === 'admin') return notifications;
+    // Admin and supreme_admin see everything
+    if (userRole === 'admin' || userRole === 'supreme_admin') return notifications;
 
     const allowedEventTypes = ROLE_EVENT_PERMISSIONS[userRole] || [];
     const allowedLegacyTypes = LEGACY_TYPE_MAPPING[userRole] || [];
