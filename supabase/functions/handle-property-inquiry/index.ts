@@ -106,12 +106,14 @@ serve(async (req) => {
           name: fullName,
           email,
           phone,
-          source: inquiry_type === 'showing' ? 'Public Showing Request' : 'Public Property Inquiry',
+          source: 'Online Lead - Website',
           status: 'new',
           pipeline_stage: 'New Lead',
           lead_lifecycle: 'Contact',
           property_of_interest: property?.name || property?.property_address,
-          user_id: property?.user_id
+          user_id: property?.user_id,
+          assigned_to: 'unassigned',
+          is_inbound_call: false
         })
         .select()
         .single();
