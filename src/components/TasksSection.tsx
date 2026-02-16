@@ -19,6 +19,10 @@ const QUICK_TASK_PRESETS = [
   { label: "Send Contract", title: "Send contract/docs", description: "Prepare and send required documents or contracts" },
   { label: "Verify Info", title: "Verify lead information", description: "Confirm contact details, budget, and preferences" },
   { label: "Update CRM", title: "Update CRM notes", description: "Add latest interaction notes and update lead status" },
+  { label: "Pre-Approval", title: "Request pre-approval letter", description: "Ask lead to provide mortgage pre-approval documentation" },
+  { label: "Follow Up Offer", title: "Follow up on submitted offer", description: "Check status and response on the submitted offer" },
+  { label: "Negotiate", title: "Negotiate terms", description: "Follow up on counter-offer or negotiate deal terms" },
+  { label: "Title/Escrow", title: "Verify title & escrow status", description: "Check title clearance and escrow progress" },
 ];
 
 interface Task {
