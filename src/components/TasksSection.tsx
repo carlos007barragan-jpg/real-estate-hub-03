@@ -8,8 +8,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, Save, ChevronDown, ChevronRight, AlertTriangle, Clock, User } from "lucide-react";
+import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, Save, ChevronDown, ChevronRight, AlertTriangle, Clock, User, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+const QUICK_TASK_PRESETS = [
+  { label: "Call Back", title: "Call back lead", description: "Follow up with a return phone call" },
+  { label: "Send Text", title: "Send follow-up text", description: "Send a text message to check in" },
+  { label: "Send Email", title: "Send follow-up email", description: "Send an email with property details or updates" },
+  { label: "Schedule Showing", title: "Schedule property showing", description: "Coordinate and confirm a showing appointment" },
+  { label: "Send Contract", title: "Send contract/docs", description: "Prepare and send required documents or contracts" },
+  { label: "Verify Info", title: "Verify lead information", description: "Confirm contact details, budget, and preferences" },
+  { label: "Update CRM", title: "Update CRM notes", description: "Add latest interaction notes and update lead status" },
+];
 
 interface Task {
   id: string;
@@ -321,6 +331,33 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
         {/* Add Task Form */}
         {isAddingTask && (
           <div className="mb-4 p-4 bg-muted/30 rounded-xl border border-dashed border-primary/20 space-y-3">
+            {/* Quick Task Presets */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Zap className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Quick Tasks</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_TASK_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.label}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[11px] px-2.5 rounded-full hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-colors"
+                    onClick={() => {
+                      setNewTaskTitle(preset.title);
+                      setNewTaskDescription(preset.description);
+                    }}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-border/50" />
+
             <Input
               placeholder="What needs to be done?"
               value={newTaskTitle}
