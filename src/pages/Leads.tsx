@@ -336,15 +336,38 @@ const Leads = () => {
         return true;
       })
       .sort((a, b) => {
+        // Priority 1: New unassigned leads needing attention (highest priority)
+        const aNeedsAttention = a.status === 'new' && (!a.assignedTo || a.assignedTo === 'unassigned') && (!a.transactionType || a.transactionType === 'Unassigned') && !a.isDemoData;
+        const bNeedsAttention = b.status === 'new' && (!b.assignedTo || b.assignedTo === 'unassigned') && (!b.transactionType || b.transactionType === 'Unassigned') && !b.isDemoData;
+        if (aNeedsAttention && !bNeedsAttention) return -1;
+        if (!aNeedsAttention && bNeedsAttention) return 1;
+
+        // Priority 2: Website leads
+        const aIsWebsite = a.source === 'Online Lead - Website';
+        const bIsWebsite = b.source === 'Online Lead - Website';
+        if (aIsWebsite && !bIsWebsite) return -1;
+        if (!aIsWebsite && bIsWebsite) return 1;
+
+        // Priority 3: Inbound call leads
+        const aIsInbound = a.isInboundCall;
+        const bIsInbound = b.isInboundCall;
+        if (aIsInbound && !bIsInbound) return -1;
+        if (!aIsInbound && bIsInbound) return 1;
+
+        // Priority 4: My leads
         const aIsMyLead = currentUserPhone && a.agentPhone === currentUserPhone;
         const bIsMyLead = currentUserPhone && b.agentPhone === currentUserPhone;
         if (aIsMyLead && !bIsMyLead) return -1;
         if (!aIsMyLead && bIsMyLead) return 1;
+
+        // Priority 5: Unassigned transaction types
         const aIsUnassigned = !a.transactionType || a.transactionType === "Unassigned";
         const bIsUnassigned = !b.transactionType || b.transactionType === "Unassigned";
         if (aIsUnassigned && !bIsUnassigned) return -1;
         if (!aIsUnassigned && bIsUnassigned) return 1;
-        return 0;
+
+        // Finally sort by date (newest first)
+        return new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime();
       });
   }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly, statusFilter, assignedToFilter, transactionTypeFilter, dateFilter, createdByFilter]);
 
