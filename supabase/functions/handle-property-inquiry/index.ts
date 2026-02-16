@@ -94,11 +94,37 @@ serve(async (req) => {
     if (!existingLead) {
       console.log("Creating new lead for:", email);
 
-      const { data: property } = await supabase
-        .from('inventory')
-        .select('name, property_address, user_id')
-        .eq('id', propId)
-        .single();
+      let propertyName = null;
+      let propertyUserId = null;
+
+      if (propId) {
+        const { data: property } = await supabase
+          .from('inventory')
+          .select('name, property_address, user_id')
+          .eq('id', propId)
+          .single();
+        propertyName = property?.name || property?.property_address;
+        propertyUserId = property?.user_id;
+      }
+
+      // If no user_id from property, find an org admin to assign
+      if (!propertyUserId && orgId) {
+        const { data: orgProfile } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('organization_id', orgId)
+          .limit(1)
+          .single();
+        propertyUserId = orgProfile?.user_id;
+      }
+
+      if (!propertyUserId) {
+        console.error('Cannot create lead: no valid user_id found');
+        return new Response(
+          JSON.stringify({ error: 'Could not determine organization owner for lead assignment' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       const { data: newLead, error: createLeadError } = await supabase
         .from('leads')
@@ -110,8 +136,8 @@ serve(async (req) => {
           status: 'new',
           pipeline_stage: 'New Lead',
           lead_lifecycle: 'Contact',
-          property_of_interest: property?.name || property?.property_address,
-          user_id: property?.user_id,
+          property_of_interest: propertyName,
+          user_id: propertyUserId,
           assigned_to: 'unassigned',
           is_inbound_call: false
         })
