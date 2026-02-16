@@ -1,84 +1,36 @@
 
 
-# Update Public Properties API for External App Integration
+# Make Property Public: 2541 Grandview Blvd
 
 ## Problem
-The other Lovable app expects properties in a specific JSON format, but our `public-properties` endpoint returns data in a different structure. We also need to include all financial details (interest rate, down payment, payment, etc.) and return all property types -- not just owner-financed ones.
+The property "2541 Grandview Blvd, Kansas City, KS 66102" is not appearing on the public website because:
+- `show_on_public_page` is set to `false`
+- `public_approval_status` is set to `pending`
 
-## Changes
+## Current API Behavior
+- The `/public-properties` list endpoint returns ALL properties but flags each with `is_public: true/false`. The external website filters on this flag client-side.
+- The `/public-property-detail` endpoint explicitly requires `show_on_public_page = true` AND `public_approval_status = 'approved'` -- so even direct links to this property would fail.
 
-### 1. Update `public-properties` Edge Function
-Remap the response to match the format the other app expects, while also including all the extra financial fields our CRM tracks:
+## Fix
 
-**Field mapping (ours to theirs):**
-- `id` maps to `property_id`
-- `name` maps to `address` (our "name" field stores the property address)
-- `price` stays as `price`
-- `photo_url` maps to `cover_photo_url`
-- `photo_urls` maps to `photos`
-- `finance_type` maps to `financing_options` (as an array)
-- `transaction_type` maps to `terms`
-- `show_on_public_page` maps to `is_public`
+### 1. Database Update
+Run a migration to set this property as public and approved:
 
-**Additional financial fields included:**
-- `down_payment`, `interest_rate`, `payment`, `max_loan_amount`
-- `arv`, `acquisition_price`, `estimated_repairs`, `calculated_rehab_budget`
-- `market_status`, `status`, `category`
-
-**Filter change:** Remove the requirement for `show_on_public_page = true` and `public_approval_status = 'approved'` so ALL inventory properties for the organization are available to the external app. The `is_public` flag will still be included so the other app can filter if needed.
-
-### 2. Update `handle-property-inquiry` Edge Function
-Accept the payload format the other app sends:
-- `name` (full name) instead of separate `firstName`/`lastName`
-- `inquiry_type` field
-- Map incoming fields to our existing lead/inquiry creation logic
-
-### 3. Tell the Other App What to Expect
-After updating, the response format will be:
-
-```text
-{
-  "properties": [
-    {
-      "property_id": "uuid",
-      "address": "123 Main St",
-      "price": 250000,
-      "terms": "Sale",
-      "bedrooms": 3,
-      "bathrooms": 2,
-      "sqft": 1800,
-      "description": "...",
-      "cover_photo_url": "https://...",
-      "photos": ["https://..."],
-      "is_public": true,
-      "property_type": "House",
-      "financing_options": ["Owner Finance"],
-      "finance_type": "Owner Finance",
-      "down_payment": 25000,
-      "interest_rate": 8.5,
-      "payment": 1500,
-      "max_loan_amount": 200000,
-      "arv": 300000,
-      "acquisition_price": 180000,
-      "estimated_repairs": 20000,
-      "calculated_rehab_budget": 25000,
-      "market_status": "Active",
-      "status": "Available",
-      "category": "Residential",
-      "assigned_agent": { ... }
-    }
-  ],
-  "branding": { ... },
-  "organization_id": "..."
-}
+```sql
+UPDATE inventory
+SET show_on_public_page = true,
+    public_approval_status = 'approved'
+WHERE id = '298546fd-9ddc-42a4-8303-982682bcc80c';
 ```
 
----
+This single change will:
+- Make the property appear with `is_public: true` in the list endpoint (so the external site shows it)
+- Allow the detail endpoint to return the full property data (so clicking into it works)
 
-## Technical Details
+### 2. No Code Changes Needed
+Both edge functions are already working correctly. The issue is purely a data state problem -- the property was never approved for public display.
 
-**Files to modify:**
-- `supabase/functions/public-properties/index.ts` -- remap response fields, remove public-only filter, add all financial columns to the select query
-- `supabase/functions/handle-property-inquiry/index.ts` -- accept both the new payload format (`name` as single field, `inquiry_type`) and the existing format for backward compatibility
-
-**No database changes needed** -- all fields already exist in the inventory table.
+## Technical Notes
+- The `public-properties` endpoint returns all properties and maps `show_on_public_page` to `is_public` for the external app
+- The `public-property-detail` endpoint enforces both `show_on_public_page = true` and `public_approval_status = 'approved'` as server-side filters
+- After this update, the property will appear on the next sync/refresh of the external website
