@@ -168,32 +168,43 @@ serve(async (req) => {
     if (inquiryError) throw inquiryError;
 
     // Get property and assigned agent info
-    const { data: property } = await supabase
-      .from('inventory')
-      .select('name, property_address, assigned_agent_id')
-      .eq('id', propId)
-      .single();
+    let property = null;
+    if (propId) {
+      const { data } = await supabase
+        .from('inventory')
+        .select('name, property_address, assigned_agent_id')
+        .eq('id', propId)
+        .maybeSingle();
+      property = data;
+    }
+
+    const propertyLabel = property?.name || property?.property_address || 'a property';
+    const leadLabel = fullName || email || 'A visitor';
 
     // Create appointment if date provided
     if (prefDate && leadId) {
-      const { error: appointmentError } = await supabase
-        .from('appointments')
-        .insert({
-          lead_id: leadId,
-          user_id: property?.assigned_agent_id || (await supabase
-            .from('profiles')
-            .select('user_id')
-            .eq('organization_id', orgId)
-            .limit(1)
-            .single()).data?.user_id,
-          appointment_date: prefDate,
-          title: `Showing Request: ${property?.name || property?.property_address}`,
-          description: message,
-          appointment_type: 'Property Showing',
-          status: 'pending'
-        });
+      const agentId = property?.assigned_agent_id || (await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('organization_id', orgId)
+        .limit(1)
+        .maybeSingle()).data?.user_id;
 
-      if (appointmentError) console.error("Error creating appointment:", appointmentError);
+      if (agentId) {
+        const { error: appointmentError } = await supabase
+          .from('appointments')
+          .insert({
+            lead_id: leadId,
+            user_id: agentId,
+            appointment_date: prefDate,
+            title: `Showing Request: ${propertyLabel}`,
+            description: message || 'Property showing request',
+            appointment_type: 'Property Showing',
+            status: 'pending'
+          });
+
+        if (appointmentError) console.error("Error creating appointment:", appointmentError);
+      }
     }
 
     // Notify assigned agent or admins
@@ -204,7 +215,7 @@ serve(async (req) => {
           user_id: property.assigned_agent_id,
           type: 'showing_request',
           title: 'New Showing Request',
-          description: `${fullName} requested a showing for ${property.name || property.property_address}`,
+          description: `${leadLabel} requested a showing for ${propertyLabel}`,
           link: `/leads/${leadId}`
         });
     } else if (isNewLead) {
@@ -226,7 +237,7 @@ serve(async (req) => {
             lead_id: leadId,
             user_id: admin.user_id,
             title: 'Assign Agent for Property Inquiry',
-            description: `New inquiry from ${fullName} for ${property?.name}. Assign an agent to confirm appointment.`,
+            description: `New inquiry from ${leadLabel} for ${propertyLabel}. Assign an agent to confirm appointment.`,
             status: 'pending',
             due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
           });
