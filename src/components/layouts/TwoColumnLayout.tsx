@@ -496,7 +496,10 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         {/* Lead Summary Stats */}
         <LeadQuickStats leadId={id} refreshKey={statsRefreshKey} />
 
-        {/* 1. Activity & History Section */}
+        {/* 1. Activity Timeline - at the top */}
+        <ActivityTimeline leadId={id} notes={notes} />
+
+        {/* 2. Activity & History Section */}
         <ActivitySection 
           leadId={id}
           notes={notes}
@@ -505,14 +508,11 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
           handleAddNote={handleAddNote}
         />
 
-        {/* 2. Tasks Section */}
+        {/* 3. Tasks Section */}
         <TasksSection leadId={id} />
 
-        {/* 3. Appointments Section */}
+        {/* 4. Appointments Section */}
         <AppointmentsSection leadId={id} leadName={leadData.name} />
-
-        {/* 4. Activity Timeline */}
-        <ActivityTimeline leadId={id} notes={notes} />
 
         {/* 5. Messaging Section */}
         <MessagingSection 
