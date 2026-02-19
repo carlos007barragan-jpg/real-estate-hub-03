@@ -32,6 +32,7 @@ import OwnerPortalDashboard from "./pages/OwnerPortalDashboard";
 import DispoSheet from "./pages/DispoSheet";
 import OwnerManagement from "./pages/OwnerManagement";
 import PublicPageSettings from "./pages/PublicPageSettings";
+import UpdatePassword from "./pages/UpdatePassword";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,6 +87,7 @@ const App = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/update-password" element={<UpdatePassword />} />
               <Route path="/accept-invite" element={<AcceptInvite />} />
               <Route path="/complete-profile" element={<CompleteProfile />} />
               
