@@ -298,9 +298,22 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
               <DialogHeader><DialogTitle>Schedule Appointment</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Property viewing" required />
-                </div>
+                   <Label htmlFor="title">Title</Label>
+                   <Select value={formData.title} onValueChange={(v) => {
+                     const typeMap: Record<string, string> = { "Property Showing": "property_showing", "First Time Consult": "first_time_consult", "Negotiating Numbers": "negotiating_numbers", "Follow Up Consult": "follow_up_consult", "Sellers Consult": "sellers_consult", "Listing Consult": "listing_consult" };
+                     setFormData({ ...formData, title: v, appointmentType: typeMap[v] || "property_showing", showingAddress: "", multipleProperties: false });
+                   }}>
+                     <SelectTrigger id="title"><SelectValue placeholder="Select appointment title" /></SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="Property Showing">Property Showing</SelectItem>
+                       <SelectItem value="First Time Consult">First Time Consult</SelectItem>
+                       <SelectItem value="Negotiating Numbers">Negotiating Numbers</SelectItem>
+                       <SelectItem value="Follow Up Consult">Follow Up Consult</SelectItem>
+                       <SelectItem value="Sellers Consult">Sellers Consult</SelectItem>
+                       <SelectItem value="Listing Consult">Listing Consult</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Meeting notes..." className="resize-none" />
