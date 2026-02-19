@@ -53,7 +53,7 @@ export default function PropertyDetail() {
   const { isAdmin, role } = useUserRole();
   const [property, setProperty] = useState<PropertyDetail | null>(null);
   const [seller, setSeller] = useState<Seller | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
 
   // Memoize photos array to prevent unnecessary recalculations
@@ -136,7 +136,16 @@ export default function PropertyDetail() {
     setCurrentPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
   };
 
-  // No blocking loading state - render immediately
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading property...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!property) {
     return (
