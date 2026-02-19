@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import heic2any from "heic2any";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -97,7 +98,24 @@ export default function MultiPhotoUpload({
     })
   );
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const convertHeicToJpeg = useCallback(async (file: File): Promise<File> => {
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || 
+      /\.heic$/i.test(file.name) || /\.heif$/i.test(file.name);
+    
+    if (!isHeic) return file;
+
+    try {
+      const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 });
+      const resultBlob = Array.isArray(blob) ? blob[0] : blob;
+      const newName = file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg');
+      return new File([resultBlob], newName, { type: 'image/jpeg' });
+    } catch (err) {
+      console.error('HEIC conversion failed for', file.name, err);
+      return file; // fallback to original
+    }
+  }, []);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const files = Array.from(e.target.files || []);
       if (files.length === 0) return;
@@ -108,7 +126,10 @@ export default function MultiPhotoUpload({
       
       const filesToAdd = files.slice(0, remainingSlots);
 
-      const newPhotos: PhotoItem[] = filesToAdd.map((file, index) => ({
+      // Convert HEIC files to JPEG
+      const convertedFiles = await Promise.all(filesToAdd.map(convertHeicToJpeg));
+
+      const newPhotos: PhotoItem[] = convertedFiles.map((file, index) => ({
         id: `new-${Date.now()}-${index}`,
         file,
         preview: URL.createObjectURL(file),
@@ -174,7 +195,7 @@ export default function MultiPhotoUpload({
       <Input
         id="photo-upload"
         type="file"
-        accept="image/*"
+        accept="image/*,.heic,.heif"
         multiple
         onChange={handleFileSelect}
         className="hidden"
