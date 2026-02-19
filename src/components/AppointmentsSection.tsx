@@ -37,7 +37,8 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
   const [pastOpen, setPastOpen] = useState(false);
 
   const [formData, setFormData] = useState({
-    title: "", description: "", appointmentDate: "", appointmentTime: "09:00", duration: "60", appointmentType: "property_viewing",
+    title: "", description: "", appointmentDate: "", appointmentTime: "09:00", duration: "60", appointmentType: "property_showing",
+    showingAddress: "", multipleProperties: false,
   });
 
   const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
@@ -87,13 +88,18 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
       const appointmentDateTime = new Date(`${formData.appointmentDate}T${formData.appointmentTime}`);
+      // Build description with showing details if applicable
+      let fullDescription = formData.description || "";
+      if (formData.appointmentType === "property_showing" && formData.showingAddress) {
+        fullDescription = `📍 Showing Address: ${formData.showingAddress}${formData.multipleProperties ? "\n🏠 Multiple properties showing" : ""}${fullDescription ? `\n\n${fullDescription}` : ""}`;
+      }
       const { error } = await supabase.from("appointments").insert({
-        title: formData.title, description: formData.description || null, lead_id: leadId, user_id: user.id, created_by_user_id: user.id,
+        title: formData.title, description: fullDescription || null, lead_id: leadId, user_id: user.id, created_by_user_id: user.id,
         appointment_date: appointmentDateTime.toISOString(), duration: parseInt(formData.duration), appointment_type: formData.appointmentType, status: "pending",
       });
       if (error) throw error;
       toast({ title: "Appointment scheduled" });
-      setFormData({ title: "", description: "", appointmentDate: "", appointmentTime: "09:00", duration: "60", appointmentType: "property_viewing" });
+      setFormData({ title: "", description: "", appointmentDate: "", appointmentTime: "09:00", duration: "60", appointmentType: "property_showing", showingAddress: "", multipleProperties: false });
       setIsDialogOpen(false);
       fetchAppointments();
     } catch (error: any) {
@@ -156,7 +162,13 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
 
   const getTypeLabel = (type?: string) => {
     if (!type) return null;
-    const labels: Record<string, string> = { property_viewing: "Viewing", consultation: "Consult", follow_up: "Follow Up", closing: "Closing", other: "Other" };
+    const labels: Record<string, string> = {
+      property_showing: "Property Showing", first_time_consult: "First Time Consult",
+      negotiating_numbers: "Negotiating Numbers", follow_up_consult: "Follow Up Consult",
+      sellers_consult: "Sellers Consult", listing_consult: "Listing Consult",
+      property_viewing: "Viewing", consultation: "Consult", follow_up: "Follow Up",
+      closing: "Closing", other: "Other",
+    };
     return labels[type] || type;
   };
 
@@ -317,21 +329,42 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="appointmentType">Type</Label>
-                    <Select value={formData.appointmentType} onValueChange={(v) => setFormData({ ...formData, appointmentType: v })}>
-                      <SelectTrigger id="appointmentType"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="property_viewing">Property Viewing</SelectItem>
-                        <SelectItem value="consultation">Consultation</SelectItem>
-                        <SelectItem value="follow_up">Follow Up</SelectItem>
-                        <SelectItem value="closing">Closing</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
+                   <div className="space-y-2">
+                     <Label htmlFor="appointmentType">Type</Label>
+                     <Select value={formData.appointmentType} onValueChange={(v) => setFormData({ ...formData, appointmentType: v, showingAddress: "", multipleProperties: false })}>
+                       <SelectTrigger id="appointmentType"><SelectValue /></SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="property_showing">Property Showing</SelectItem>
+                         <SelectItem value="first_time_consult">First Time Consult</SelectItem>
+                         <SelectItem value="negotiating_numbers">Negotiating Numbers</SelectItem>
+                         <SelectItem value="follow_up_consult">Follow Up Consult</SelectItem>
+                         <SelectItem value="sellers_consult">Sellers Consult</SelectItem>
+                         <SelectItem value="listing_consult">Listing Consult</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
+                 </div>
+                 {formData.appointmentType === "property_showing" && (
+                   <div className="space-y-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
+                     <div className="space-y-2">
+                       <Label htmlFor="showingAddress">Address of Property Showing</Label>
+                       <Input id="showingAddress" value={formData.showingAddress} onChange={(e) => setFormData({ ...formData, showingAddress: e.target.value })} placeholder="Enter property address" />
+                     </div>
+                     <div className="flex items-center gap-2">
+                       <Button
+                         type="button"
+                         variant={formData.multipleProperties ? "default" : "outline"}
+                         size="sm"
+                         className="text-xs gap-1.5"
+                         onClick={() => setFormData({ ...formData, multipleProperties: !formData.multipleProperties })}
+                       >
+                         <MapPin className="h-3.5 w-3.5" />
+                         {formData.multipleProperties ? "Showing Multiple Properties ✓" : "Showing Multiple Properties?"}
+                       </Button>
+                     </div>
+                   </div>
+                 )}
+                 <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                   <Button type="submit" disabled={loading}>{loading ? "Creating..." : "Create Appointment"}</Button>
                 </div>
