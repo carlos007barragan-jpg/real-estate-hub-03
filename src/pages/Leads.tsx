@@ -51,6 +51,7 @@ interface Lead {
   downPayment?: string;
   monthlyPayment?: string;
   propertyType?: string;
+  isArchived?: boolean;
 }
 
 
@@ -85,6 +86,7 @@ const Leads = () => {
   const [createdByFilter, setCreatedByFilter] = useState("all");
   const [areaFilter, setAreaFilter] = useState("all");
   const [downPaymentFilter, setDownPaymentFilter] = useState("all");
+  const [archiveFilter, setArchiveFilter] = useState("active");
   const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
   const fetchLeads = useCallback(async () => {
     try {
@@ -137,6 +139,7 @@ const Leads = () => {
           downPayment: lead.down_payment || undefined,
           monthlyPayment: lead.monthly_payment || undefined,
           propertyType: lead.property_type || undefined,
+          isArchived: lead.is_archived || false,
         };
       });
 
@@ -296,6 +299,9 @@ const Leads = () => {
 
     return leads
       .filter((lead) => {
+        // Archive filter
+        if (archiveFilter === "active" && lead.isArchived) return false;
+        if (archiveFilter === "archived" && !lead.isArchived) return false;
         const lowerSearch = searchTerm.toLowerCase();
         const matchesSearch = lead.name.toLowerCase().includes(lowerSearch) ||
           lead.email.toLowerCase().includes(lowerSearch) ||
@@ -405,7 +411,7 @@ const Leads = () => {
         // Finally sort by date (newest first)
         return new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime();
       });
-  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly, statusFilter, assignedToFilter, transactionTypeFilter, dateFilter, createdByFilter, areaFilter, downPaymentFilter]);
+  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly, statusFilter, assignedToFilter, transactionTypeFilter, dateFilter, createdByFilter, areaFilter, downPaymentFilter, archiveFilter]);
 
   const getLeadCountByCategory = useCallback((category: string) => {
     if (category === "all") return leads.length;
@@ -512,6 +518,8 @@ const Leads = () => {
             onAreaFilterChange={setAreaFilter}
             downPaymentFilter={downPaymentFilter}
             onDownPaymentFilterChange={setDownPaymentFilter}
+            archiveFilter={archiveFilter}
+            onArchiveFilterChange={setArchiveFilter}
             availableUsers={availableUsers}
             transactionTypes={transactionTypes}
             createdByOptions={createdByOptions}
