@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.process-workflows]
 verify_jwt = false
+
+[functions.translate-transcription]
+verify_jwt = false
