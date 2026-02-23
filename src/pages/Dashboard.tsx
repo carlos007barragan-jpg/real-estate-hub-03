@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power } from "lucide-react";
+import { AgentMetricDetailDialog, MetricType } from "@/components/AgentMetricDetailDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import {
@@ -114,6 +115,114 @@ const Dashboard = () => {
     calls: any[]; messages: any[]; leads: any[]; appointments: any[]; deals: any[]; tasks: any[];
     userRoles: any[]; agentPhones: any[]; profiles: any[];
   }>({ calls: [], messages: [], leads: [], appointments: [], deals: [], tasks: [], userRoles: [], agentPhones: [], profiles: [] });
+  const [metricDialog, setMetricDialog] = useState<{
+    open: boolean;
+    agentName: string;
+    metricType: MetricType;
+    items: { id: string; leadId: string; leadName: string; title: string; subtitle?: string; date?: string; status?: string }[];
+  }>({ open: false, agentName: "", metricType: "calls", items: [] });
+
+  const openMetricDetail = (agentId: string, agentName: string, metricType: MetricType) => {
+    const { calls, messages, leads, appointments, deals, tasks } = rawPerfData;
+    const now = new Date();
+    let periodStart: Date;
+    if (performancePeriod === 'daily') periodStart = startOfDay(now);
+    else if (performancePeriod === 'weekly') periodStart = startOfWeek(now);
+    else periodStart = startOfMonth(now);
+
+    const filterByPeriod = (data: any[]) => data.filter(item => new Date(item.created_at) >= periodStart);
+
+    // Build a lead name lookup from raw leads + we need all leads for lookups
+    const leadNameMap = new Map<string, string>();
+    leads.forEach((l: any) => leadNameMap.set(l.id, l.name || "Unknown Lead"));
+
+    let items: { id: string; leadId: string; leadName: string; title: string; subtitle?: string; date?: string; status?: string }[] = [];
+
+    switch (metricType) {
+      case "tasksCompleted":
+        items = tasks.filter((t: any) => t.user_id === agentId && t.status === "completed").map((t: any) => ({
+          id: t.id, leadId: t.lead_id, leadName: leadNameMap.get(t.lead_id) || "Unknown Lead",
+          title: t.title, subtitle: t.description, date: t.completed_at || t.due_date, status: "completed",
+        }));
+        break;
+      case "tasksPending":
+        items = tasks.filter((t: any) => t.user_id === agentId && t.status !== "completed").map((t: any) => ({
+          id: t.id, leadId: t.lead_id, leadName: leadNameMap.get(t.lead_id) || "Unknown Lead",
+          title: t.title, subtitle: t.description, date: t.due_date, status: t.status,
+        }));
+        break;
+      case "calls":
+        items = filterByPeriod(calls).filter((c: any) => c.user_id === agentId).map((c: any) => ({
+          id: c.id, leadId: c.lead_id, leadName: leadNameMap.get(c.lead_id) || "Unknown Lead",
+          title: `Call to ${c.to_number}`, subtitle: c.status === "completed" ? `${c.duration || 0}s` : undefined,
+          date: c.created_at, status: c.status,
+        }));
+        break;
+      case "messages":
+        items = filterByPeriod(messages).filter((m: any) => m.user_id === agentId).map((m: any) => ({
+          id: m.id, leadId: m.lead_id, leadName: leadNameMap.get(m.lead_id) || "Unknown Lead",
+          title: `SMS to ${m.to_number}`, subtitle: m.message?.slice(0, 80), date: m.created_at, status: m.status,
+        }));
+        break;
+      case "newLeads":
+        items = filterByPeriod(leads).filter((l: any) => l.user_id === agentId).map((l: any) => ({
+          id: l.id, leadId: l.id, leadName: l.name || "Unknown Lead",
+          title: `Source: ${l.source}`, subtitle: l.phone, date: l.created_at, status: l.status,
+        }));
+        break;
+      case "appointments":
+        items = filterByPeriod(appointments).filter((a: any) => a.user_id === agentId).map((a: any) => ({
+          id: a.id, leadId: a.lead_id, leadName: leadNameMap.get(a.lead_id) || "Unknown Lead",
+          title: a.title, subtitle: a.appointment_type, date: a.appointment_date, status: a.status,
+        }));
+        break;
+      case "appointmentsCompleted":
+        items = filterByPeriod(appointments).filter((a: any) => a.user_id === agentId && a.status === "completed").map((a: any) => ({
+          id: a.id, leadId: a.lead_id, leadName: leadNameMap.get(a.lead_id) || "Unknown Lead",
+          title: a.title, subtitle: a.appointment_type, date: a.appointment_date, status: "completed",
+        }));
+        break;
+      case "propertyShowings":
+        items = filterByPeriod(appointments).filter((a: any) => a.user_id === agentId && a.appointment_type?.toLowerCase().includes("showing")).map((a: any) => ({
+          id: a.id, leadId: a.lead_id, leadName: leadNameMap.get(a.lead_id) || "Unknown Lead",
+          title: a.title, subtitle: a.description, date: a.appointment_date, status: a.status,
+        }));
+        break;
+      case "deals":
+        items = filterByPeriod(deals).filter((d: any) => d.user_id === agentId).map((d: any) => ({
+          id: d.id || d.user_id, leadId: d.id || "", leadName: leadNameMap.get(d.id) || "Deal",
+          title: "Closed Deal", date: d.created_at,
+        }));
+        break;
+    }
+
+    setMetricDialog({ open: true, agentName, metricType, items });
+  };
+
+  // Fetch lead names for metric detail lookups
+  useEffect(() => {
+    const fetchLeadNames = async () => {
+      if (!rawPerfData.calls.length && !rawPerfData.tasks.length) return;
+      const allLeadIds = new Set<string>();
+      rawPerfData.calls.forEach((c: any) => c.lead_id && allLeadIds.add(c.lead_id));
+      rawPerfData.messages.forEach((m: any) => m.lead_id && allLeadIds.add(m.lead_id));
+      rawPerfData.tasks.forEach((t: any) => t.lead_id && allLeadIds.add(t.lead_id));
+      rawPerfData.appointments.forEach((a: any) => a.lead_id && allLeadIds.add(a.lead_id));
+      
+      if (allLeadIds.size === 0) return;
+      const ids = Array.from(allLeadIds);
+      // Fetch in chunks of 100
+      const allLeads: any[] = [];
+      for (let i = 0; i < ids.length; i += 100) {
+        const chunk = ids.slice(i, i + 100);
+        const { data } = await supabase.from("leads").select("id, name, phone, source, status").in("id", chunk);
+        if (data) allLeads.push(...data);
+      }
+      // Update leads in rawPerfData to include names for lookups
+      setRawPerfData(prev => ({ ...prev, leads: [...prev.leads, ...allLeads.filter(l => !prev.leads.find((pl: any) => pl.id === l.id))] }));
+    };
+    fetchLeadNames();
+  }, [rawPerfData.calls.length, rawPerfData.tasks.length]);
 
   // Recompute agent stats when performance period changes
   useEffect(() => {
@@ -1094,15 +1203,15 @@ const Dashboard = () => {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-semibold text-success">{agent.tasksCompleted}</TableCell>
-                  <TableCell className="text-right font-semibold text-warning">{agent.tasksPending}</TableCell>
-                  <TableCell className="text-right font-semibold">{agent.calls}</TableCell>
-                  <TableCell className="text-right font-semibold">{agent.messages}</TableCell>
-                  <TableCell className="text-right font-semibold">{agent.newLeads}</TableCell>
-                  <TableCell className="text-right font-semibold">{agent.appointments}</TableCell>
-                  <TableCell className="text-right font-semibold">{agent.appointmentsCompleted}</TableCell>
-                  <TableCell className="text-right font-semibold">{agent.propertyShowings}</TableCell>
-                  <TableCell className="text-right font-semibold">{agent.deals}</TableCell>
+                  <TableCell className="text-right font-semibold text-success cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "tasksCompleted")}>{agent.tasksCompleted}</TableCell>
+                  <TableCell className="text-right font-semibold text-warning cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "tasksPending")}>{agent.tasksPending}</TableCell>
+                  <TableCell className="text-right font-semibold cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "calls")}>{agent.calls}</TableCell>
+                  <TableCell className="text-right font-semibold cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "messages")}>{agent.messages}</TableCell>
+                  <TableCell className="text-right font-semibold cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "newLeads")}>{agent.newLeads}</TableCell>
+                  <TableCell className="text-right font-semibold cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "appointments")}>{agent.appointments}</TableCell>
+                  <TableCell className="text-right font-semibold cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "appointmentsCompleted")}>{agent.appointmentsCompleted}</TableCell>
+                  <TableCell className="text-right font-semibold cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "propertyShowings")}>{agent.propertyShowings}</TableCell>
+                  <TableCell className="text-right font-semibold cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "deals")}>{agent.deals}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -1110,6 +1219,14 @@ const Dashboard = () => {
         )}
       </Card>
       )}
+
+      <AgentMetricDetailDialog
+        open={metricDialog.open}
+        onOpenChange={(open) => setMetricDialog(prev => ({ ...prev, open }))}
+        agentName={metricDialog.agentName}
+        metricType={metricDialog.metricType}
+        items={metricDialog.items}
+      />
     </div>
   );
 };
