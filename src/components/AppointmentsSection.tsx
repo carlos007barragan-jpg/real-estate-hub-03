@@ -118,6 +118,17 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
     }
   };
 
+  const handleConfirm = async (appointmentId: string) => {
+    try {
+      const { error } = await supabase.from("appointments").update({ status: "confirmed" }).eq("id", appointmentId);
+      if (error) throw error;
+      fetchAppointments();
+      toast({ title: "Appointment confirmed", description: "Client has confirmed attendance" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleReschedule = async () => {
     if (!selectedAppointment) return;
     setLoading(true);
@@ -175,6 +186,7 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "completed": return { label: "Completed", bg: "bg-success/10 text-success border-success/20", border: "border-l-success" };
+      case "confirmed": return { label: "Confirmed", bg: "bg-success/10 text-success border-success/20", border: "border-l-success" };
       case "cancelled": return { label: "Cancelled", bg: "bg-destructive/10 text-destructive border-destructive/20", border: "border-l-destructive" };
       case "no_show": return { label: "No Show", bg: "bg-warning/10 text-warning border-warning/20", border: "border-l-warning" };
       case "rescheduled": return { label: "Rescheduled", bg: "bg-info/10 text-info border-info/20", border: "border-l-info" };
@@ -182,8 +194,8 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
     }
   };
 
-  const upcomingAppointments = appointments.filter(a => isUpcoming(a.appointment_date) || a.status === "pending");
-  const pastAppointments = appointments.filter(a => !isUpcoming(a.appointment_date) && a.status !== "pending");
+  const upcomingAppointments = appointments.filter(a => isUpcoming(a.appointment_date) || a.status === "pending" || a.status === "confirmed");
+  const pastAppointments = appointments.filter(a => !isUpcoming(a.appointment_date) && a.status !== "pending" && a.status !== "confirmed");
 
   const SectionHeader = ({ icon: Icon, label, count, color, isOpen, onToggle }: { icon: any; label: string; count: number; color: string; isOpen: boolean; onToggle: () => void }) => (
     <button onClick={onToggle} className="flex items-center gap-2 w-full py-2 px-1 text-left">
@@ -197,6 +209,8 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
   const renderAppointment = (appointment: Appointment) => {
     const date = new Date(appointment.appointment_date);
     const isPending = appointment.status === "pending";
+    const isConfirmed = appointment.status === "confirmed";
+    const isActionable = isPending || isConfirmed;
     const config = getStatusConfig(appointment.status);
 
     return (
@@ -241,8 +255,26 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
           </div>
         )}
 
-        {/* Actions for pending */}
+        {/* Actions for pending - show Confirm + Reschedule */}
         {isPending && (
+          <div className="flex items-center gap-1 pt-2 border-t border-border/40">
+            <Button variant="outline" size="sm" onClick={() => handleConfirm(appointment.id)} className="h-7 text-xs flex-1 gap-1 border-success/30 text-success hover:bg-success/10 hover:text-success">
+              <CalendarCheck className="h-3 w-3" /> Confirm
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => openRescheduleDialog(appointment)} className="h-7 text-xs flex-1 gap-1 border-info/30 text-info hover:bg-info/10 hover:text-info">
+              <CalendarClock className="h-3 w-3" /> Reschedule
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleMarkNoShow(appointment.id)} className="h-7 text-xs flex-1 gap-1 border-warning/30 text-warning hover:bg-warning/10 hover:text-warning">
+              <XCircle className="h-3 w-3" /> No Show
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => handleDeleteAppointment(appointment.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
+        {/* Actions for confirmed - show Complete + Reschedule */}
+        {isConfirmed && (
           <div className="flex items-center gap-1 pt-2 border-t border-border/40">
             <Button variant="outline" size="sm" onClick={() => openCompleteDialog(appointment)} className="h-7 text-xs flex-1 gap-1 border-success/30 text-success hover:bg-success/10 hover:text-success">
               <CheckCircle className="h-3 w-3" /> Complete
@@ -259,8 +291,8 @@ export const AppointmentsSection = ({ leadId, leadName }: AppointmentsSectionPro
           </div>
         )}
 
-        {/* Delete for non-pending */}
-        {!isPending && (
+        {/* Delete for non-actionable */}
+        {!isActionable && (
           <div className="flex justify-end">
             <Button variant="ghost" size="icon" onClick={() => handleDeleteAppointment(appointment.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
               <Trash2 className="h-3.5 w-3.5" />
