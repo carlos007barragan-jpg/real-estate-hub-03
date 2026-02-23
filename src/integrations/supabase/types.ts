@@ -747,6 +747,7 @@ export type Database = {
           lead_lifecycle: string
           lead_temperature: string | null
           marital_status: string | null
+          monthly_payment: string | null
           name: string
           phone: string
           pipeline: string | null
@@ -793,6 +794,7 @@ export type Database = {
           lead_lifecycle?: string
           lead_temperature?: string | null
           marital_status?: string | null
+          monthly_payment?: string | null
           name: string
           phone: string
           pipeline?: string | null
@@ -839,6 +841,7 @@ export type Database = {
           lead_lifecycle?: string
           lead_temperature?: string | null
           marital_status?: string | null
+          monthly_payment?: string | null
           name?: string
           phone?: string
           pipeline?: string | null
