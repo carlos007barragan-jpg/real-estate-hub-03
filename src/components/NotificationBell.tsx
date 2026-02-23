@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
+import { playNotificationChime } from "@/lib/notificationSound";
 
 interface Notification {
   id: string;
@@ -79,7 +80,8 @@ export function NotificationBell() {
           schema: 'public',
           table: 'notifications',
         },
-        () => {
+      () => {
+          playNotificationChime();
           fetchNotifications();
         }
       )
