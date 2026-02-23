@@ -77,6 +77,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [session, checkRoleAndProfile]);
 
+  // Heartbeat: update last_active_at every 60 seconds while logged in
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const updatePresence = () => {
+      supabase
+        .from('profiles')
+        .update({ last_active_at: new Date().toISOString() })
+        .eq('user_id', session.user.id)
+        .then(({ error }) => {
+          if (error) console.error('Presence heartbeat error:', error);
+        });
+    };
+
+    // Update immediately on login
+    updatePresence();
+    const interval = setInterval(updatePresence, 60_000);
+
+    return () => clearInterval(interval);
+  }, [session?.user?.id]);
+
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
