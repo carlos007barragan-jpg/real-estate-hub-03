@@ -227,6 +227,9 @@ export function NotificationBell() {
         return "📞";
       case "message":
         return "💬";
+      case "internal_chat":
+      case "internal_chat_message":
+        return "💬";
       case "property_update":
       case "wholesale_submission":
       case "inventory_update":
