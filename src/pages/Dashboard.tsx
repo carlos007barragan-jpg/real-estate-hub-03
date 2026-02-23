@@ -264,6 +264,9 @@ const Dashboard = () => {
     const agentPhoneMap = new Map(agentPhones.map((a: any) => [a.user_id, a]));
     const profileMap = new Map(profiles.map((p: any) => [p.user_id, p]));
 
+    // Build a set of online user IDs from live presence data
+    const liveUserIds = new Set(liveUsers.map(u => u.user_id));
+
     const callsCounts = countByUserId(filteredCalls);
     const messagesCounts = countByUserId(filteredMessages);
     const leadsCounts = countByUserId(filteredLeads);
@@ -277,9 +280,8 @@ const Dashboard = () => {
     const agentStatsData = userRoles.map((userRole: any) => {
       const profile = profileMap.get(userRole.user_id);
       const name = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown User";
-      // Consider online if last_active_at is within the last 3 minutes
-      const lastActive = profile?.last_active_at ? new Date(profile.last_active_at).getTime() : 0;
-      const isOnline = Date.now() - lastActive < 3 * 60 * 1000;
+      // Use live presence data for online status (matches Active Users card)
+      const isOnline = liveUserIds.has(userRole.user_id);
 
       return {
         id: userRole.user_id,
@@ -298,7 +300,7 @@ const Dashboard = () => {
     });
 
     setAgentStats(agentStatsData);
-  }, [performancePeriod, rawPerfData]);
+  }, [performancePeriod, rawPerfData, liveUsers]);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -494,8 +496,9 @@ const Dashboard = () => {
     setLiveUsers(Array.from(usersMap.values()));
   };
 
-  // liveUsers from presence is used for the live users list display,
-  // but activeAgents count comes from last_active_at heartbeat in fetchDashboardData
+  useEffect(() => {
+    setActiveAgents(liveUsers.length);
+  }, [liveUsers]);
   const fetchDashboardData = async (adminStatus?: boolean, userPhone?: string | null) => {
     try {
       const user = session?.user;
