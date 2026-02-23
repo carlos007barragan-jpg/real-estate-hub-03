@@ -1170,38 +1170,21 @@ const Dashboard = () => {
                 <TableRow key={agent.id}>
                   <TableCell className="font-medium">{agent.name}</TableCell>
                   <TableCell>
-                    {isAdmin ? (
-                      <button
-                        onClick={() => handleToggleAgentStatus(agent.id, agent.status)}
-                        className="inline-flex items-center gap-1.5 cursor-pointer group"
-                        title={`Click to set ${agent.status === "active" ? "offline" : "active"}`}
-                      >
-                        <Power className={`h-3.5 w-3.5 transition-colors ${
-                          agent.status === "active" ? "text-success" : "text-muted-foreground"
-                        } group-hover:text-primary`} />
-                        <Badge
-                          variant="secondary"
-                          className={`transition-colors ${
-                            agent.status === "active"
-                              ? "bg-success text-success-foreground"
-                              : "bg-muted text-muted-foreground"
-                          } group-hover:ring-2 group-hover:ring-primary/30`}
-                        >
-                          {agent.status}
-                        </Badge>
-                      </button>
-                    ) : (
+                    <div className="inline-flex items-center gap-1.5">
+                      <span className={`h-2 w-2 rounded-full ${
+                        agent.status === "active" ? "bg-success animate-pulse" : "bg-muted-foreground"
+                      }`} />
                       <Badge
                         variant="secondary"
                         className={
                           agent.status === "active"
-                            ? "bg-success text-success-foreground"
+                            ? "bg-success/15 text-success border-success/30"
                             : "bg-muted text-muted-foreground"
                         }
                       >
-                        {agent.status}
+                        {agent.status === "active" ? "Online" : "Offline"}
                       </Badge>
-                    )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right font-semibold text-success cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "tasksCompleted")}>{agent.tasksCompleted}</TableCell>
                   <TableCell className="text-right font-semibold text-warning cursor-pointer hover:underline" onClick={() => openMetricDetail(agent.id, agent.name, "tasksPending")}>{agent.tasksPending}</TableCell>
