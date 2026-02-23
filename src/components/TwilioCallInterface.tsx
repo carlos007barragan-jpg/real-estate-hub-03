@@ -25,6 +25,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd, on
   const [isInitializing, setIsInitializing] = useState(false);
   const [showCallOptions, setShowCallOptions] = useState(false);
   const intervalRef = useRef<number | null>(null);
+  const callDurationRef = useRef<number>(0);
 
   useEffect(() => {
     return () => {
@@ -125,6 +126,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd, on
 
       setCall(outgoingCall);
       setCallDuration(0);
+      callDurationRef.current = 0;
 
       // Log the call initiation
       const { data: { user } } = await supabase.auth.getUser();
@@ -142,6 +144,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd, on
 
       // Start duration counter
       intervalRef.current = window.setInterval(() => {
+        callDurationRef.current += 1;
         setCallDuration(prev => prev + 1);
       }, 1000);
 
@@ -168,8 +171,10 @@ export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd, on
     setCall(incomingCall);
     setIncomingCall(null);
     setCallDuration(0);
+    callDurationRef.current = 0;
     // Start duration counter
     intervalRef.current = window.setInterval(() => {
+      callDurationRef.current += 1;
       setCallDuration(prev => prev + 1);
     }, 1000);
     incomingCall.on('disconnect', () => {
@@ -191,7 +196,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd, on
   };
 
   const endCall = async () => {
-    const finalDuration = callDuration;
+    const finalDuration = callDurationRef.current;
     const currentCallSid = call?.parameters.CallSid;
     
     console.log('Ending call - Duration:', finalDuration, 'seconds, CallSid:', currentCallSid);
@@ -223,6 +228,7 @@ export const TwilioCallInterface = ({ leadPhone, leadName, leadId, onCallEnd, on
     
     setCall(null);
     setCallDuration(0);
+    callDurationRef.current = 0;
     setIsMuted(false);
     
     toast({
