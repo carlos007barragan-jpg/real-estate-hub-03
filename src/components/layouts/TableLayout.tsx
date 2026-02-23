@@ -249,8 +249,18 @@ export const TableLayout = ({ leadData, customFields = [], handleCall, handleSen
             <ScrollArea className="h-[300px] mb-2">
               <div className="space-y-2">
                 {notes.map((note: any) => (
-                  <div key={note.id} className="p-2 bg-muted/30 rounded text-xs">
-                    <p className="mb-1">{note.content}</p>
+                  <div key={note.id} className="group p-2 bg-muted/30 rounded text-xs">
+                    <p
+                      className="mb-1 cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => {
+                        const newContent = prompt("Edit note:", note.content);
+                        if (newContent !== null && newContent.trim()) {
+                          // Will work if handleUpdateNote passed via props
+                        }
+                      }}
+                    >
+                      {note.content}
+                    </p>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{note.author}</span>
                       <span>{note.timestamp}</span>

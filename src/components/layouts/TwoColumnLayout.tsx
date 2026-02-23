@@ -34,7 +34,7 @@ import { LeadQuickStats } from "@/components/LeadQuickStats";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { FollowUpReminder } from "@/components/FollowUpReminder";
 
-export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
+export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, handleUpdateNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -506,6 +506,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
           newNote={newNote}
           setNewNote={setNewNote}
           handleAddNote={handleAddNote}
+          handleUpdateNote={handleUpdateNote}
         />
 
         {/* 3. Tasks Section */}

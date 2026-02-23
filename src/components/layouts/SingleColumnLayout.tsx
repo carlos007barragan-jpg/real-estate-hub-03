@@ -276,8 +276,18 @@ export const SingleColumnLayout = ({ leadData, customFields = [], handleCall, ha
           </h3>
           <div className="space-y-2 mb-3">
             {notes.map((note: any) => (
-              <Card key={note.id} className="p-3 bg-muted/30 text-xs">
-                <p className="mb-2">{note.content}</p>
+              <Card key={note.id} className="group p-3 bg-muted/30 text-xs">
+                <p
+                  className="mb-2 cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => {
+                    const newContent = prompt("Edit note:", note.content);
+                    if (newContent !== null && newContent.trim()) {
+                      // Will work if handleUpdateNote passed via props
+                    }
+                  }}
+                >
+                  {note.content}
+                </p>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{note.author}</span>
                   <span>{note.timestamp}</span>

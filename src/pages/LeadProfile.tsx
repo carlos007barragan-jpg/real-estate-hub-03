@@ -337,6 +337,27 @@ const LeadProfile = () => {
     }
   };
 
+  const handleUpdateNote = async (noteId: string, newContent: string) => {
+    try {
+      const { error } = await supabase
+        .from("notes")
+        .update({ content: newContent, updated_at: new Date().toISOString() })
+        .eq("id", noteId);
+
+      if (error) throw error;
+
+      toast({ title: "Note updated" });
+      await fetchNotes();
+    } catch (error: any) {
+      console.error("Error updating note:", error);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleLifecycleChange = async (newLifecycle: LeadLifecycle) => {
     if (!leadData) return;
     
@@ -663,6 +684,7 @@ const LeadProfile = () => {
           handleCall={handleCall}
           handleSendMessage={handleSendMessage}
           handleAddNote={handleAddNote}
+          handleUpdateNote={handleUpdateNote}
           messages={messages}
           notes={notes}
           newMessage={newMessage}
