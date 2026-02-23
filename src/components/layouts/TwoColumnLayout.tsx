@@ -24,6 +24,7 @@ import { useNavigate } from "react-router-dom";
 import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
 import { EditPropertyDialog } from "@/components/EditPropertyDialog";
+import { EditAreasInterestDialog } from "@/components/EditAreasInterestDialog";
 import { TasksSection } from "@/components/TasksSection";
 import { AppointmentsSection } from "@/components/AppointmentsSection";
 import { DocumentsSection } from "@/components/DocumentsSection";
@@ -39,6 +40,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
   const navigate = useNavigate();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editPropertyDialogOpen, setEditPropertyDialogOpen] = useState(false);
+  const [editAreasDialogOpen, setEditAreasDialogOpen] = useState(false);
   const [additionalInfoOpen, setAdditionalInfoOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(true);
   const [createdByName, setCreatedByName] = useState<string>("Loading...");
@@ -385,6 +387,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
           </CardContent>
         </Card>
 
+        {/* Property Card */}
         <Card className="border">
           <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold">Property</CardTitle>
@@ -398,7 +401,6 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
             </Button>
           </CardHeader>
           <CardContent className="p-3 pt-0 space-y-2 text-xs">
-            {/* Inventory Status Badge */}
             {leadData.inventory_id ? (
               <div className="flex items-center gap-2 mb-2">
                 <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary">
@@ -420,7 +422,6 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                 Not in Inventory
               </Badge>
             )}
-
             {leadData.propertyOfInterest && (
               <div className="flex items-start gap-2">
                 <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
@@ -436,31 +437,57 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
             </div>
             <Separator className="my-2" />
             <div className="grid grid-cols-2 gap-2 text-xs">
-              {leadData.area && (
-                <div>
-                  <span className="text-muted-foreground">Area:</span> {leadData.area}
-                </div>
-              )}
-              <div>
-                <span className="text-muted-foreground">Type:</span> {leadData.propertyInterest.propertyType}
-              </div>
               <div>
                 <span className="text-muted-foreground">Beds:</span> {leadData.propertyInterest.bedrooms} / {leadData.propertyInterest.bathrooms}
               </div>
               <div>
                 <span className="text-muted-foreground">Sqft:</span> {leadData.propertyInterest.sqft}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Areas of Interest & Budget Card */}
+        <Card className="border">
+          <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-semibold">Areas of Interest & Budget</CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setEditAreasDialogOpen(true)}
+            >
+              <Edit className="h-3 w-3" />
+            </Button>
+          </CardHeader>
+          <CardContent className="p-3 pt-0 space-y-2 text-xs">
+            {leadData.area && (
+              <div>
+                <span className="text-muted-foreground">Areas:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {leadData.area.split(",").map((a: string, i: number) => (
+                    <Badge key={i} variant="secondary" className="text-[10px]">
+                      {a.trim()}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <span className="text-muted-foreground">Budget:</span> {leadData.propertyInterest.budget}
               </div>
               {leadData.downPayment && (
                 <div>
-                  <span className="text-muted-foreground">Down:</span> {leadData.downPayment}
+                  <span className="text-muted-foreground">Down Payment:</span> {leadData.downPayment}
                 </div>
               )}
+              <div>
+                <span className="text-muted-foreground">Type:</span> {leadData.propertyInterest.propertyType}
+              </div>
               {leadData.financingType && (
                 <div>
-                  <span className="text-muted-foreground">Finance:</span> 
+                  <span className="text-muted-foreground">Finance:</span>
                   <span className="capitalize ml-1">{leadData.financingType}</span>
                 </div>
               )}
@@ -547,6 +574,20 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
           financingType: leadData.financingType,
           propertyOfInterest: leadData.propertyOfInterest,
           inventoryId: leadData.inventory_id,
+        }}
+        onSaved={onLeadUpdate}
+      />
+
+      <EditAreasInterestDialog
+        open={editAreasDialogOpen}
+        onOpenChange={setEditAreasDialogOpen}
+        leadId={id}
+        currentData={{
+          area: leadData.area,
+          budget: leadData.budget,
+          downPayment: leadData.downPayment,
+          propertyType: leadData.property_type,
+          financingType: leadData.financingType,
         }}
         onSaved={onLeadUpdate}
       />
