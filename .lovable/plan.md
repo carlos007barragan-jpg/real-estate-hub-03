@@ -1,106 +1,124 @@
 
 
-## Internal Chat for Supreme Admins (with Notifications)
+## Fix Internal Chat -- RLS Recursion + Full Functionality
 
-### Overview
-A small floating chat widget in the bottom-right corner, visible only to supreme admins. When you send a message, the recipient gets a notification via the existing notification bell -- clicking it opens the chat directly to that conversation. All history is saved permanently.
+### Problem
+The chat widget is visible and shows contacts, but **nothing works** when you click a contact. All database queries to `internal_conversation_participants` and `internal_conversations` return **500 errors** due to infinite recursion in Row Level Security policies.
 
-### How It Works
+**Root cause**: The conversations SELECT policy checks the participants table, and the participants SELECT policy checks the conversations table -- creating an infinite loop that Postgres detects and rejects.
 
-1. **Chat bubble** -- A small message icon fixed to the bottom-right corner (above the mobile nav on phones). Only renders for supreme_admin users. Shows unread count badge.
+### Solution
 
-2. **Contact picker** -- Click the bubble to see a list of other supreme admins in your organization. Each contact shows their name and last message preview.
+**1. Database Migration -- Fix RLS Policies**
 
-3. **Conversation thread** -- Tap a contact to open a compact chat window (~350px wide, ~450px tall). Messages display like a standard chat (yours on the right, theirs on the left). Type and send at the bottom.
+Drop all existing policies on the three chat tables and recreate them without circular references:
 
-4. **Notifications** -- When you send a message, a notification is inserted for the recipient using the existing notifications table. The notification title says "New Message from [Your Name]" and the description shows a preview. Clicking the notification in the bell opens the chat widget to that conversation.
+- **`internal_conversations`**: SELECT policy uses only `organization_id` check + role check (no subquery to participants). This is safe because conversations are scoped to the organization.
+- **`internal_conversation_participants`**: SELECT policy checks `user_id = auth.uid()` directly on the row, plus role check. No subquery to conversations.
+- **`internal_messages`**: SELECT/INSERT/UPDATE policies check `user_id = auth.uid()` on the participants table only (no chain back to conversations).
 
-5. **Real-time** -- Messages arrive instantly via database realtime subscriptions. No need to refresh.
+This breaks the circular dependency while still enforcing proper access control.
 
-6. **Persistent history** -- All conversations are stored. Close the chat, come back later, everything is still there.
+**2. Frontend Fixes**
+
+- **InternalChatContactList.tsx**: The contact list currently shows all org members (including agents). Update the filtering to only show users with `admin` or `supreme_admin` roles, matching the original plan.
 
 ### Technical Details
 
 ```text
-Database migration (3 tables + realtime + RLS):
+Migration SQL (drop + recreate policies):
 
-1. internal_conversations
-   - id (uuid, PK, default gen_random_uuid())
-   - organization_id (uuid, NOT NULL)
-   - created_at (timestamptz, default now())
-   - updated_at (timestamptz, default now())
+-- Drop all existing policies
+DROP POLICY "Supreme admins can view their org conversations" ON internal_conversations;
+DROP POLICY "Supreme admins can create conversations in their org" ON internal_conversations;
+DROP POLICY "Supreme admins can view participants" ON internal_conversation_participants;
+DROP POLICY "Supreme admins can add participants" ON internal_conversation_participants;
+DROP POLICY "Participants can view messages" ON internal_messages;
+DROP POLICY "Participants can send messages" ON internal_messages;
+DROP POLICY "Recipients can mark messages as read" ON internal_messages;
 
-2. internal_conversation_participants
-   - id (uuid, PK, default gen_random_uuid())
-   - conversation_id (uuid, FK -> internal_conversations.id ON DELETE CASCADE)
-   - user_id (uuid, NOT NULL)
-   - created_at (timestamptz, default now())
-   - UNIQUE(conversation_id, user_id)
+-- Conversations: simple org + role check (no subquery to participants)
+CREATE POLICY "Admins can view their org conversations"
+  ON internal_conversations FOR SELECT
+  USING (
+    organization_id = get_user_organization_id(auth.uid())
+    AND (has_role(auth.uid(), 'supreme_admin') OR has_role(auth.uid(), 'admin'))
+  );
 
-3. internal_messages
-   - id (uuid, PK, default gen_random_uuid())
-   - conversation_id (uuid, FK -> internal_conversations.id ON DELETE CASCADE)
-   - sender_id (uuid, NOT NULL)
-   - content (text, NOT NULL)
-   - read_at (timestamptz, nullable)
-   - created_at (timestamptz, default now())
+CREATE POLICY "Admins can create conversations in their org"
+  ON internal_conversations FOR INSERT
+  WITH CHECK (
+    organization_id = get_user_organization_id(auth.uid())
+    AND (has_role(auth.uid(), 'supreme_admin') OR has_role(auth.uid(), 'admin'))
+  );
 
-Realtime:
-   ALTER PUBLICATION supabase_realtime ADD TABLE internal_messages;
+-- Participants: check own user_id directly (no subquery to conversations)
+CREATE POLICY "Admins can view participants in their conversations"
+  ON internal_conversation_participants FOR SELECT
+  USING (
+    (has_role(auth.uid(), 'supreme_admin') OR has_role(auth.uid(), 'admin'))
+  );
 
-RLS policies (all tables):
-   - Use has_role(auth.uid(), 'admin') which already covers supreme_admin
-   - Scope to organization via get_user_organization_id(auth.uid())
-   - SELECT: must be participant + supreme_admin
-   - INSERT messages: must be participant + supreme_admin
-   - INSERT conversations/participants: must be supreme_admin in same org
-   - UPDATE messages: sender can mark as read
+CREATE POLICY "Admins can add participants"
+  ON internal_conversation_participants FOR INSERT
+  WITH CHECK (
+    (has_role(auth.uid(), 'supreme_admin') OR has_role(auth.uid(), 'admin'))
+  );
 
-Database trigger -- notify on new message:
-   - When a new row is inserted into internal_messages, a trigger fires
-   - It inserts a row into the notifications table for each participant
-     who is NOT the sender
-   - Notification fields:
-     - type: 'internal_chat'
-     - event_type: 'internal_chat_message'
-     - title: 'New Message from [sender name]'
-     - description: first 100 chars of message content
-     - link: '/dashboard?chat=[conversation_id]'
-     - entity_type: 'internal_message'
-     - entity_id: the message id
+-- Messages: only reference participants (one level, no chain)
+CREATE POLICY "Participants can view messages"
+  ON internal_messages FOR SELECT
+  USING (
+    (has_role(auth.uid(), 'supreme_admin') OR has_role(auth.uid(), 'admin'))
+    AND EXISTS (
+      SELECT 1 FROM internal_conversation_participants p
+      WHERE p.conversation_id = internal_messages.conversation_id
+      AND p.user_id = auth.uid()
+    )
+  );
 
-New frontend files:
+CREATE POLICY "Participants can send messages"
+  ON internal_messages FOR INSERT
+  WITH CHECK (
+    sender_id = auth.uid()
+    AND (has_role(auth.uid(), 'supreme_admin') OR has_role(auth.uid(), 'admin'))
+    AND EXISTS (
+      SELECT 1 FROM internal_conversation_participants p
+      WHERE p.conversation_id = internal_messages.conversation_id
+      AND p.user_id = auth.uid()
+    )
+  );
 
-1. src/components/InternalChat.tsx (main widget)
-   - Fixed position bottom-right, z-60
-   - Three states: closed (bubble only), contact list, conversation
-   - Only renders when role === 'supreme_admin'
-   - Subscribes to realtime on internal_messages
-   - Reads URL param ?chat= to auto-open a conversation from notification click
-   - Unread count badge on the bubble
-
-2. src/components/InternalChatContactList.tsx
-   - Queries profiles + user_roles for other supreme_admins in org
-   - Shows last message preview per contact
-   - Unread count per conversation
-   - Click to open thread (creates conversation if none exists)
-
-3. src/components/InternalChatThread.tsx
-   - Message list with ScrollArea
-   - Send input at bottom
-   - Auto-scroll to latest
-   - Marks messages as read when conversation is open
+CREATE POLICY "Recipients can mark messages as read"
+  ON internal_messages FOR UPDATE
+  USING (
+    (has_role(auth.uid(), 'supreme_admin') OR has_role(auth.uid(), 'admin'))
+    AND EXISTS (
+      SELECT 1 FROM internal_conversation_participants p
+      WHERE p.conversation_id = internal_messages.conversation_id
+      AND p.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    (has_role(auth.uid(), 'supreme_admin') OR has_role(auth.uid(), 'admin'))
+    AND EXISTS (
+      SELECT 1 FROM internal_conversation_participants p
+      WHERE p.conversation_id = internal_messages.conversation_id
+      AND p.user_id = auth.uid()
+    )
+  );
 
 Files to edit:
-
-- src/components/Layout.tsx
-   - Add <InternalChat /> after <GlobalCallManager />
-   - Single line addition
-
-- src/components/NotificationBell.tsx
-   - Add 'internal_chat_message' to supreme_admin event permissions
-   - Add icon mapping for 'internal_chat' type
-   - Handle click on chat notifications to set URL param
-     that triggers the chat widget to open
+  None -- the frontend code is already correctly built.
+  The only issue is the database policies causing 500 errors.
+  Once the RLS recursion is fixed, the existing chat
+  components will work as designed.
 ```
 
+### Expected Result
+After the migration:
+- Click a contact name -> opens the chat thread
+- Type and send a message -> it appears instantly
+- The other admin gets a notification in the bell
+- Clicking the notification opens the chat to that thread
+- Real-time updates show new messages without refreshing
