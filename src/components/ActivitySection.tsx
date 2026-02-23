@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Phone, PlusCircle, History, ChevronDown, ChevronRight, StickyNote, Clock, Send } from "lucide-react";
+import { Phone, PlusCircle, History, ChevronDown, ChevronRight, StickyNote, Clock, Send, Pencil, Check, X } from "lucide-react";
 import { CallHistory } from "@/components/CallHistory";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -22,12 +22,15 @@ interface ActivitySectionProps {
   newNote: string;
   setNewNote: (value: string) => void;
   handleAddNote: () => void;
+  handleUpdateNote?: (noteId: string, newContent: string) => void;
 }
 
-export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddNote }: ActivitySectionProps) => {
+export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddNote, handleUpdateNote }: ActivitySectionProps) => {
   const [modificationHistory, setModificationHistory] = useState<{ modifier: string; timestamp: string } | null>(null);
   const [callHistoryOpen, setCallHistoryOpen] = useState(true);
   const [notesOpen, setNotesOpen] = useState(true);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
   const [isAddingNote, setIsAddingNote] = useState(false);
 
   useEffect(() => {
@@ -142,16 +145,70 @@ export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddN
                       key={note.id}
                       className="group relative pl-4 pr-3 py-3 rounded-lg border bg-card transition-all hover:shadow-sm border-l-[3px] border-l-primary"
                     >
-                      <p className="text-sm text-foreground leading-snug">{note.content}</p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
-                        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {note.timestamp}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                          {note.author}
-                        </span>
-                      </div>
+                      {editingNoteId === note.id ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={editingContent}
+                            onChange={(e) => setEditingContent(e.target.value)}
+                            className="min-h-[60px] text-sm resize-none"
+                            autoFocus
+                          />
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs gap-1"
+                              disabled={!editingContent.trim()}
+                              onClick={() => {
+                                handleUpdateNote?.(note.id, editingContent);
+                                setEditingNoteId(null);
+                              }}
+                            >
+                              <Check className="h-3 w-3" /> Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => setEditingNoteId(null)}
+                            >
+                              <X className="h-3 w-3" /> Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p
+                            className="text-sm text-foreground leading-snug cursor-pointer hover:text-primary transition-colors"
+                            onClick={() => {
+                              setEditingNoteId(note.id);
+                              setEditingContent(note.content);
+                            }}
+                            title="Click to edit"
+                          >
+                            {note.content}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              {note.timestamp}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                              {note.author}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => {
+                                setEditingNoteId(note.id);
+                                setEditingContent(note.content);
+                              }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))
                 )}
