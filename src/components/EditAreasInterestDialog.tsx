@@ -179,12 +179,21 @@ export const EditAreasInterestDialog = ({
           {/* Budget */}
           <div className="space-y-2">
             <Label htmlFor="budget">Budget</Label>
-            <Input
-              id="budget"
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-              placeholder="e.g., $200,000 - $350,000"
-            />
+            <Select value={budget} onValueChange={setBudget}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select budget range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Under $100,000">Under $100,000</SelectItem>
+                <SelectItem value="$100,000 - $150,000">$100,000 - $150,000</SelectItem>
+                <SelectItem value="$150,000 - $200,000">$150,000 - $200,000</SelectItem>
+                <SelectItem value="$200,000 - $250,000">$200,000 - $250,000</SelectItem>
+                <SelectItem value="$250,000 - $300,000">$250,000 - $300,000</SelectItem>
+                <SelectItem value="$300,000 - $400,000">$300,000 - $400,000</SelectItem>
+                <SelectItem value="$400,000 - $500,000">$400,000 - $500,000</SelectItem>
+                <SelectItem value="$500,000+">$500,000+</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Down Payment */}
