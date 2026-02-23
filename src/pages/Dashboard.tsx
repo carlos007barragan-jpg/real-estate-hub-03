@@ -494,9 +494,8 @@ const Dashboard = () => {
     setLiveUsers(Array.from(usersMap.values()));
   };
 
-  useEffect(() => {
-    setActiveAgents(liveUsers.length);
-  }, [liveUsers]);
+  // liveUsers from presence is used for the live users list display,
+  // but activeAgents count comes from last_active_at heartbeat in fetchDashboardData
   const fetchDashboardData = async (adminStatus?: boolean, userPhone?: string | null) => {
     try {
       const user = session?.user;
