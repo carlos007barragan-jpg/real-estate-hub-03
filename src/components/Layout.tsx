@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { GlobalCallManager } from "@/components/GlobalCallManager";
 import { NotificationBell } from "@/components/NotificationBell";
+import { InternalChat } from "@/components/InternalChat";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -36,6 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen w-full bg-background pb-20 md:pb-0">
       <GlobalCallManager />
+      <InternalChat />
       
       {/* Desktop Header Navigation */}
       <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-md hidden md:flex">
