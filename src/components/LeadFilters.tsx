@@ -14,6 +14,53 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+const KC_METRO_AREAS = [
+  "Kansas City, MO",
+  "Kansas City, KS",
+  "Independence, MO",
+  "Grandview, MO",
+  "Raytown, MO",
+  "Lee's Summit, MO",
+  "Blue Springs, MO",
+  "Liberty, MO",
+  "Gladstone, MO",
+  "Belton, MO",
+  "Raymore, MO",
+  "North Kansas City, MO",
+  "Grain Valley, MO",
+  "Pleasant Hill, MO",
+  "Oak Grove, MO",
+  "Excelsior Springs, MO",
+  "Harrisonville, MO",
+  "Kearney, MO",
+  "Smithville, MO",
+  "Parkville, MO",
+  "Overland Park, KS",
+  "Olathe, KS",
+  "Lenexa, KS",
+  "Shawnee, KS",
+  "Leawood, KS",
+  "Prairie Village, KS",
+  "Merriam, KS",
+  "Mission, KS",
+  "Edwardsville, KS",
+  "Bonner Springs, KS",
+  "Gardner, KS",
+  "Spring Hill, KS",
+  "De Soto, KS",
+  "Lansing, KS",
+  "Basehor, KS",
+  "Tonganoxie, KS",
+];
+
+const DOWN_PAYMENT_RANGES = [
+  { label: "Under $10k", value: "under-10k" },
+  { label: "$10k - $25k", value: "10k-25k" },
+  { label: "$25k - $50k", value: "25k-50k" },
+  { label: "$50k - $100k", value: "50k-100k" },
+  { label: "$100k+", value: "100k-plus" },
+];
+
 interface LeadFiltersProps {
   showMyLeadsOnly: boolean;
   onShowMyLeadsOnlyChange: (value: boolean) => void;
@@ -27,6 +74,10 @@ interface LeadFiltersProps {
   onDateFilterChange: (value: string) => void;
   createdByFilter: string;
   onCreatedByFilterChange: (value: string) => void;
+  areaFilter: string;
+  onAreaFilterChange: (value: string) => void;
+  downPaymentFilter: string;
+  onDownPaymentFilterChange: (value: string) => void;
   availableUsers: Array<{ id: string; name: string }>;
   transactionTypes: string[];
   createdByOptions: string[];
@@ -45,6 +96,10 @@ export const LeadFilters = ({
   onDateFilterChange,
   createdByFilter,
   onCreatedByFilterChange,
+  areaFilter,
+  onAreaFilterChange,
+  downPaymentFilter,
+  onDownPaymentFilterChange,
   availableUsers,
   transactionTypes,
   createdByOptions,
@@ -56,6 +111,8 @@ export const LeadFilters = ({
     transactionTypeFilter !== "all",
     dateFilter !== "all",
     createdByFilter !== "all",
+    areaFilter !== "all",
+    downPaymentFilter !== "all",
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
@@ -65,6 +122,8 @@ export const LeadFilters = ({
     onTransactionTypeFilterChange("all");
     onDateFilterChange("all");
     onCreatedByFilterChange("all");
+    onAreaFilterChange("all");
+    onDownPaymentFilterChange("all");
   };
 
   return (
@@ -197,6 +256,42 @@ export const LeadFilters = ({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Area of Interest */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Area of Interest</label>
+              <Select value={areaFilter} onValueChange={onAreaFilterChange}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="All Areas" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  <SelectItem value="all">All Areas</SelectItem>
+                  {KC_METRO_AREAS.map((area) => (
+                    <SelectItem key={area} value={area}>
+                      {area}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Down Payment Range */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Down Payment Range</label>
+              <Select value={downPaymentFilter} onValueChange={onDownPaymentFilterChange}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="All Ranges" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Ranges</SelectItem>
+                  {DOWN_PAYMENT_RANGES.map((range) => (
+                    <SelectItem key={range.value} value={range.value}>
+                      {range.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
@@ -225,6 +320,16 @@ export const LeadFilters = ({
       {createdByFilter !== "all" && (
         <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => onCreatedByFilterChange("all")}>
           By: {createdByFilter} <X className="h-3 w-3" />
+        </Badge>
+      )}
+      {areaFilter !== "all" && (
+        <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => onAreaFilterChange("all")}>
+          Area: {areaFilter} <X className="h-3 w-3" />
+        </Badge>
+      )}
+      {downPaymentFilter !== "all" && (
+        <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => onDownPaymentFilterChange("all")}>
+          Down Payment: {DOWN_PAYMENT_RANGES.find(r => r.value === downPaymentFilter)?.label} <X className="h-3 w-3" />
         </Badge>
       )}
     </div>

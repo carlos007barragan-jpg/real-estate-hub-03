@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle, Globe } from "lucide-react";
+import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle, Globe, ChevronDown, ChevronRight, MapPin, DollarSign, Home, CreditCard } from "lucide-react";
 import { LeadFilters } from "@/components/LeadFilters";
 import { CreateLeadDialog } from "@/components/CreateLeadDialog";
 import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
@@ -46,6 +46,11 @@ interface Lead {
   createdBy?: string;
   leadTemperature?: string;
   transactionType?: string;
+  area?: string;
+  budget?: string;
+  downPayment?: string;
+  monthlyPayment?: string;
+  propertyType?: string;
 }
 
 
@@ -78,7 +83,9 @@ const Leads = () => {
   const [transactionTypeFilter, setTransactionTypeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [createdByFilter, setCreatedByFilter] = useState("all");
-
+  const [areaFilter, setAreaFilter] = useState("all");
+  const [downPaymentFilter, setDownPaymentFilter] = useState("all");
+  const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
   const fetchLeads = useCallback(async () => {
     try {
       const { data: leadsData, error: leadsError } = await supabase
@@ -125,6 +132,11 @@ const Leads = () => {
           createdBy,
           leadTemperature: lead.lead_temperature,
           transactionType: lead.lead_temperature || "Unassigned",
+          area: lead.area || undefined,
+          budget: lead.budget || undefined,
+          downPayment: lead.down_payment || undefined,
+          monthlyPayment: lead.monthly_payment || undefined,
+          propertyType: lead.property_type || undefined,
         };
       });
 
@@ -284,8 +296,13 @@ const Leads = () => {
 
     return leads
       .filter((lead) => {
-        const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+        const lowerSearch = searchTerm.toLowerCase();
+        const matchesSearch = lead.name.toLowerCase().includes(lowerSearch) ||
+          lead.email.toLowerCase().includes(lowerSearch) ||
+          (lead.area && lead.area.toLowerCase().includes(lowerSearch)) ||
+          (lead.budget && lead.budget.toLowerCase().includes(lowerSearch)) ||
+          (lead.downPayment && lead.downPayment.toLowerCase().includes(lowerSearch)) ||
+          (lead.monthlyPayment && lead.monthlyPayment.toLowerCase().includes(lowerSearch));
         if (!matchesSearch) return false;
 
         // My Leads filter
@@ -326,6 +343,22 @@ const Leads = () => {
 
         // Created By filter
         if (createdByFilter !== "all" && lead.createdBy !== createdByFilter) return false;
+
+        // Area of Interest filter
+        if (areaFilter !== "all") {
+          if (!lead.area || !lead.area.toLowerCase().includes(areaFilter.toLowerCase())) return false;
+        }
+
+        // Down Payment Range filter
+        if (downPaymentFilter !== "all") {
+          const dpNum = parseFloat((lead.downPayment || "").replace(/[^0-9.]/g, ""));
+          if (isNaN(dpNum)) return false;
+          if (downPaymentFilter === "under-10k" && dpNum >= 10000) return false;
+          if (downPaymentFilter === "10k-25k" && (dpNum < 10000 || dpNum >= 25000)) return false;
+          if (downPaymentFilter === "25k-50k" && (dpNum < 25000 || dpNum >= 50000)) return false;
+          if (downPaymentFilter === "50k-100k" && (dpNum < 50000 || dpNum >= 100000)) return false;
+          if (downPaymentFilter === "100k-plus" && dpNum < 100000) return false;
+        }
 
         // Tab filter
         if (activeTab !== "all") {
@@ -369,7 +402,7 @@ const Leads = () => {
         // Finally sort by date (newest first)
         return new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime();
       });
-  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly, statusFilter, assignedToFilter, transactionTypeFilter, dateFilter, createdByFilter]);
+  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly, statusFilter, assignedToFilter, transactionTypeFilter, dateFilter, createdByFilter, areaFilter, downPaymentFilter]);
 
   const getLeadCountByCategory = useCallback((category: string) => {
     if (category === "all") return leads.length;
@@ -472,6 +505,10 @@ const Leads = () => {
             onDateFilterChange={setDateFilter}
             createdByFilter={createdByFilter}
             onCreatedByFilterChange={setCreatedByFilter}
+            areaFilter={areaFilter}
+            onAreaFilterChange={setAreaFilter}
+            downPaymentFilter={downPaymentFilter}
+            onDownPaymentFilterChange={setDownPaymentFilter}
             availableUsers={availableUsers}
             transactionTypes={transactionTypes}
             createdByOptions={createdByOptions}
@@ -510,6 +547,7 @@ const Leads = () => {
             <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[30px]"></TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Assigned To</TableHead>
@@ -527,9 +565,10 @@ const Leads = () => {
               const isWebsiteLead = lead.source === 'Online Lead - Website';
               const isNewUnassigned = lead.status === 'new' && (!lead.assignedTo || lead.assignedTo === 'unassigned') && (!lead.transactionType || lead.transactionType === 'Unassigned');
               const needsAttention = isNewUnassigned && !lead.isDemoData;
+              const isExpanded = expandedLeads.has(lead.id);
               return (
+              <React.Fragment key={lead.id}>
               <TableRow 
-                key={lead.id} 
                 className={`hover:bg-muted/50 transition-colors cursor-pointer ${
                   needsAttention
                     ? 'bg-warning/10 border-l-4 border-l-warning hover:bg-warning/15'
@@ -541,6 +580,24 @@ const Leads = () => {
                 }`}
                 onClick={() => navigate(`/leads/${lead.id}`)}
               >
+                <TableCell className="w-[30px] px-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedLeads(prev => {
+                        const next = new Set(prev);
+                        if (next.has(lead.id)) next.delete(lead.id);
+                        else next.add(lead.id);
+                        return next;
+                      });
+                    }}
+                  >
+                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </Button>
+                </TableCell>
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     {lead.isInboundCall && (
@@ -665,6 +722,50 @@ const Leads = () => {
                   </div>
                 </TableCell>
               </TableRow>
+              {isExpanded && (
+                <TableRow className="bg-muted/30 hover:bg-muted/40">
+                  <TableCell colSpan={11} className="py-3 px-6">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium">Down Payment</p>
+                          <p className="text-foreground">{lead.downPayment || "—"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium">Budget</p>
+                          <p className="text-foreground">{lead.budget || "—"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium">Monthly Payment</p>
+                          <p className="text-foreground">{lead.monthlyPayment || "—"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium">Areas of Interest</p>
+                          <p className="text-foreground">{lead.area || "—"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Home className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs text-muted-foreground font-medium">Property Type</p>
+                          <p className="text-foreground">{lead.propertyType || "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+              </React.Fragment>
               );
             })}
           </TableBody>
