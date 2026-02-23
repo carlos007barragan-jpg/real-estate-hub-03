@@ -556,8 +556,8 @@ const Leads = () => {
               <TableHead>Assigned To</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Transaction Type</TableHead>
+              <TableHead>Areas of Interest</TableHead>
               <TableHead>Source</TableHead>
-              <TableHead>Value</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Created By</TableHead>
               <TableHead className="w-[50px]"></TableHead>
@@ -684,7 +684,7 @@ const Leads = () => {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{lead.source}</TableCell>
-                <TableCell className="font-semibold text-primary">{lead.value}</TableCell>
+                <TableCell className="text-muted-foreground text-xs max-w-[200px] truncate">{lead.area || "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{lead.date}</TableCell>
                 <TableCell className="text-muted-foreground">{lead.createdBy}</TableCell>
                 <TableCell>
