@@ -67,7 +67,10 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
         .eq("is_active", true)
         .order("display_order", { ascending: true });
       if (data && data.length > 0) {
-        setTemplates(data.map((t: any) => ({ name: t.name, steps: t.steps as unknown as TemplateStep[] })));
+        setTemplates(data.map((t: any) => {
+          const steps = typeof t.steps === 'string' ? JSON.parse(t.steps) : t.steps;
+          return { name: t.name, steps: Array.isArray(steps) ? steps : [] };
+        }));
       }
 
       // Load manual-trigger workflows
@@ -78,14 +81,18 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
         .eq("is_active", true)
         .order("display_order", { ascending: true });
       if (wfData) {
-        setManualWorkflows(wfData.map((w: any) => ({
-          id: w.id,
-          name: w.name,
-          steps: (w.steps as unknown as { action_type: string; day_offset: number; title: string }[]).map(s => ({
-            action_type: s.action_type,
-            day: s.day_offset,
-          })),
-        })));
+        setManualWorkflows(wfData.map((w: any) => {
+          const rawSteps = typeof w.steps === 'string' ? JSON.parse(w.steps) : w.steps;
+          const stepsArr = Array.isArray(rawSteps) ? rawSteps : [];
+          return {
+            id: w.id,
+            name: w.name,
+            steps: stepsArr.map((s: any) => ({
+              action_type: s.action_type,
+              day: s.day_offset ?? s.day ?? 0,
+            })),
+          };
+        }));
       }
     };
     load();
@@ -235,7 +242,7 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
                     >
                       <p className="text-sm font-medium">⚡ {wf.name}</p>
                       <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                        {wf.steps.map((step, i) => (
+                        {(wf.steps ?? []).map((step, i) => (
                           <Badge key={i} variant="secondary" className={`text-[10px] gap-1 ${ACTION_COLORS[step.action_type]}`}>
                             {ACTION_ICONS[step.action_type]}
                             Day {step.day}
@@ -260,7 +267,7 @@ export const ScheduleFollowUpDialog = ({ open, onOpenChange, leadId, leadName, o
                 >
                   <p className="text-sm font-medium">{template.name}</p>
                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                    {template.steps.map((step, i) => (
+                    {(template.steps ?? []).map((step, i) => (
                       <Badge key={i} variant="secondary" className={`text-[10px] gap-1 ${ACTION_COLORS[step.action_type]}`}>
                         {ACTION_ICONS[step.action_type]}
                         Day {step.day}
