@@ -558,6 +558,7 @@ const Leads = () => {
               <TableHead>Transaction Type</TableHead>
               <TableHead>Areas of Interest</TableHead>
               <TableHead>Source</TableHead>
+              <TableHead>Value</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Created By</TableHead>
               <TableHead className="w-[50px]"></TableHead>
@@ -683,8 +684,9 @@ const Leads = () => {
                     {lead.transactionType}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground">{lead.source}</TableCell>
                 <TableCell className="text-muted-foreground text-xs max-w-[200px] truncate">{lead.area || "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{lead.source}</TableCell>
+                <TableCell className="font-semibold text-primary">{lead.value}</TableCell>
                 <TableCell className="text-muted-foreground">{lead.date}</TableCell>
                 <TableCell className="text-muted-foreground">{lead.createdBy}</TableCell>
                 <TableCell>
@@ -727,7 +729,7 @@ const Leads = () => {
               </TableRow>
               {isExpanded && (
                 <TableRow className="bg-muted/30 hover:bg-muted/40">
-                  <TableCell colSpan={11} className="py-3 px-6">
+                  <TableCell colSpan={12} className="py-3 px-6">
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
