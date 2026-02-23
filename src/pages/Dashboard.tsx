@@ -277,8 +277,9 @@ const Dashboard = () => {
     const agentStatsData = userRoles.map((userRole: any) => {
       const profile = profileMap.get(userRole.user_id);
       const name = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown User";
-      const agentPhone = agentPhoneMap.get(userRole.user_id);
-      const isActive = agentPhone?.is_active === true;
+      // Consider online if last_active_at is within the last 3 minutes
+      const lastActive = profile?.last_active_at ? new Date(profile.last_active_at).getTime() : 0;
+      const isOnline = Date.now() - lastActive < 3 * 60 * 1000;
 
       return {
         id: userRole.user_id,
@@ -292,7 +293,7 @@ const Dashboard = () => {
         deals: dealsCounts.get(userRole.user_id) || 0,
         tasksCompleted: tasksCompletedCounts.get(userRole.user_id) || 0,
         tasksPending: tasksPendingCounts.get(userRole.user_id) || 0,
-        status: isActive ? "active" : "offline",
+        status: isOnline ? "active" : "offline",
       } as AgentStats;
     });
 
@@ -611,10 +612,11 @@ const Dashboard = () => {
       groupedTasks.sort((a, b) => a.memberName.localeCompare(b.memberName));
       setPastDueTasksByMember(groupedTasks);
 
-      // Count active team members
-      const activeCount = (allUserRolesResult.data || []).filter(role => {
-        const agentPhone = agentPhoneMap.get(role.user_id);
-        return agentPhone?.is_active === true;
+      // Count active team members (online within last 3 minutes)
+      const now = Date.now();
+      const activeCount = (profilesResult.data || []).filter(p => {
+        const lastActive = p.last_active_at ? new Date(p.last_active_at).getTime() : 0;
+        return now - lastActive < 3 * 60 * 1000;
       }).length;
       setActiveAgents(activeCount);
 
