@@ -69,6 +69,8 @@ interface LeadFiltersProps {
   onAreaFilterChange: (value: string) => void;
   downPaymentFilter: string;
   onDownPaymentFilterChange: (value: string) => void;
+  archiveFilter: string;
+  onArchiveFilterChange: (value: string) => void;
   availableUsers: Array<{ id: string; name: string }>;
   transactionTypes: string[];
   createdByOptions: string[];
@@ -91,6 +93,8 @@ export const LeadFilters = ({
   onAreaFilterChange,
   downPaymentFilter,
   onDownPaymentFilterChange,
+  archiveFilter,
+  onArchiveFilterChange,
   availableUsers,
   transactionTypes,
   createdByOptions,
@@ -104,6 +108,7 @@ export const LeadFilters = ({
     createdByFilter !== "all",
     areaFilter !== "all",
     downPaymentFilter !== "all",
+    archiveFilter !== "active",
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
@@ -115,6 +120,7 @@ export const LeadFilters = ({
     onCreatedByFilterChange("all");
     onAreaFilterChange("all");
     onDownPaymentFilterChange("all");
+    onArchiveFilterChange("active");
   };
 
   return (
@@ -283,6 +289,21 @@ export const LeadFilters = ({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Archive Status */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Archive Status</label>
+              <Select value={archiveFilter} onValueChange={onArchiveFilterChange}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Active" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
@@ -321,6 +342,11 @@ export const LeadFilters = ({
       {downPaymentFilter !== "all" && (
         <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => onDownPaymentFilterChange("all")}>
           Down Payment: {DOWN_PAYMENT_RANGES.find(r => r.value === downPaymentFilter)?.label} <X className="h-3 w-3" />
+        </Badge>
+      )}
+      {archiveFilter !== "active" && (
+        <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => onArchiveFilterChange("active")}>
+          {archiveFilter === "archived" ? "Showing: Archived" : "Showing: All"} <X className="h-3 w-3" />
         </Badge>
       )}
     </div>

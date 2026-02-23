@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, Layers } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, Layers, Archive, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,7 +33,8 @@ const leadLifecycleStages = [
   "Book Consult",
   "Execute Consult",
   "Showings",
-  "Moved to Pipeline"
+  "Moved to Pipeline",
+  "Archived"
 ] as const;
 
 type LeadLifecycle = typeof leadLifecycleStages[number];
@@ -371,6 +372,8 @@ const LeadProfile = () => {
           .update({ 
             lead_lifecycle: newLifecycle,
             last_modified_by: user?.id,
+            is_archived: false,
+            archived_at: null,
           })
           .eq("id", leadData.id);
 
@@ -388,6 +391,12 @@ const LeadProfile = () => {
       }
       return;
     }
+
+    // Handle archiving
+    const isArchiving = newLifecycle === "Archived";
+    const archiveFields = isArchiving
+      ? { is_archived: true, archived_at: new Date().toISOString() }
+      : { is_archived: false, archived_at: null };
     
     try {
       const { error } = await supabase
@@ -395,6 +404,7 @@ const LeadProfile = () => {
         .update({ 
           lead_lifecycle: newLifecycle,
           last_modified_by: user?.id,
+          ...archiveFields,
         })
         .eq("id", leadData.id);
 
@@ -403,8 +413,8 @@ const LeadProfile = () => {
       setCurrentLifecycle(newLifecycle);
       await fetchLead();
       toast({
-        title: "Lead Lifecycle Updated",
-        description: `Lead moved to ${newLifecycle}`,
+        title: isArchiving ? "Lead Archived" : "Lead Lifecycle Updated",
+        description: isArchiving ? `${leadData.name} has been archived` : `Lead moved to ${newLifecycle}`,
       });
     } catch (error: any) {
       toast({
@@ -587,6 +597,31 @@ const LeadProfile = () => {
               >
                 <Layers className="h-4 w-4" />
                 Assign Pipeline
+              </Button>
+            )}
+            {currentLifecycle === "Archived" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleLifecycleChange("Contact")}
+                className="gap-2"
+              >
+                <ArchiveRestore className="h-4 w-4" />
+                Unarchive
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (confirm("Are you sure you want to archive this lead? It will be hidden from active leads.")) {
+                    handleLifecycleChange("Archived");
+                  }
+                }}
+                className="gap-2"
+              >
+                <Archive className="h-4 w-4" />
+                Archive
               </Button>
             )}
           </div>

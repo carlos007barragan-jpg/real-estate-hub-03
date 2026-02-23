@@ -725,6 +725,7 @@ export type Database = {
       leads: {
         Row: {
           agent_phone: string | null
+          archived_at: string | null
           area: string | null
           assigned_to: string | null
           bathrooms: number | null
@@ -740,6 +741,7 @@ export type Database = {
           financing_type: string | null
           id: string
           inventory_id: string | null
+          is_archived: boolean
           is_demo_data: boolean | null
           is_inbound_call: boolean | null
           language_preference: string | null
@@ -772,6 +774,7 @@ export type Database = {
         }
         Insert: {
           agent_phone?: string | null
+          archived_at?: string | null
           area?: string | null
           assigned_to?: string | null
           bathrooms?: number | null
@@ -787,6 +790,7 @@ export type Database = {
           financing_type?: string | null
           id?: string
           inventory_id?: string | null
+          is_archived?: boolean
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
@@ -819,6 +823,7 @@ export type Database = {
         }
         Update: {
           agent_phone?: string | null
+          archived_at?: string | null
           area?: string | null
           assigned_to?: string | null
           bathrooms?: number | null
@@ -834,6 +839,7 @@ export type Database = {
           financing_type?: string | null
           id?: string
           inventory_id?: string | null
+          is_archived?: boolean
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
