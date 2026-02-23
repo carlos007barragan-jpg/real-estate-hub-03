@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "./ui/card";
-import { Phone, Play, Pause, Loader2, PhoneIncoming, PhoneOutgoing, User, FileText, ChevronDown } from "lucide-react";
+import { Phone, Play, Pause, Loader2, PhoneIncoming, PhoneOutgoing, User, FileText, ChevronDown, Languages } from "lucide-react";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,8 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
   const [playingCallId, setPlayingCallId] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
   const [expandedCallId, setExpandedCallId] = useState<string | null>(null);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translatingCallId, setTranslatingCallId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchCallLogs = async () => {
@@ -86,6 +88,35 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
 
   const toggleTranscription = (callId: string) => {
     setExpandedCallId(expandedCallId === callId ? null : callId);
+  };
+
+  const translateTranscription = async (callId: string, text: string) => {
+    if (translations[callId]) {
+      // Toggle off
+      setTranslations(prev => {
+        const next = { ...prev };
+        delete next[callId];
+        return next;
+      });
+      return;
+    }
+    try {
+      setTranslatingCallId(callId);
+      const { data, error } = await supabase.functions.invoke('translate-transcription', {
+        body: { text, targetLanguage: 'English' },
+      });
+      if (error) throw error;
+      setTranslations(prev => ({ ...prev, [callId]: data.translatedText }));
+    } catch (error) {
+      console.error('Translation error:', error);
+      toast({
+        title: "Translation Failed",
+        description: "Could not translate the transcription",
+        variant: "destructive",
+      });
+    } finally {
+      setTranslatingCallId(null);
+    }
   };
 
   const playRecording = async (callId: string, url: string) => {
@@ -248,12 +279,28 @@ export const CallHistory = ({ leadId }: CallHistoryProps) => {
                     </Button>
                     {expandedCallId === log.id && (
                       <div className="mt-2 p-3 bg-muted/50 rounded-lg border">
-                        <div className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
-                          <FileText className="h-3 w-3" />
-                          Call Transcription
+                        <div className="text-xs font-semibold text-foreground mb-2 flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <FileText className="h-3 w-3" />
+                            {translations[log.id] ? 'Translated Transcription' : 'Call Transcription'}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => translateTranscription(log.id, log.transcription!)}
+                            disabled={translatingCallId === log.id}
+                            className="gap-1 h-6 px-2 text-xs"
+                          >
+                            {translatingCallId === log.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Languages className="h-3 w-3" />
+                            )}
+                            {translations[log.id] ? 'Show Original' : 'Translate to English'}
+                          </Button>
                         </div>
                         <div className="text-sm text-foreground leading-relaxed">
-                          {log.transcription}
+                          {translations[log.id] || log.transcription}
                         </div>
                       </div>
                     )}
