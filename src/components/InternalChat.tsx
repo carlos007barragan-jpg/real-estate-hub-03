@@ -3,6 +3,7 @@ import { MessageCircle, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { playNotificationChime } from "@/lib/notificationSound";
 import { InternalChatContactList } from "./InternalChatContactList";
 import { InternalChatThread } from "./InternalChatThread";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +50,10 @@ export function InternalChat() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "internal_messages" },
-        () => countUnread()
+        () => {
+          playNotificationChime();
+          countUnread();
+        }
       )
       .subscribe();
 

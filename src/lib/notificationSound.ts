@@ -1,5 +1,3 @@
-// Pre-generate a short chime as a WAV file in base64
-// This approach is more reliable than Web Audio API for background notifications
 function generateChimeWav(): string {
   const sampleRate = 22050;
   const duration = 0.4;
@@ -7,7 +5,6 @@ function generateChimeWav(): string {
   const buffer = new ArrayBuffer(44 + numSamples * 2);
   const view = new DataView(buffer);
 
-  // WAV header
   const writeString = (offset: number, str: string) => {
     for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
   };
@@ -25,7 +22,6 @@ function generateChimeWav(): string {
   writeString(36, "data");
   view.setUint32(40, numSamples * 2, true);
 
-  // Generate two-tone chime
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
     const envelope1 = Math.max(0, 1 - t / 0.3) * 0.3;
@@ -43,17 +39,47 @@ function generateChimeWav(): string {
 }
 
 let chimeDataUrl: string | null = null;
+let unlockedAudio: HTMLAudioElement | null = null;
+
+// Call this once on any user interaction to "unlock" audio playback
+function ensureAudioUnlocked() {
+  if (unlockedAudio) return;
+  if (!chimeDataUrl) chimeDataUrl = generateChimeWav();
+  unlockedAudio = new Audio(chimeDataUrl);
+  unlockedAudio.volume = 0;
+  unlockedAudio.play().then(() => {
+    unlockedAudio!.pause();
+    unlockedAudio!.currentTime = 0;
+    unlockedAudio!.volume = 0.5;
+  }).catch(() => {});
+}
+
+// Auto-unlock on first user interaction
+if (typeof window !== "undefined") {
+  const unlock = () => {
+    ensureAudioUnlocked();
+    window.removeEventListener("click", unlock);
+    window.removeEventListener("keydown", unlock);
+    window.removeEventListener("touchstart", unlock);
+  };
+  window.addEventListener("click", unlock);
+  window.addEventListener("keydown", unlock);
+  window.addEventListener("touchstart", unlock);
+}
 
 export function playNotificationChime() {
   try {
-    if (!chimeDataUrl) {
-      chimeDataUrl = generateChimeWav();
+    if (!chimeDataUrl) chimeDataUrl = generateChimeWav();
+    
+    if (unlockedAudio) {
+      unlockedAudio.currentTime = 0;
+      unlockedAudio.volume = 0.5;
+      unlockedAudio.play().catch(() => {});
+    } else {
+      const audio = new Audio(chimeDataUrl);
+      audio.volume = 0.5;
+      audio.play().catch(() => {});
     }
-    const audio = new Audio(chimeDataUrl);
-    audio.volume = 0.5;
-    audio.play().catch(() => {
-      // Browser blocked autoplay - this is expected if user hasn't interacted yet
-    });
   } catch (e) {
     // Silently fail
   }
