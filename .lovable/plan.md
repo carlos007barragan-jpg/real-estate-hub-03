@@ -1,36 +1,54 @@
 
 
-# Make Property Public: 2541 Grandview Blvd
+## Enhanced Lead Search, Filters, and Expandable Budget/Interest Info
 
-## Problem
-The property "2541 Grandview Blvd, Kansas City, KS 66102" is not appearing on the public website because:
-- `show_on_public_page` is set to `false`
-- `public_approval_status` is set to `pending`
+### What This Does
+Adds the ability to search and filter leads by their financial info (budget, down payment) and areas of interest directly from the Leads page. Each lead row will also have expandable hidden details showing down payment, budget, and areas of interest -- so you can quickly scan who has money available and where they want to buy, then blast relevant properties to matching clients.
 
-## Current API Behavior
-- The `/public-properties` list endpoint returns ALL properties but flags each with `is_public: true/false`. The external website filters on this flag client-side.
-- The `/public-property-detail` endpoint explicitly requires `show_on_public_page = true` AND `public_approval_status = 'approved'` -- so even direct links to this property would fail.
+### Changes Overview
 
-## Fix
+**1. Database: Add `monthly_payment` column to leads table**
+- The leads table already has `area`, `budget`, `down_payment`, `property_type`, and `financing_type` columns
+- Add a new `monthly_payment` text column for desired monthly payment info
 
-### 1. Database Update
-Run a migration to set this property as public and approved:
+**2. Fetch budget/area data in the Leads page (`src/pages/Leads.tsx`)**
+- Update the Lead interface to include `area`, `budget`, `downPayment`, `monthlyPayment`, and `propertyType`
+- Pull these fields from the database query and map them into the lead objects
+- Update the search logic so typing a city name (e.g., "Independence") or a dollar amount matches against area, budget, and down payment fields
 
-```sql
-UPDATE inventory
-SET show_on_public_page = true,
-    public_approval_status = 'approved'
-WHERE id = '298546fd-9ddc-42a4-8303-982682bcc80c';
+**3. Add Area of Interest and Budget filters (`src/components/LeadFilters.tsx`)**
+- Add an "Area of Interest" dropdown filter populated with the KC metro area cities (same list used in EditAreasInterestDialog)
+- Add a "Down Payment Range" filter with preset ranges (e.g., Under $10k, $10k-$25k, $25k-$50k, $50k-$100k, $100k+)
+- These appear inside the existing Filters popover alongside the current filters
+
+**4. Expandable row detail in the leads table (`src/pages/Leads.tsx`)**
+- Add a small expand/collapse chevron on each lead row
+- When expanded, show a secondary row beneath with: Down Payment, Budget, Monthly Payment, Areas of Interest, and Property Type
+- Hidden by default to keep the table clean -- click to reveal
+
+### Technical Details
+
+```text
+Files to modify:
+  - src/pages/Leads.tsx          (interface, fetch, search, filter logic, expandable rows)
+  - src/components/LeadFilters.tsx (new Area + Down Payment filter dropdowns)
+
+Files to create:
+  (none - all changes fit in existing files)
+
+Database migration:
+  - ALTER TABLE leads ADD COLUMN monthly_payment text;
 ```
 
-This single change will:
-- Make the property appear with `is_public: true` in the list endpoint (so the external site shows it)
-- Allow the detail endpoint to return the full property data (so clicking into it works)
+**Search logic enhancement:**
+The existing search matches on `name` and `email`. It will be extended to also match on `area`, `budget`, `down_payment`, and `monthly_payment` so typing "Independence" shows all leads interested in Independence, and typing "$25,000" shows leads with that budget/down payment.
 
-### 2. No Code Changes Needed
-Both edge functions are already working correctly. The issue is purely a data state problem -- the property was never approved for public display.
+**Filter logic for Area of Interest:**
+Leads store areas as comma-separated text (e.g., "Independence, MO, Kansas City, KS"). The filter will check if the lead's area string contains the selected city.
 
-## Technical Notes
-- The `public-properties` endpoint returns all properties and maps `show_on_public_page` to `is_public` for the external app
-- The `public-property-detail` endpoint enforces both `show_on_public_page = true` and `public_approval_status = 'approved'` as server-side filters
-- After this update, the property will appear on the next sync/refresh of the external website
+**Filter logic for Down Payment:**
+Parse the numeric value from the down payment text field and compare against the selected range bracket.
+
+**Expandable row rendering:**
+Use a local state `Set<string>` tracking which lead IDs are expanded. Clicking the chevron toggles the ID in/out of the set. The expanded detail renders as an additional `TableRow` with a `colSpan` spanning all columns, showing the financial and interest data in a compact layout.
+
