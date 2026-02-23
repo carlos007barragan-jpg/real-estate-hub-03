@@ -42,11 +42,14 @@ const KC_METRO_AREAS = [
 ];
 
 const DOWN_PAYMENT_RANGES = [
-  { label: "Under $10k", value: "under-10k" },
-  { label: "$10k - $25k", value: "10k-25k" },
-  { label: "$25k - $50k", value: "25k-50k" },
-  { label: "$50k - $100k", value: "50k-100k" },
-  { label: "$100k+", value: "100k-plus" },
+  { label: "Under $5,000", value: "under-5k" },
+  { label: "$5,000 - $10,000", value: "5k-10k" },
+  { label: "$10,000 - $15,000", value: "10k-15k" },
+  { label: "$15,000 - $20,000", value: "15k-20k" },
+  { label: "$20,000 - $30,000", value: "20k-30k" },
+  { label: "$30,000 - $50,000", value: "30k-50k" },
+  { label: "$50,000 - $100,000", value: "50k-100k" },
+  { label: "$100,000+", value: "100k-plus" },
 ];
 
 interface LeadFiltersProps {

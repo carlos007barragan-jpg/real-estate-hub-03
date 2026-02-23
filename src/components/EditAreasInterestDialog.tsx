@@ -190,12 +190,21 @@ export const EditAreasInterestDialog = ({
           {/* Down Payment */}
           <div className="space-y-2">
             <Label htmlFor="downPayment">Down Payment Available</Label>
-            <Input
-              id="downPayment"
-              value={downPayment}
-              onChange={(e) => setDownPayment(e.target.value)}
-              placeholder="e.g., $25,000"
-            />
+            <Select value={downPayment} onValueChange={setDownPayment}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select down payment range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Under $5,000">Under $5,000</SelectItem>
+                <SelectItem value="$5,000 - $10,000">$5,000 - $10,000</SelectItem>
+                <SelectItem value="$10,000 - $15,000">$10,000 - $15,000</SelectItem>
+                <SelectItem value="$15,000 - $20,000">$15,000 - $20,000</SelectItem>
+                <SelectItem value="$20,000 - $30,000">$20,000 - $30,000</SelectItem>
+                <SelectItem value="$30,000 - $50,000">$30,000 - $50,000</SelectItem>
+                <SelectItem value="$50,000 - $100,000">$50,000 - $100,000</SelectItem>
+                <SelectItem value="$100,000+">$100,000+</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Property Type */}

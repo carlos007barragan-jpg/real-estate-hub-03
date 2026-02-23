@@ -353,9 +353,12 @@ const Leads = () => {
         if (downPaymentFilter !== "all") {
           const dpNum = parseFloat((lead.downPayment || "").replace(/[^0-9.]/g, ""));
           if (isNaN(dpNum)) return false;
-          if (downPaymentFilter === "under-10k" && dpNum >= 10000) return false;
-          if (downPaymentFilter === "10k-25k" && (dpNum < 10000 || dpNum >= 25000)) return false;
-          if (downPaymentFilter === "25k-50k" && (dpNum < 25000 || dpNum >= 50000)) return false;
+          if (downPaymentFilter === "under-5k" && dpNum >= 5000) return false;
+          if (downPaymentFilter === "5k-10k" && (dpNum < 5000 || dpNum >= 10000)) return false;
+          if (downPaymentFilter === "10k-15k" && (dpNum < 10000 || dpNum >= 15000)) return false;
+          if (downPaymentFilter === "15k-20k" && (dpNum < 15000 || dpNum >= 20000)) return false;
+          if (downPaymentFilter === "20k-30k" && (dpNum < 20000 || dpNum >= 30000)) return false;
+          if (downPaymentFilter === "30k-50k" && (dpNum < 30000 || dpNum >= 50000)) return false;
           if (downPaymentFilter === "50k-100k" && (dpNum < 50000 || dpNum >= 100000)) return false;
           if (downPaymentFilter === "100k-plus" && dpNum < 100000) return false;
         }
