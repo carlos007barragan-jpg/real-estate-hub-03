@@ -1,10 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, User, CalendarCheck, CalendarClock } from "lucide-react";
 import { format, isToday, isTomorrow, isPast } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface CalendarEvent {
   id: string;
@@ -24,6 +26,19 @@ interface UpcomingAppointmentsProps {
 }
 
 export const UpcomingAppointments = ({ events, onEventClick, onRefresh }: UpcomingAppointmentsProps) => {
+  const { toast } = useToast();
+
+  const handleConfirm = async (e: React.MouseEvent, eventId: string) => {
+    e.stopPropagation();
+    try {
+      const { error } = await supabase.from("appointments").update({ status: "confirmed" }).eq("id", eventId);
+      if (error) throw error;
+      toast({ title: "Appointment confirmed" });
+      onRefresh?.();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
   // Real-time subscription for appointment changes
   useEffect(() => {
     const channel = supabase
@@ -95,6 +110,25 @@ export const UpcomingAppointments = ({ events, onEventClick, onRefresh }: Upcomi
                   <User className="h-3 w-3" />
                   <span>{event.resource.agentName}</span>
                 </div>
+                {(event.resource.status === "pending" || event.resource.status === "confirmed") && (
+                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/40">
+                    {event.resource.status === "pending" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => handleConfirm(e, event.id)}
+                        className="h-6 text-[11px] flex-1 gap-1 border-success/30 text-success hover:bg-success/10 hover:text-success"
+                      >
+                        <CalendarCheck className="h-3 w-3" /> Confirm
+                      </Button>
+                    )}
+                    {event.resource.status === "confirmed" && (
+                      <Badge className="bg-success/10 text-success border-success/20 text-[10px]">
+                        ✓ Confirmed
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
