@@ -474,28 +474,31 @@ const Dashboard = () => {
     }
 
     try {
-      const { data: wonLeads, error } = await supabase
-        .from("leads")
-        .select("assigned_to, agent_payout, close_date")
-        .eq("status", "won")
-        .not("agent_payout", "is", null)
-        .gte("close_date", dateFrom.split('T')[0]);
+      // Query commission_entries joined with leads to filter by close_date period
+      const { data: entries, error } = await supabase
+        .from("commission_entries")
+        .select("agent_name, payout_amount, lead_id, created_at");
 
       if (error) throw error;
 
-      // Group payouts by assigned_to (agent name)
-      const payoutMap = new Map<string, { amount: number; deals: number }>();
-      (wonLeads || []).forEach((lead: any) => {
-        const agentName = lead.assigned_to || "Unassigned";
-        const amount = parseFloat(lead.agent_payout || "0");
+      // Filter entries by period using created_at
+      const filtered = (entries || []).filter(e => new Date(e.created_at) >= new Date(dateFrom));
+
+      // Group payouts by agent name
+      const payoutMap = new Map<string, { amount: number; leadIds: Set<string> }>();
+      filtered.forEach((entry: any) => {
+        const agentName = entry.agent_name || "Unassigned";
+        const amount = Number(entry.payout_amount || 0);
         if (amount > 0) {
-          const existing = payoutMap.get(agentName) || { amount: 0, deals: 0 };
-          payoutMap.set(agentName, { amount: existing.amount + amount, deals: existing.deals + 1 });
+          const existing = payoutMap.get(agentName) || { amount: 0, leadIds: new Set<string>() };
+          existing.amount += amount;
+          existing.leadIds.add(entry.lead_id);
+          payoutMap.set(agentName, existing);
         }
       });
 
       const data: PayoutData[] = Array.from(payoutMap.entries())
-        .map(([name, { amount, deals }]) => ({ name, amount, deals }))
+        .map(([name, { amount, leadIds }]) => ({ name, amount, deals: leadIds.size }))
         .sort((a, b) => b.amount - a.amount);
 
       setPayoutsData(data);
@@ -632,10 +635,10 @@ const Dashboard = () => {
         supabase.from("tasks").select("*").or(`due_date.gte.${todayStart.toISOString()},and(due_date.lt.${todayStart.toISOString()},status.neq.completed)`).order("due_date", { ascending: true }),
         // appointments: fetch full month
         supabase.from("appointments").select("*").gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString()),
-        // deals (leads with close_date): fetch full month
+        // deals (leads with close_date): filter by close_date instead of created_at
         !isUserAdmin && currentPhone
-          ? supabase.from("leads").select("user_id, created_at").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).not("close_date", "is", null).gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString())
-          : supabase.from("leads").select("user_id, created_at").not("close_date", "is", null).gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString()),
+          ? supabase.from("leads").select("user_id, created_at, close_date").or(`agent_phone.eq.${currentPhone},agent_phone.is.null`).not("close_date", "is", null).gte("close_date", monthStart.toISOString().split('T')[0]).lte("close_date", monthEnd.toISOString().split('T')[0])
+          : supabase.from("leads").select("user_id, created_at, close_date").not("close_date", "is", null).gte("close_date", monthStart.toISOString().split('T')[0]).lte("close_date", monthEnd.toISOString().split('T')[0]),
       ]);
 
       // Filter to weekly for summary cards
