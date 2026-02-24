@@ -93,6 +93,11 @@ interface AppointmentsData {
   count: number;
 }
 
+interface ShowingsData {
+  name: string;
+  count: number;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { session, isAdmin: cachedIsAdmin, role } = useAuth();
@@ -112,7 +117,8 @@ const Dashboard = () => {
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [dealsData, setDealsData] = useState<DealsData[]>([]);
   const [appointmentsData, setAppointmentsData] = useState<AppointmentsData[]>([]);
-  const [chartView, setChartView] = useState<'daily' | 'monthly' | 'ytd'>('monthly');
+  const [chartView, setChartView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [showingsData, setShowingsData] = useState<ShowingsData[]>([]);
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -654,73 +660,129 @@ const Dashboard = () => {
     }
   };
 
+  const getChartDateKey = (date: Date): string => {
+    if (chartView === 'daily') {
+      return format(date, 'MMM d');
+    } else if (chartView === 'weekly') {
+      // ISO week: use the Monday of that week as label
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(date);
+      monday.setDate(diff);
+      return `Week of ${format(monday, 'MMM d')}`;
+    } else if (chartView === 'monthly') {
+      return format(date, 'MMM yyyy');
+    } else {
+      return format(date, 'yyyy');
+    }
+  };
+
+  const getChartSortKey = (date: Date): string => {
+    if (chartView === 'daily') {
+      return format(date, 'yyyy-MM-dd');
+    } else if (chartView === 'weekly') {
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(date);
+      monday.setDate(diff);
+      return format(monday, 'yyyy-MM-dd');
+    } else if (chartView === 'monthly') {
+      return format(date, 'yyyy-MM');
+    } else {
+      return format(date, 'yyyy');
+    }
+  };
+
   const fetchChartsData = async () => {
     if (!session?.user) return;
 
     const today = new Date();
-    const startOfYear = new Date(today.getFullYear(), 0, 1);
-    const startOfMonthDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    const last7Days = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    let dateFrom: string | null = null;
 
-    const dateFrom = chartView === 'ytd' ? startOfYear.toISOString() : 
-         chartView === 'monthly' ? startOfMonthDate.toISOString() : 
-         last7Days.toISOString();
+    if (chartView === 'daily') {
+      dateFrom = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    } else if (chartView === 'weekly') {
+      dateFrom = new Date(today.getTime() - 12 * 7 * 24 * 60 * 60 * 1000).toISOString();
+    } else if (chartView === 'monthly') {
+      const twelveMonthsAgo = new Date(today);
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      dateFrom = twelveMonthsAgo.toISOString();
+    }
+    // yearly: dateFrom stays null (all data)
 
-    // Fetch closed deals and confirmed appointments in parallel
-    const [closedLeadsRes, confirmedApptsRes] = await Promise.all([
-      supabase
-        .from("leads")
-        .select("*")
-        .not("close_date", "is", null)
-        .gte("close_date", dateFrom),
-      supabase
-        .from("appointments")
-        .select("id, appointment_date, status")
-        .order("appointment_date", { ascending: true }),
+    // Build queries
+    let closedLeadsQuery = supabase
+      .from("leads")
+      .select("*")
+      .not("close_date", "is", null);
+    if (dateFrom) closedLeadsQuery = closedLeadsQuery.gte("close_date", dateFrom);
+
+    let apptsQuery = supabase
+      .from("appointments")
+      .select("id, appointment_date, appointment_type, status")
+      .order("appointment_date", { ascending: true });
+    if (dateFrom) apptsQuery = apptsQuery.gte("appointment_date", dateFrom);
+
+    const [closedLeadsRes, apptsRes] = await Promise.all([
+      closedLeadsQuery,
+      apptsQuery,
     ]);
 
+    // Process revenue & deals
     const closedLeads = closedLeadsRes.data;
     if (closedLeads) {
-      const revenueMap = new Map<string, number>();
-      const dealsMap = new Map<string, number>();
+      const revenueMap = new Map<string, { sortKey: string; amount: number }>();
+      const dealsMap = new Map<string, { sortKey: string; deals: number }>();
 
       closedLeads.forEach(lead => {
         const closeDate = new Date(lead.close_date);
-        let key: string;
-        
-        if (chartView === 'daily') {
-          key = closeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        } else {
-          key = closeDate.toLocaleDateString('en-US', { month: 'short' });
-        }
-
+        const key = getChartDateKey(closeDate);
+        const sortKey = getChartSortKey(closeDate);
         const commission = parseFloat(lead.commission || '0');
-        revenueMap.set(key, (revenueMap.get(key) || 0) + commission);
-        dealsMap.set(key, (dealsMap.get(key) || 0) + 1);
+
+        const rev = revenueMap.get(key);
+        revenueMap.set(key, { sortKey, amount: (rev?.amount || 0) + commission });
+
+        const deal = dealsMap.get(key);
+        dealsMap.set(key, { sortKey, deals: (deal?.deals || 0) + 1 });
       });
 
-      setRevenueData(Array.from(revenueMap.entries()).map(([name, amount]) => ({ name, amount })));
-      setDealsData(Array.from(dealsMap.entries()).map(([name, deals]) => ({ name, deals })));
+      const sortedRevenue = Array.from(revenueMap.entries())
+        .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
+      setRevenueData(sortedRevenue.map(([name, { amount }]) => ({ name, amount })));
+
+      const sortedDeals = Array.from(dealsMap.entries())
+        .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
+      setDealsData(sortedDeals.map(([name, { deals }]) => ({ name, deals })));
     }
 
-    // Process all appointments grouped by month (past + future)
-    const allAppts = confirmedApptsRes.data;
+    // Process appointments & showings
+    const allAppts = apptsRes.data;
     if (allAppts) {
-      const countMap = new Map<string, number>();
+      const countMap = new Map<string, { sortKey: string; count: number }>();
+      const showingsMap = new Map<string, { sortKey: string; count: number }>();
 
       allAppts.forEach(apt => {
         const date = new Date(apt.appointment_date);
-        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        countMap.set(key, (countMap.get(key) || 0) + 1);
+        const key = getChartDateKey(date);
+        const sortKey = getChartSortKey(date);
+
+        const existing = countMap.get(key);
+        countMap.set(key, { sortKey, count: (existing?.count || 0) + 1 });
+
+        if (apt.appointment_type?.toLowerCase().includes('showing')) {
+          const s = showingsMap.get(key);
+          showingsMap.set(key, { sortKey, count: (s?.count || 0) + 1 });
+        }
       });
 
-      // Sort by date key and format for display
-      const sorted = Array.from(countMap.entries()).sort(([a], [b]) => a.localeCompare(b));
-      setAppointmentsData(sorted.map(([key, count]) => {
-        const [year, month] = key.split('-');
-        const d = new Date(parseInt(year), parseInt(month) - 1);
-        return { name: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), count };
-      }));
+      const sortedAppts = Array.from(countMap.entries())
+        .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
+      setAppointmentsData(sortedAppts.map(([name, { count }]) => ({ name, count })));
+
+      const sortedShowings = Array.from(showingsMap.entries())
+        .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
+      setShowingsData(sortedShowings.map(([name, { count }]) => ({ name, count })));
     }
   };
 
