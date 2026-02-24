@@ -865,16 +865,22 @@ export type Database = {
           bathrooms: number | null
           bedrooms: number | null
           budget: string | null
+          cap_rate: string | null
           close_date: string | null
+          commercial_property_type: string | null
           commission: string | null
+          contract_price: string | null
           created_at: string
           current_address: string | null
           custom_data: Json | null
           down_payment: string | null
           email: string
+          estimated_close_date: string | null
+          estimated_credit_score: string | null
           financing_type: string | null
           id: string
           inventory_id: string | null
+          investor_deals: Json | null
           is_archived: boolean
           is_demo_data: boolean | null
           is_inbound_call: boolean | null
@@ -882,17 +888,28 @@ export type Database = {
           last_modified_by: string | null
           lead_lifecycle: string
           lead_temperature: string | null
+          list_price: string | null
+          listing_documents: string | null
+          llc_information: string | null
+          loan_details: string | null
           marital_status: string | null
           monthly_payment: string | null
           name: string
+          noi: string | null
+          number_of_units: number | null
           phone: string
           pipeline: string | null
           pipeline_stage: string
           preferred_contact_method: string | null
+          preferred_lender_id: string | null
           property_address: string | null
+          property_condition: string | null
           property_of_interest: string | null
           property_type: string | null
+          purchase_price: string | null
+          rehab_amount: string | null
           sales_price: string | null
+          school_district: string | null
           social_status: string | null
           source: string
           source_call_sid: string | null
@@ -902,10 +919,15 @@ export type Database = {
           sqft: string | null
           status: string
           timeframe: string | null
+          title_company: string | null
           title_office: string | null
+          town: string | null
+          unit_mix: string | null
           updated_at: string
           user_id: string
           value: string | null
+          year_built: string | null
+          zoning: string | null
         }
         Insert: {
           agent_payout?: string | null
@@ -916,16 +938,22 @@ export type Database = {
           bathrooms?: number | null
           bedrooms?: number | null
           budget?: string | null
+          cap_rate?: string | null
           close_date?: string | null
+          commercial_property_type?: string | null
           commission?: string | null
+          contract_price?: string | null
           created_at?: string
           current_address?: string | null
           custom_data?: Json | null
           down_payment?: string | null
           email: string
+          estimated_close_date?: string | null
+          estimated_credit_score?: string | null
           financing_type?: string | null
           id?: string
           inventory_id?: string | null
+          investor_deals?: Json | null
           is_archived?: boolean
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
@@ -933,17 +961,28 @@ export type Database = {
           last_modified_by?: string | null
           lead_lifecycle?: string
           lead_temperature?: string | null
+          list_price?: string | null
+          listing_documents?: string | null
+          llc_information?: string | null
+          loan_details?: string | null
           marital_status?: string | null
           monthly_payment?: string | null
           name: string
+          noi?: string | null
+          number_of_units?: number | null
           phone: string
           pipeline?: string | null
           pipeline_stage?: string
           preferred_contact_method?: string | null
+          preferred_lender_id?: string | null
           property_address?: string | null
+          property_condition?: string | null
           property_of_interest?: string | null
           property_type?: string | null
+          purchase_price?: string | null
+          rehab_amount?: string | null
           sales_price?: string | null
+          school_district?: string | null
           social_status?: string | null
           source: string
           source_call_sid?: string | null
@@ -953,10 +992,15 @@ export type Database = {
           sqft?: string | null
           status?: string
           timeframe?: string | null
+          title_company?: string | null
           title_office?: string | null
+          town?: string | null
+          unit_mix?: string | null
           updated_at?: string
           user_id: string
           value?: string | null
+          year_built?: string | null
+          zoning?: string | null
         }
         Update: {
           agent_payout?: string | null
@@ -967,16 +1011,22 @@ export type Database = {
           bathrooms?: number | null
           bedrooms?: number | null
           budget?: string | null
+          cap_rate?: string | null
           close_date?: string | null
+          commercial_property_type?: string | null
           commission?: string | null
+          contract_price?: string | null
           created_at?: string
           current_address?: string | null
           custom_data?: Json | null
           down_payment?: string | null
           email?: string
+          estimated_close_date?: string | null
+          estimated_credit_score?: string | null
           financing_type?: string | null
           id?: string
           inventory_id?: string | null
+          investor_deals?: Json | null
           is_archived?: boolean
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
@@ -984,17 +1034,28 @@ export type Database = {
           last_modified_by?: string | null
           lead_lifecycle?: string
           lead_temperature?: string | null
+          list_price?: string | null
+          listing_documents?: string | null
+          llc_information?: string | null
+          loan_details?: string | null
           marital_status?: string | null
           monthly_payment?: string | null
           name?: string
+          noi?: string | null
+          number_of_units?: number | null
           phone?: string
           pipeline?: string | null
           pipeline_stage?: string
           preferred_contact_method?: string | null
+          preferred_lender_id?: string | null
           property_address?: string | null
+          property_condition?: string | null
           property_of_interest?: string | null
           property_type?: string | null
+          purchase_price?: string | null
+          rehab_amount?: string | null
           sales_price?: string | null
+          school_district?: string | null
           social_status?: string | null
           source?: string
           source_call_sid?: string | null
@@ -1004,10 +1065,15 @@ export type Database = {
           sqft?: string | null
           status?: string
           timeframe?: string | null
+          title_company?: string | null
           title_office?: string | null
+          town?: string | null
+          unit_mix?: string | null
           updated_at?: string
           user_id?: string
           value?: string | null
+          year_built?: string | null
+          zoning?: string | null
         }
         Relationships: [
           {
@@ -1015,6 +1081,13 @@ export type Database = {
             columns: ["inventory_id"]
             isOneToOne: false
             referencedRelation: "inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_preferred_lender_id_fkey"
+            columns: ["preferred_lender_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]
