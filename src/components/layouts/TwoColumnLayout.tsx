@@ -527,7 +527,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         <LeadQuickStats leadId={id} refreshKey={statsRefreshKey} />
 
         {/* 1. Activity Timeline - at the top */}
-        <ActivityTimeline leadId={id} notes={notes} />
+        <ActivityTimeline leadId={id} notes={notes} userRole={role} />
 
         {/* 2. Activity & History Section */}
         <ActivitySection 

@@ -4,12 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Phone, StickyNote, MessageSquare, CheckCircle2, Calendar, Clock, PhoneIncoming, PhoneOutgoing, Filter, Activity } from "lucide-react";
+import { Phone, StickyNote, MessageSquare, CheckCircle2, Calendar, Clock, PhoneIncoming, PhoneOutgoing, Filter, Activity, DollarSign } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface TimelineEvent {
   id: string;
-  type: "note" | "call" | "sms" | "task" | "appointment";
+  type: "note" | "call" | "sms" | "task" | "appointment" | "commission";
   title: string;
   description?: string;
   timestamp: string;
@@ -19,32 +19,44 @@ interface TimelineEvent {
 interface ActivityTimelineProps {
   leadId: string;
   notes: { id: string; content: string; author: string; timestamp: string }[];
+  userRole?: string | null;
 }
 
-export const ActivityTimeline = ({ leadId, notes }: ActivityTimelineProps) => {
+export const ActivityTimeline = ({ leadId, notes, userRole }: ActivityTimelineProps) => {
   const [calls, setCalls] = useState<any[]>([]);
   const [smsLogs, setSmsLogs] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [commissionData, setCommissionData] = useState<{ total: number; createdAt: string } | null>(null);
   const [filter, setFilter] = useState<string>("all");
+  const isSupremeAdmin = userRole === "supreme_admin";
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [callsRes, smsRes, tasksRes, aptsRes] = await Promise.all([
-        supabase.from("call_logs").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }),
-        supabase.from("sms_logs").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }),
-        supabase.from("tasks").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }),
-        supabase.from("appointments").select("*").eq("lead_id", leadId).order("created_at", { ascending: false }),
-      ]);
+      const callsP = supabase.from("call_logs").select("*").eq("lead_id", leadId).order("created_at", { ascending: false });
+      const smsP = supabase.from("sms_logs").select("*").eq("lead_id", leadId).order("created_at", { ascending: false });
+      const tasksP = supabase.from("tasks").select("*").eq("lead_id", leadId).order("created_at", { ascending: false });
+      const aptsP = supabase.from("appointments").select("*").eq("lead_id", leadId).order("created_at", { ascending: false });
+
+      const [callsRes, smsRes, tasksRes, aptsRes] = await Promise.all([callsP, smsP, tasksP, aptsP]);
 
       setCalls(callsRes.data || []);
       setSmsLogs(smsRes.data || []);
       setTasks(tasksRes.data || []);
       setAppointments(aptsRes.data || []);
+
+      if (isSupremeAdmin) {
+        const { data: commEntries } = await supabase.from("commission_entries").select("payout_amount, created_at").eq("lead_id", leadId);
+        if (commEntries && commEntries.length > 0) {
+          const total = commEntries.reduce((sum, e) => sum + Number(e.payout_amount || 0), 0);
+          const earliest = commEntries.reduce((min: string, e) => e.created_at < min ? e.created_at : min, commEntries[0].created_at);
+          setCommissionData({ total, createdAt: earliest });
+        }
+      }
     };
 
     fetchAll();
-  }, [leadId]);
+  }, [leadId, isSupremeAdmin]);
 
   const events = useMemo(() => {
     const all: TimelineEvent[] = [];
@@ -104,10 +116,20 @@ export const ActivityTimeline = ({ leadId, notes }: ActivityTimelineProps) => {
       }
     });
 
+    if (isSupremeAdmin && commissionData) {
+      all.push({
+        id: `commission-${leadId}`,
+        type: "commission",
+        title: "Commission recorded",
+        description: `Total payouts: $${commissionData.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        timestamp: new Date(commissionData.createdAt).toLocaleString(),
+      });
+    }
+
     // Sort by timestamp descending
     all.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     return all;
-  }, [notes, calls, smsLogs, tasks, appointments]);
+  }, [notes, calls, smsLogs, tasks, appointments, commissionData, isSupremeAdmin, leadId]);
 
   const filtered = filter === "all" ? events : events.filter(e => e.type === filter);
 
@@ -117,6 +139,7 @@ export const ActivityTimeline = ({ leadId, notes }: ActivityTimelineProps) => {
     sms: { icon: <MessageSquare className="h-3.5 w-3.5" />, color: "bg-info/10 text-info" },
     task: { icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "bg-warning/10 text-warning" },
     appointment: { icon: <Calendar className="h-3.5 w-3.5" />, color: "bg-accent text-accent-foreground" },
+    commission: { icon: <DollarSign className="h-3.5 w-3.5" />, color: "bg-success/10 text-success" },
   };
 
   const filters = [
@@ -126,6 +149,7 @@ export const ActivityTimeline = ({ leadId, notes }: ActivityTimelineProps) => {
     { key: "sms", label: "SMS" },
     { key: "task", label: "Tasks" },
     { key: "appointment", label: "Appts" },
+    ...(isSupremeAdmin ? [{ key: "commission", label: "Commission" }] : []),
   ];
 
   return (
