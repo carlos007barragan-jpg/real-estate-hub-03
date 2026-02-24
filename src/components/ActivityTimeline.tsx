@@ -27,7 +27,7 @@ export const ActivityTimeline = ({ leadId, notes, userRole }: ActivityTimelinePr
   const [smsLogs, setSmsLogs] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [commissionData, setCommissionData] = useState<{ total: number; createdAt: string } | null>(null);
+  const [commissionData, setCommissionData] = useState<{ total: number; createdAt: string; enteredBy?: string } | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const isSupremeAdmin = userRole === "supreme_admin";
 
@@ -46,11 +46,26 @@ export const ActivityTimeline = ({ leadId, notes, userRole }: ActivityTimelinePr
       setAppointments(aptsRes.data || []);
 
       if (isSupremeAdmin) {
-        const { data: commEntries } = await supabase.from("commission_entries").select("payout_amount, created_at").eq("lead_id", leadId);
+        const { data: commEntries } = await supabase.from("commission_entries").select("payout_amount, created_at, created_by").eq("lead_id", leadId);
         if (commEntries && commEntries.length > 0) {
           const total = commEntries.reduce((sum, e) => sum + Number(e.payout_amount || 0), 0);
           const earliest = commEntries.reduce((min: string, e) => e.created_at < min ? e.created_at : min, commEntries[0].created_at);
-          setCommissionData({ total, createdAt: earliest });
+          
+          // Look up who entered the commission
+          let enteredBy = "Unknown";
+          const createdById = commEntries[0].created_by;
+          if (createdById) {
+            const { data: creatorProfile } = await supabase
+              .from("profiles")
+              .select("first_name, last_name")
+              .eq("user_id", createdById)
+              .maybeSingle();
+            if (creatorProfile) {
+              enteredBy = `${creatorProfile.first_name || ""} ${creatorProfile.last_name || ""}`.trim() || "Unknown";
+            }
+          }
+          
+          setCommissionData({ total, createdAt: earliest, enteredBy });
         }
       }
     };
@@ -121,7 +136,7 @@ export const ActivityTimeline = ({ leadId, notes, userRole }: ActivityTimelinePr
         id: `commission-${leadId}`,
         type: "commission",
         title: "Commission recorded and paid out",
-        description: "Commission completed",
+        description: commissionData.enteredBy ? `Entered by ${commissionData.enteredBy}` : "Commission completed",
         timestamp: new Date(commissionData.createdAt).toLocaleString(),
       });
     }

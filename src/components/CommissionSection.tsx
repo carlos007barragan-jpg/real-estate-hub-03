@@ -35,6 +35,7 @@ export const CommissionSection = ({ leadId, leadData, onUpdate }: CommissionSect
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [enteredByName, setEnteredByName] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -76,6 +77,15 @@ export const CommissionSection = ({ leadId, leadData, onUpdate }: CommissionSect
           }))
         );
         setSaved(true);
+
+        // Look up who entered the commission
+        const createdById = entriesRes.data[0].created_by;
+        if (createdById && membersRes.data) {
+          const creator = membersRes.data.find((p: any) => p.user_id === createdById);
+          if (creator) {
+            setEnteredByName(`${creator.first_name || ""} ${creator.last_name || ""}`.trim() || "Unknown");
+          }
+        }
       }
 
       if (membersRes.data) {
@@ -156,8 +166,29 @@ export const CommissionSection = ({ leadId, leadData, onUpdate }: CommissionSect
         }
       }
 
+      // Mark all commission tasks for this lead as completed
+      await supabase
+        .from("tasks")
+        .update({ status: "completed", completed_at: new Date().toISOString() } as any)
+        .eq("lead_id", leadId)
+        .ilike("title", "%Enter commission%payout%");
+
       toast({ title: "Commission saved", description: "Commission details and agent payouts updated." });
       setSaved(true);
+      
+      // Set the current user as the one who entered
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser) {
+        const { data: creatorProfile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("user_id", currentUser.id)
+          .maybeSingle();
+        if (creatorProfile) {
+          setEnteredByName(`${creatorProfile.first_name || ""} ${creatorProfile.last_name || ""}`.trim() || "Unknown");
+        }
+      }
+
       onUpdate?.();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -193,6 +224,7 @@ export const CommissionSection = ({ leadId, leadData, onUpdate }: CommissionSect
                 <p className="text-sm font-semibold text-foreground">Commission Complete</p>
                 <p className="text-xs text-muted-foreground">
                   Total: ${displayTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} · Office Fee: ${displayOfficeFee.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {enteredByName && ` · Entered by ${enteredByName}`}
                 </p>
               </div>
             </div>
