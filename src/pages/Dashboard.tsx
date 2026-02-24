@@ -135,7 +135,6 @@ const Dashboard = () => {
   const [payoutsData, setPayoutsData] = useState<PayoutData[]>([]);
   const [totalSalesVolume, setTotalSalesVolume] = useState(0);
   const [salesVolumeData, setSalesVolumeData] = useState<SalesVolumeData[]>([]);
-  const [salesVolumeView, setSalesVolumeView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [payoutsPeriod, setPayoutsPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -456,11 +455,8 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchChartsData();
-  }, [chartView]);
-
-  useEffect(() => {
     fetchSalesVolumeData();
-  }, [salesVolumeView, session?.user?.id]);
+  }, [chartView, session?.user?.id]);
 
   // Fetch team payouts data for supreme admins
   useEffect(() => {
@@ -890,42 +886,44 @@ const Dashboard = () => {
     const today = new Date();
     let dateFrom: string | null = null;
 
-    if (salesVolumeView === 'daily') {
+    if (chartView === 'daily') {
       dateFrom = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    } else if (salesVolumeView === 'weekly') {
+    } else if (chartView === 'weekly') {
       dateFrom = new Date(today.getTime() - 12 * 7 * 24 * 60 * 60 * 1000).toISOString();
-    } else if (salesVolumeView === 'monthly') {
+    } else if (chartView === 'monthly') {
       const twelveMonthsAgo = new Date(today);
       twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
       dateFrom = twelveMonthsAgo.toISOString();
     }
 
+    const parseMoney = (raw: string | null) => Number((raw || "").replace(/[^0-9.-]/g, "")) || 0;
+
     let query = supabase
       .from("leads")
-      .select("close_date, sales_price")
+      .select("close_date, sales_price, value")
       .not("close_date", "is", null);
     if (dateFrom) query = query.gte("close_date", dateFrom);
 
     const { data: closedLeads } = await query;
 
     if (closedLeads) {
-      const salesVolumeTotal = closedLeads.reduce((sum, lead) => {
-        const price = parseFloat(lead.sales_price || '0');
-        return sum + (isNaN(price) ? 0 : price);
-      }, 0);
-      setTotalSalesVolume(salesVolumeTotal);
-
       const salesVolumeMap = new Map<string, { sortKey: string; volume: number }>();
+      let runningTotal = 0;
+
       closedLeads.forEach(lead => {
-        const price = parseFloat(lead.sales_price || '0');
-        if (!isNaN(price) && price > 0) {
-          const closeDate = new Date(lead.close_date!);
-          const key = getChartDateKey(closeDate, salesVolumeView);
-          const sortKey = getChartSortKey(closeDate, salesVolumeView);
+        const price = parseMoney(lead.sales_price) || parseMoney(lead.value);
+        if (price > 0 && lead.close_date) {
+          runningTotal += price;
+          const closeDate = new Date(lead.close_date);
+          const key = getChartDateKey(closeDate, chartView);
+          const sortKey = getChartSortKey(closeDate, chartView);
           const existing = salesVolumeMap.get(key);
           salesVolumeMap.set(key, { sortKey, volume: (existing?.volume || 0) + price });
         }
       });
+
+      setTotalSalesVolume(runningTotal);
+
       const sortedSalesVolume = Array.from(salesVolumeMap.entries())
         .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
       setSalesVolumeData(sortedSalesVolume.map(([name, { volume }]) => ({ name, volume })));
@@ -1495,19 +1493,9 @@ const Dashboard = () => {
               <DollarSign className="h-5 w-5 text-primary" />
               <h2 className="text-xl font-semibold text-foreground">Total Sales Volume</h2>
             </div>
-            <div className="flex items-center gap-3">
-              <Tabs value={salesVolumeView} onValueChange={(v) => setSalesVolumeView(v as any)}>
-                <TabsList>
-                  <TabsTrigger value="daily">Daily</TabsTrigger>
-                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                  <TabsTrigger value="yearly">Yearly</TabsTrigger>
-                </TabsList>
-              </Tabs>
-              <Badge variant="secondary" className="text-sm">
+            <Badge variant="secondary" className="text-sm">
               ${totalSalesVolume.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </Badge>
-            </div>
           </div>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={salesVolumeData}>
