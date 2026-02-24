@@ -609,13 +609,15 @@ const Leads = () => {
               <React.Fragment key={lead.id}>
               <TableRow 
                 className={`hover:bg-muted/50 transition-colors cursor-pointer ${
-                  needsAttention
-                    ? 'bg-warning/10 border-l-4 border-l-warning hover:bg-warning/15'
-                    : lead.isInboundCall 
-                      ? 'bg-info/10 border-l-4 border-l-info hover:bg-info/20' 
-                      : isWebsiteLead
-                        ? 'bg-primary/5 border-l-4 border-l-primary hover:bg-primary/10'
-                        : ''
+                  lead.isUncontacted && !lead.isDemoData
+                    ? 'bg-destructive/10 hover:bg-destructive/15'
+                    : needsAttention
+                      ? 'bg-warning/10 border-l-4 border-l-warning hover:bg-warning/15'
+                      : lead.isInboundCall 
+                        ? 'bg-info/10 border-l-4 border-l-info hover:bg-info/20' 
+                        : isWebsiteLead
+                          ? 'bg-primary/5 border-l-4 border-l-primary hover:bg-primary/10'
+                          : ''
                 }`}
                 onClick={() => navigate(`/leads/${lead.id}`)}
               >
@@ -637,7 +639,7 @@ const Leads = () => {
                     {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </Button>
                 </TableCell>
-                <TableCell className={`font-medium ${lead.isUncontacted && !lead.isDemoData ? 'bg-destructive/10' : ''}`}>
+                <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     {lead.isInboundCall && (
                       <Badge variant="outline" className="gap-1 border-info text-info bg-info/5">
