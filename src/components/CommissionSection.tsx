@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Plus, X, Save } from "lucide-react";
+import { DollarSign, Plus, X, Save, CheckCircle, Edit } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 interface AgentPayout {
@@ -34,6 +34,7 @@ export const CommissionSection = ({ leadId, leadData, onUpdate }: CommissionSect
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -74,6 +75,7 @@ export const CommissionSection = ({ leadId, leadData, onUpdate }: CommissionSect
             payout_amount: Number(e.payout_amount),
           }))
         );
+        setSaved(true);
       }
 
       if (membersRes.data) {
@@ -155,6 +157,7 @@ export const CommissionSection = ({ leadId, leadData, onUpdate }: CommissionSect
       }
 
       toast({ title: "Commission saved", description: "Commission details and agent payouts updated." });
+      setSaved(true);
       onUpdate?.();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -168,6 +171,36 @@ export const CommissionSection = ({ leadId, leadData, onUpdate }: CommissionSect
       <Card className="border">
         <CardContent className="p-6">
           <div className="h-6 w-48 bg-muted animate-pulse rounded" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (saved) {
+    const displayTotal = Number(totalCommission) || 0;
+    const displayPayouts = payouts.reduce((sum, p) => sum + (Number(p.payout_amount) || 0), 0);
+    const displayOfficeFee = displayTotal - displayPayouts;
+
+    return (
+      <Card className="border border-success/30 bg-success/5">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full bg-success/15 flex items-center justify-center">
+                <CheckCircle className="h-5 w-5 text-success" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Commission Complete</p>
+                <p className="text-xs text-muted-foreground">
+                  Total: ${displayTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} · Office Fee: ${displayOfficeFee.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setSaved(false)} className="gap-1.5 h-8">
+              <Edit className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
