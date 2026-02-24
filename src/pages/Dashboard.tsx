@@ -1074,8 +1074,8 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Total Sales Volume - Supreme Admin only */}
-      {role === 'supreme_admin' && (
+      {/* Total Sales Volume - Admin and Supreme Admin */}
+      {(role === 'supreme_admin' || role === 'admin') && (
         <div className="mb-8">
           <Card className="p-6">
             <div className="flex items-center justify-between">
