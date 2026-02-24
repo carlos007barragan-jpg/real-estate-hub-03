@@ -31,6 +31,12 @@ const QUICK_TASK_PRESETS = [
   { label: "Client Check-In", title: "Client check-in call", description: "Touch base with client to review progress and answer questions" },
   { label: "Comp Analysis", title: "Run comparable market analysis", description: "Pull comps and prepare CMA report for the client" },
   { label: "Referral Ask", title: "Ask for referral", description: "Request referrals from satisfied client after closing" },
+  { label: "Send Properties", title: "Send out property options", description: "Email or text curated property listings matching client criteria" },
+  { label: "New Listings", title: "Follow up with new property listings", description: "Share newly available properties that match client preferences" },
+  { label: "Post-Showing", title: "Follow up after showing", description: "Check in with client for feedback after property viewing" },
+  { label: "Open House", title: "Invite to open house", description: "Send open house details and confirm attendance" },
+  { label: "Price Update", title: "Notify of price change", description: "Inform client about a price reduction or update on a property of interest" },
+  { label: "Market Update", title: "Send market update", description: "Share relevant market trends and neighborhood insights with client" },
 ];
 
 interface Task {
