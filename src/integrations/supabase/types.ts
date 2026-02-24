@@ -151,6 +151,54 @@ export type Database = {
         }
         Relationships: []
       }
+      commission_entries: {
+        Row: {
+          agent_name: string
+          agent_user_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          lead_id: string
+          organization_id: string
+          payout_amount: number
+        }
+        Insert: {
+          agent_name: string
+          agent_user_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          lead_id: string
+          organization_id: string
+          payout_amount?: number
+        }
+        Update: {
+          agent_name?: string
+          agent_user_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          lead_id?: string
+          organization_id?: string
+          payout_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_entries_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_category_options: {
         Row: {
           category_value: string

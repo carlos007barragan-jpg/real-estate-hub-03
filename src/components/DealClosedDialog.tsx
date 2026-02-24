@@ -108,6 +108,26 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
             });
 
             await supabase.from("notifications").insert(notifications);
+
+            // Auto-create commission task for each Supreme Admin
+            const supremeAdmins = adminRoles.filter(r => r.role === "supreme_admin");
+            if (supremeAdmins.length > 0) {
+              const priceFieldLabel = isHardMoney ? "Total financed" : "Sale price";
+              const nextDay = new Date(closeDate);
+              nextDay.setDate(nextDay.getDate() + 1);
+              const dueDateStr = nextDay.toISOString();
+
+              const tasks = supremeAdmins.map(sa => ({
+                lead_id: leadId,
+                user_id: sa.user_id,
+                title: `Enter commission & payout: ${leadName}`,
+                description: `${closerName} closed a deal with ${leadName}. ${priceFieldLabel}: ${priceDisplay}. Property: ${property || "Not entered"}. Close date: ${closeDate}. Please enter the total commission and agent payouts.`,
+                due_date: dueDateStr,
+                status: "pending",
+              }));
+
+              await supabase.from("tasks").insert(tasks);
+            }
           }
         }
       }
