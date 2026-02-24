@@ -71,6 +71,8 @@ interface LeadFiltersProps {
   onDownPaymentFilterChange: (value: string) => void;
   archiveFilter: string;
   onArchiveFilterChange: (value: string) => void;
+  contactStatusFilter: string;
+  onContactStatusFilterChange: (value: string) => void;
   availableUsers: Array<{ id: string; name: string }>;
   transactionTypes: string[];
   createdByOptions: string[];
@@ -95,6 +97,8 @@ export const LeadFilters = ({
   onDownPaymentFilterChange,
   archiveFilter,
   onArchiveFilterChange,
+  contactStatusFilter,
+  onContactStatusFilterChange,
   availableUsers,
   transactionTypes,
   createdByOptions,
@@ -109,6 +113,7 @@ export const LeadFilters = ({
     areaFilter !== "all",
     downPaymentFilter !== "all",
     archiveFilter !== "active",
+    contactStatusFilter !== "all",
   ].filter(Boolean).length;
 
   const clearAllFilters = () => {
@@ -121,6 +126,7 @@ export const LeadFilters = ({
     onAreaFilterChange("all");
     onDownPaymentFilterChange("all");
     onArchiveFilterChange("active");
+    onContactStatusFilterChange("all");
   };
 
   return (
@@ -304,6 +310,21 @@ export const LeadFilters = ({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Contact Status */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact Status</label>
+              <Select value={contactStatusFilter} onValueChange={onContactStatusFilterChange}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="uncontacted">Uncontacted</SelectItem>
+                  <SelectItem value="contacted">Contacted</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
@@ -347,6 +368,11 @@ export const LeadFilters = ({
       {archiveFilter !== "active" && (
         <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => onArchiveFilterChange("active")}>
           {archiveFilter === "archived" ? "Showing: Archived" : "Showing: All"} <X className="h-3 w-3" />
+        </Badge>
+      )}
+      {contactStatusFilter !== "all" && (
+        <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => onContactStatusFilterChange("all")}>
+          {contactStatusFilter === "uncontacted" ? "Uncontacted" : "Contacted"} <X className="h-3 w-3" />
         </Badge>
       )}
     </div>
