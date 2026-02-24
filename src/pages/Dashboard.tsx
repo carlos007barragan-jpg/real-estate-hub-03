@@ -786,15 +786,24 @@ const Dashboard = () => {
       .order("appointment_date", { ascending: true });
     if (dateFrom) apptsQuery = apptsQuery.gte("appointment_date", dateFrom);
 
-    const [closedLeadsRes, apptsRes] = await Promise.all([
+    // Also fetch commission_entries for net income calculation
+    const [closedLeadsRes, apptsRes, commissionEntriesRes] = await Promise.all([
       closedLeadsQuery,
       apptsQuery,
+      supabase.from("commission_entries").select("lead_id, payout_amount"),
     ]);
+
+    // Build a map of total payouts per lead
+    const payoutsByLead = new Map<string, number>();
+    (commissionEntriesRes.data || []).forEach((entry: any) => {
+      const current = payoutsByLead.get(entry.lead_id) || 0;
+      payoutsByLead.set(entry.lead_id, current + Number(entry.payout_amount || 0));
+    });
 
     // Process revenue & deals
     const closedLeads = closedLeadsRes.data;
     if (closedLeads) {
-      const revenueMap = new Map<string, { sortKey: string; amount: number }>();
+      const revenueMap = new Map<string, { sortKey: string; amount: number; netAmount: number }>();
       const dealsMap = new Map<string, { sortKey: string; deals: number }>();
 
       closedLeads.forEach(lead => {
@@ -802,9 +811,15 @@ const Dashboard = () => {
         const key = getChartDateKey(closeDate);
         const sortKey = getChartSortKey(closeDate);
         const commission = parseFloat(lead.commission || '0');
+        const payout = payoutsByLead.get(lead.id) || 0;
+        const net = commission - payout;
 
         const rev = revenueMap.get(key);
-        revenueMap.set(key, { sortKey, amount: (rev?.amount || 0) + commission });
+        revenueMap.set(key, {
+          sortKey,
+          amount: (rev?.amount || 0) + commission,
+          netAmount: (rev?.netAmount || 0) + net,
+        });
 
         const deal = dealsMap.get(key);
         dealsMap.set(key, { sortKey, deals: (deal?.deals || 0) + 1 });
@@ -812,7 +827,7 @@ const Dashboard = () => {
 
       const sortedRevenue = Array.from(revenueMap.entries())
         .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
-      setRevenueData(sortedRevenue.map(([name, { amount }]) => ({ name, amount })));
+      setRevenueData(sortedRevenue.map(([name, { amount, netAmount }]) => ({ name, amount, netAmount })));
 
       const sortedDeals = Array.from(dealsMap.entries())
         .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
@@ -1249,14 +1264,25 @@ const Dashboard = () => {
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip 
-                formatter={(value) => `$${Number(value).toLocaleString()}`}
+                formatter={(value: number, name: string) => [
+                  `$${Number(value).toLocaleString()}`,
+                  name === "amount" ? "Total Company Revenue" : "Net Earned Income"
+                ]}
               />
+              <Legend formatter={(value) => value === "amount" ? "Total Company Revenue" : "Net Earned Income"} />
               <Line 
                 type="monotone" 
                 dataKey="amount" 
-                stroke="hsl(var(--primary))" 
+                stroke="hsl(var(--success))" 
                 strokeWidth={2}
-                dot={{ fill: "hsl(var(--primary))", r: 4 }}
+                dot={{ fill: "hsl(var(--success))", r: 4 }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="netAmount" 
+                stroke="hsl(var(--info))" 
+                strokeWidth={2}
+                dot={{ fill: "hsl(var(--info))", r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>
