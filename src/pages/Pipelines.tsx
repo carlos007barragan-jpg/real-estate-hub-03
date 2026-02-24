@@ -363,7 +363,7 @@ const Pipelines = () => {
         id: lead.id,
         client: lead.name,
         agent: lead.assigned_to || "Not assigned",
-        commission: parseFloat(lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
+        commission: parseFloat(lead.sales_price || lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
         closeDate: lead.timeframe || "TBD",
         priority,
         leadId: lead.id,
