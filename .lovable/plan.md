@@ -1,34 +1,64 @@
 
 
-# Update Appointments Chart to Show All Appointments
+# Dashboard Charts -- Visibility & New Showings Chart
 
-## What Changes
+## Summary
 
-The "Appointments Confirmed" chart will be updated to show **all appointments** (regardless of status), so you can see the full picture -- past performance and future trajectory -- as a line graph on your dashboard.
+Update which charts each role can see on the dashboard, add a new **Showings** chart, and expand the time filter options to **Daily / Weekly / Monthly / Yearly**.
 
-## How It Will Look
+## Chart Visibility by Role
 
-- Chart title changes to **"Appointments"**
-- The line graph shows appointments grouped by month, including:
-  - Past months: how many appointments were booked historically
-  - Current month: what's happening now
-  - Future months: upcoming scheduled appointments, so you can see if the trend is going up or down
-- All appointment statuses are included (pending, confirmed, completed, cancelled) to give you the complete volume picture
+| Chart | Supreme Admin | Admin | Agent |
+|-------|:---:|:---:|:---:|
+| Revenue | Yes | -- | -- |
+| Appointments | Yes | -- | -- |
+| Deals Closed | Yes | Yes | Yes |
+| Showings (NEW) | Yes | Yes | Yes |
 
-## Who Sees It
+- **Revenue** and **Appointments** remain upper-management only (supreme_admin)
+- **Deals Closed** and **Showings** are visible to everyone -- admins and agents can track these metrics too
+- All charts show company-wide data, not filtered per individual user
 
-- Same as before: only visible to Carlos and Leilani (supreme_admin role)
+## New "Showings" Chart
+
+- Pulls from the `appointments` table, filtering where `appointment_type` contains "showing" (case-insensitive)
+- Displayed as a line graph, same style as the other charts
+- Grouped by the same time period selected in the filter
+
+## Time Filter Options
+
+The current **Daily / Monthly / YTD** tabs will be replaced with **Daily / Weekly / Monthly / Yearly**:
+
+- **Daily**: Last 30 days, one data point per day
+- **Weekly**: Last 12 weeks, grouped by week
+- **Monthly**: Last 12 months, grouped by month
+- **Yearly**: All historical data, grouped by year
+
+The filter applies to all charts at once (shared state).
 
 ## Technical Details
 
 **File: `src/pages/Dashboard.tsx`**
 
-1. Rename the `AppointmentsConfirmedData` interface to `AppointmentsData`, changing the `confirmed` field to `count`
-2. Update the state variable name from `appointmentsConfirmedData` to `appointmentsData`
-3. Modify the database query to remove `.eq("status", "confirmed")` -- fetch all appointments
-4. Update the data processing to use the `count` field name
-5. Update the chart rendering:
-   - Title: "Appointments" instead of "Appointments Confirmed"
-   - `dataKey` changes from `"confirmed"` to `"count"`
-   - Everything else (line style, color, dots, layout) stays the same
+1. **Chart view state**: Change type from `'daily' | 'monthly' | 'ytd'` to `'daily' | 'weekly' | 'monthly' | 'yearly'`
 
+2. **New state & interface**: Add `ShowingsData` interface (`{ name: string; count: number }`) and `showingsData` state
+
+3. **Update `fetchChartsData`**:
+   - Adjust `dateFrom` calculation for the new time ranges (30 days, 12 weeks, 12 months, all-time)
+   - Update grouping logic for revenue and deals to support weekly and yearly buckets
+   - Update appointments grouping to respect the selected time filter (currently always monthly)
+   - Add showings query: filter appointments by `appointment_type` containing "showing", then group by the selected time period
+
+4. **Update chart visibility**:
+   - Revenue chart: keep `role === 'supreme_admin'` guard (no change)
+   - Appointments chart: keep `role === 'supreme_admin'` guard (no change)
+   - Deals Closed chart: already visible to all (no change needed)
+   - Showings chart: new card, no role guard (visible to all)
+
+5. **Update tabs UI**:
+   - Replace "Daily / Monthly / YTD" with "Daily / Weekly / Monthly / Yearly"
+   - Show the time filter tabs on every chart that's visible (remove the conditional hiding for non-supreme-admin on Deals Closed)
+   - The tabs on the first visible chart control the shared `chartView` state
+
+6. **Add Showings chart card**: Same line graph style as Appointments, using a distinct color (e.g., the info/blue color), placed after Deals Closed in the grid
