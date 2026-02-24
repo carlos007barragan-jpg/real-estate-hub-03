@@ -138,7 +138,6 @@ export default function InventoryFieldSettings() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Add as inactive option to hide it
       const { error } = await supabase
         .from("inventory_field_options")
         .insert({
@@ -206,7 +205,6 @@ export default function InventoryFieldSettings() {
       const currentOption = fieldOptions[currentIndex];
       const targetOption = fieldOptions[targetIndex];
 
-      // Swap display orders
       const { error: error1 } = await supabase
         .from("inventory_field_options")
         .update({ display_order: targetOption.display_order })
@@ -231,9 +229,9 @@ export default function InventoryFieldSettings() {
   };
 
   const renderFieldOptions = (fieldType: string) => {
-    const systemDefaults = fieldType === "category" 
-      ? ["Residential", "Commercial", "Wholesale", "Off-Market", "Luxury", "Multifamily"]
-      : ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"];
+    const systemDefaults = fieldType === "property_type"
+      ? ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial", "Luxury", "Multifamily", "Mixed Use"]
+      : [];
     
     const fieldOptions = options.filter(opt => opt.field_type === fieldType && opt.is_active)
       .sort((a, b) => a.display_order - b.display_order);
@@ -243,41 +241,43 @@ export default function InventoryFieldSettings() {
     return (
       <div className="space-y-4">
         {/* System Defaults */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">System Defaults</Label>
-          <div className="space-y-2">
-            {systemDefaults.map(defaultValue => {
-              const isHidden = hiddenDefaults.some(opt => opt.option_value === defaultValue);
-              const hiddenOption = hiddenDefaults.find(opt => opt.option_value === defaultValue);
-              
-              return (
-                <div key={defaultValue} className={`flex items-center gap-3 p-3 border rounded-lg group hover:border-primary/50 transition-colors ${isHidden ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
-                  <Badge variant="outline" className="text-xs shrink-0">System</Badge>
-                  <span className="text-sm font-medium flex-1">{defaultValue}</span>
-                  {isHidden ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => hiddenOption && handleRestoreSystemDefault(hiddenOption.id, defaultValue)}
-                      className="text-xs"
-                    >
-                      Restore
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleHideSystemDefault(fieldType, defaultValue)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
+        {systemDefaults.length > 0 && (
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">System Defaults</Label>
+            <div className="space-y-2">
+              {systemDefaults.map(defaultValue => {
+                const isHidden = hiddenDefaults.some(opt => opt.option_value === defaultValue);
+                const hiddenOption = hiddenDefaults.find(opt => opt.option_value === defaultValue);
+                
+                return (
+                  <div key={defaultValue} className={`flex items-center gap-3 p-3 border rounded-lg group hover:border-primary/50 transition-colors ${isHidden ? 'bg-muted/50 opacity-60' : 'bg-card'}`}>
+                    <Badge variant="outline" className="text-xs shrink-0">System</Badge>
+                    <span className="text-sm font-medium flex-1">{defaultValue}</span>
+                    {isHidden ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => hiddenOption && handleRestoreSystemDefault(hiddenOption.id, defaultValue)}
+                        className="text-xs"
+                      >
+                        Restore
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleHideSystemDefault(fieldType, defaultValue)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Custom Options */}
         <div className="space-y-3">
@@ -328,10 +328,10 @@ export default function InventoryFieldSettings() {
 
         {/* Add New Option */}
         <div className="space-y-3 pt-2 border-t">
-          <Label className="text-sm font-medium">Add New {fieldType === 'category' ? 'Category' : 'Property Type'}</Label>
+          <Label className="text-sm font-medium">Add New Property Type</Label>
           <div className="flex gap-2">
             <Input
-              placeholder={`Enter ${fieldType === 'category' ? 'category' : 'property type'} name...`}
+              placeholder="Enter property type name..."
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
               onKeyPress={(e) => {
@@ -356,47 +356,15 @@ export default function InventoryFieldSettings() {
       .map(opt => opt.option_value);
   };
 
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Customize Property Fields</CardTitle>
         <CardDescription>
-          Manage your custom categories and property types. These will appear in the property form dropdowns.
+          Manage your custom property types. These will appear in the property form dropdowns.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Categories Section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold">Property Categories</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Organize properties by transaction type (Residential, Commercial, Wholesale, etc.)
-              </p>
-            </div>
-            <Badge variant="secondary" className="h-fit">
-              {getCustomOptions("category").length} custom
-            </Badge>
-          </div>
-
-          {/* System Defaults Reference */}
-          <div className="p-3 bg-muted/50 rounded-lg border">
-            <p className="text-xs font-medium text-muted-foreground mb-2">System Defaults:</p>
-            <div className="flex flex-wrap gap-2">
-              {["Residential", "Commercial", "Wholesale", "Off-Market", "Luxury", "Multifamily"].map(cat => (
-                <Badge key={cat} variant="outline" className="text-xs">
-                  {cat}
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {renderFieldOptions("category")}
-        </div>
-
-        <div className="border-t pt-6" />
-
         {/* Property Types Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -415,7 +383,7 @@ export default function InventoryFieldSettings() {
           <div className="p-3 bg-muted/50 rounded-lg border">
             <p className="text-xs font-medium text-muted-foreground mb-2">System Defaults:</p>
             <div className="flex flex-wrap gap-2">
-              {["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"].map(type => (
+              {["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial", "Luxury", "Multifamily", "Mixed Use"].map(type => (
                 <Badge key={type} variant="outline" className="text-xs">
                   {type}
                 </Badge>
@@ -424,6 +392,28 @@ export default function InventoryFieldSettings() {
           </div>
 
           {renderFieldOptions("property_type")}
+        </div>
+
+        <div className="border-t pt-6" />
+
+        {/* Deal Strategy Info */}
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold">Deal Strategy</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Deal strategies are system-defined and cannot be customized. They describe how a deal is structured.
+            </p>
+          </div>
+          <div className="p-3 bg-muted/50 rounded-lg border">
+            <p className="text-xs font-medium text-muted-foreground mb-2">Available Strategies:</p>
+            <div className="flex flex-wrap gap-2">
+              {["Traditional Listing", "Wholesale", "Owner Finance", "Lease", "Rent to Own"].map(strategy => (
+                <Badge key={strategy} variant="outline" className="text-xs">
+                  {strategy}
+                </Badge>
+              ))}
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

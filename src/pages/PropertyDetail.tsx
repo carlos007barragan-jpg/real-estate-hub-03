@@ -182,9 +182,6 @@ export default function PropertyDetail() {
           <Badge variant={getStatusBadgeVariant(property.status)} className="text-sm">
             {property.status?.replace('_', ' ').toUpperCase() || 'AVAILABLE'}
           </Badge>
-          {property.is_wholesale && (
-            <Badge variant="outline" className="text-sm">Wholesale</Badge>
-          )}
         </div>
       </div>
 
@@ -288,28 +285,16 @@ export default function PropertyDetail() {
                     <span className="font-medium">{property.property_type}</span>
                   </div>
                 )}
-                {property.category && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Category:</span>
-                    <span className="font-medium">{property.category}</span>
-                  </div>
-                )}
                 {property.transaction_type && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Transaction Type:</span>
-                    <span className="font-medium capitalize">{property.transaction_type.replace('_', ' ')}</span>
+                    <span className="text-muted-foreground">Deal Strategy:</span>
+                    <span className="font-medium capitalize">{property.transaction_type.replace(/_/g, ' ')}</span>
                   </div>
                 )}
                 {property.market_status && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Market Status:</span>
-                    <span className="font-medium capitalize">{property.market_status.replace('_', ' ')}</span>
-                  </div>
-                )}
-                {property.finance_type && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Finance Type:</span>
-                    <span className="font-medium">{property.finance_type}</span>
+                    <span className="font-medium capitalize">{property.market_status.replace(/_/g, ' ')}</span>
                   </div>
                 )}
               </div>
