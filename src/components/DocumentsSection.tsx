@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, Upload, Download, Trash2, File } from "lucide-react";
+import { FileText, Upload, Download, Trash2, File, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Document {
@@ -92,6 +92,25 @@ export const DocumentsSection = ({ leadId }: DocumentsSectionProps) => {
     } finally {
       setUploading(false);
       event.target.value = "";
+    }
+  };
+
+  const handleView = async (document: Document) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("lead-documents")
+        .createSignedUrl(document.file_path, 3600);
+
+      if (error) throw error;
+
+      window.open(data.signedUrl, "_blank");
+    } catch (error: any) {
+      console.error("Error viewing file:", error);
+      toast({
+        title: "Could not open file",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -224,8 +243,18 @@ export const DocumentsSection = ({ leadId }: DocumentsSectionProps) => {
                       <Button
                         variant="ghost"
                         size="icon"
+                        onClick={() => handleView(doc)}
+                        className="h-7 w-7"
+                        title="View"
+                      >
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleDownload(doc)}
                         className="h-7 w-7"
+                        title="Download"
                       >
                         <Download className="h-3 w-3" />
                       </Button>
@@ -234,6 +263,7 @@ export const DocumentsSection = ({ leadId }: DocumentsSectionProps) => {
                         size="icon"
                         onClick={() => handleDelete(doc)}
                         className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        title="Delete"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
