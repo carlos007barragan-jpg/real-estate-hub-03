@@ -1502,7 +1502,10 @@ const Dashboard = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Sales Volume']} />
+              <Tooltip 
+                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Sales Volume']}
+                labelFormatter={(label) => `Closed: ${label}`}
+              />
               <Line 
                 type="monotone" 
                 dataKey="volume" 
