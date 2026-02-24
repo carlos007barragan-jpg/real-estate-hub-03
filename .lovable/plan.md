@@ -1,64 +1,93 @@
 
 
-# Dashboard Charts -- Visibility & New Showings Chart
+# Restructure Property Categorization
 
-## Summary
+## The Core Insight
 
-Update which charts each role can see on the dashboard, add a new **Showings** chart, and expand the time filter options to **Daily / Weekly / Monthly / Yearly**.
+Your business has two independent questions for every property, and they can mix freely:
 
-## Chart Visibility by Role
+**1. What is the property?** (Property Type)
+- Single Family, Multi Family, Condo, Townhouse, Land, Commercial, Luxury, Multifamily, Mixed Use
 
-| Chart | Supreme Admin | Admin | Agent |
-|-------|:---:|:---:|:---:|
-| Revenue | Yes | -- | -- |
-| Appointments | Yes | -- | -- |
-| Deals Closed | Yes | Yes | Yes |
-| Showings (NEW) | Yes | Yes | Yes |
+**2. What are we doing with it?** (Deal Strategy)
+- Traditional Listing (on-market, client hires us to sell)
+- Wholesale (we acquire off-market, then assign/sell the contract)
+- Owner Finance (we or seller carry the note)
 
-- **Revenue** and **Appointments** remain upper-management only (supreme_admin)
-- **Deals Closed** and **Showings** are visible to everyone -- admins and agents can track these metrics too
-- All charts show company-wide data, not filtered per individual user
+Any combination is valid: you can wholesale a multifamily, owner-finance a commercial property, or traditionally list a luxury home.
 
-## New "Showings" Chart
+## Proposed Field Structure
 
-- Pulls from the `appointments` table, filtering where `appointment_type` contains "showing" (case-insensitive)
-- Displayed as a line graph, same style as the other charts
-- Grouped by the same time period selected in the filter
+### Keep: Property Type (what is the building?)
+Single Family, Multi Family, Condo, Townhouse, Land, Commercial, Luxury, Multifamily, Mixed Use
 
-## Time Filter Options
+### Replace Category + Transaction Type + Is Wholesale with: Deal Strategy (what are we doing with it?)
+- **Traditional Listing** -- on-market, agent represents seller/buyer
+- **Wholesale** -- off-market acquisition, assigning contract
+- **Owner Finance** -- seller/we carry the note
+- **Lease** -- rental / lease agreement
+- **Rent to Own** -- lease with purchase option
 
-The current **Daily / Monthly / YTD** tabs will be replaced with **Daily / Weekly / Monthly / Yearly**:
+### Keep: Market Status
+- On Market / Off Market
+- (This auto-correlates with Deal Strategy but is still useful as a separate filter since a wholesale deal could technically go on-market)
 
-- **Daily**: Last 30 days, one data point per day
-- **Weekly**: Last 12 weeks, grouped by week
-- **Monthly**: Last 12 months, grouped by month
-- **Yearly**: All historical data, grouped by year
+### Remove
+- **Category field** -- no longer needed. "Residential vs Commercial vs Luxury" is already answered by Property Type. Having both was the source of confusion.
+- **Transaction Type section** -- replaced by Deal Strategy inside the classification box
+- **Finance Type free-text input** -- removed (overlapped with Deal Strategy)
+- **Is Wholesale checkbox** -- removed (covered by Deal Strategy = Wholesale)
 
-The filter applies to all charts at once (shared state).
+### Keep (unchanged)
+- Down Payment (shows when Deal Strategy = Owner Finance)
+- Monthly Payment, Interest Rate, ARV, Commission
+- All property details (sqft, beds, baths, etc.)
 
-## Technical Details
+## How This Looks in the Form
 
-**File: `src/pages/Dashboard.tsx`**
+The "Property Classification" box at the top becomes a clean 2x2 grid:
 
-1. **Chart view state**: Change type from `'daily' | 'monthly' | 'ytd'` to `'daily' | 'weekly' | 'monthly' | 'yearly'`
+```text
++-------------------------+-------------------------+
+| Property Type *         | Deal Strategy *         |
+| [Single Family    v]    | [Wholesale         v]   |
++-------------------------+-------------------------+
+| Market Status           |                         |
+| [Off Market       v]    |                         |
++-------------------------+-------------------------+
+```
 
-2. **New state & interface**: Add `ShowingsData` interface (`{ name: string; count: number }`) and `showingsData` state
+The separate "Transaction Type" and "Transaction Details" sections below are removed entirely.
 
-3. **Update `fetchChartsData`**:
-   - Adjust `dateFrom` calculation for the new time ranges (30 days, 12 weeks, 12 months, all-time)
-   - Update grouping logic for revenue and deals to support weekly and yearly buckets
-   - Update appointments grouping to respect the selected time filter (currently always monthly)
-   - Add showings query: filter appointments by `appointment_type` containing "showing", then group by the selected time period
+## What Happens to Existing Data
 
-4. **Update chart visibility**:
-   - Revenue chart: keep `role === 'supreme_admin'` guard (no change)
-   - Appointments chart: keep `role === 'supreme_admin'` guard (no change)
-   - Deals Closed chart: already visible to all (no change needed)
-   - Showings chart: new card, no role guard (visible to all)
+- Properties with old `category` values (like "Wholesale", "Off-Market") will still display their stored values -- they just won't appear as options for new entries
+- The `category` column stays in the database but won't be used in the form going forward
+- `transaction_type` column is reused for the new Deal Strategy values
+- No database migration needed
 
-5. **Update tabs UI**:
-   - Replace "Daily / Monthly / YTD" with "Daily / Weekly / Monthly / Yearly"
-   - Show the time filter tabs on every chart that's visible (remove the conditional hiding for non-supreme-admin on Deals Closed)
-   - The tabs on the first visible chart control the shared `chartView` state
+## Files to Modify
 
-6. **Add Showings chart card**: Same line graph style as Appointments, using a distinct color (e.g., the info/blue color), placed after Deals Closed in the grid
+**`src/pages/Inventory.tsx`**
+- Expand Property Classification box to include Deal Strategy dropdown and Market Status
+- Deal Strategy options: traditional_listing, wholesale, owner_finance, lease, rent_to_own
+- Remove the standalone "Transaction Type" section (lines 1349-1372)
+- Remove the "Transaction Details" section with finance_type input + is_wholesale checkbox (lines 1374-1414)
+- Remove the Category dropdown from the classification box (replaced by Deal Strategy)
+- Update filter sidebar to use Deal Strategy instead of Category/Transaction Type
+- Keep down_payment conditional on `transaction_type === 'owner_finance'`
+
+**`src/components/EditPropertyDialog.tsx`**
+- Mirror the same changes: Deal Strategy dropdown, remove category, remove finance_type, remove is_wholesale
+
+**`src/components/InventoryFieldSettings.tsx`**
+- Remove the Category customization section (no longer a used field)
+- Keep Property Type customization
+- Optionally add Deal Strategy customization
+
+**`src/pages/PropertyDetail.tsx`**
+- Update display labels: show "Deal Strategy" instead of "Category" and "Transaction Type"
+- Remove finance_type display
+
+**`src/pages/OwnerPortalDashboard.tsx`**
+- Update any category references to use the new field structure
