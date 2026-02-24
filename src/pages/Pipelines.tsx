@@ -280,11 +280,12 @@ const Pipelines = () => {
   const [commissionLeadId, setCommissionLeadId] = useState("");
   const [commissionLeadName, setCommissionLeadName] = useState("");
   const [commissionStageName, setCommissionStageName] = useState("");
+  const [commissionPipelineName, setCommissionPipelineName] = useState("");
   const { toast } = useToast();
   const { role } = useAuth();
 
   // Final/won stage names that trigger confetti
-  const wonStageNames = ["closed", "sold", "funded"];
+  const wonStageNames = ["closed", "sold", "funded", "closed won", "deal won"];
 
   // Map lead_temperature values to pipeline names for auto-assignment
   const temperatureToPipelineMap: Record<string, string> = {
@@ -760,6 +761,7 @@ const Pipelines = () => {
         setCommissionLeadId(activeDeal.leadId);
         setCommissionLeadName(activeDeal.client);
         setCommissionStageName(newStageName);
+        setCommissionPipelineName(currentPipeline.name);
         setCommissionDialogOpen(true);
       }
     }
@@ -1088,6 +1090,7 @@ const Pipelines = () => {
           leadId={commissionLeadId}
           leadName={commissionLeadName}
           stageName={commissionStageName}
+          pipelineName={commissionPipelineName}
           onSuccess={fetchDeals}
         />
       </div>
