@@ -128,6 +128,7 @@ const Dashboard = () => {
   const [showingsData, setShowingsData] = useState<ShowingsData[]>([]);
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [payoutsData, setPayoutsData] = useState<PayoutData[]>([]);
+  const [totalSalesVolume, setTotalSalesVolume] = useState(0);
   const [payoutsPeriod, setPayoutsPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -810,6 +811,13 @@ const Dashboard = () => {
     // Process revenue & deals
     const closedLeads = closedLeadsRes.data;
     if (closedLeads) {
+      // Calculate total sales volume from all closed leads with a sales_price
+      const salesVolumeTotal = closedLeads.reduce((sum, lead) => {
+        const price = parseFloat(lead.sales_price || '0');
+        return sum + (isNaN(price) ? 0 : price);
+      }, 0);
+      setTotalSalesVolume(salesVolumeTotal);
+
       const revenueMap = new Map<string, { sortKey: string; amount: number; netAmount: number }>();
       const dealsMap = new Map<string, { sortKey: string; deals: number }>();
 
@@ -1065,6 +1073,26 @@ const Dashboard = () => {
           )}
         </Card>
       </div>
+
+      {/* Total Sales Volume - Supreme Admin only */}
+      {role === 'supreme_admin' && (
+        <div className="mb-8">
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Sales Volume</p>
+                <p className="text-3xl font-bold text-foreground mt-2">
+                  ${totalSalesVolume.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">All closed deals</p>
+              </div>
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Past Due Tasks - Only current user's own */}
       {pastDueTasks.length > 0 && (
