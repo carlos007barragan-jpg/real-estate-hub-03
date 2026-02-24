@@ -769,7 +769,7 @@ export default function Inventory() {
   };
 
   const getUniqueCategories = () => {
-    const systemDefaults = ["Residential", "Commercial", "Wholesale", "Off-Market", "Investment", "Luxury"];
+    const systemDefaults = ["Residential", "Commercial", "Wholesale", "Off-Market", "Luxury", "Multifamily"];
     const customCats = getCustomOptions("category");
     const hiddenDefaults = customFieldOptions
       .filter(opt => opt.field_type === "category" && !opt.is_active)
