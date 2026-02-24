@@ -99,6 +99,11 @@ interface ShowingsData {
   count: number;
 }
 
+interface SalesVolumeData {
+  name: string;
+  volume: number;
+}
+
 interface PayoutData {
   name: string;
   amount: number;
@@ -129,6 +134,7 @@ const Dashboard = () => {
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [payoutsData, setPayoutsData] = useState<PayoutData[]>([]);
   const [totalSalesVolume, setTotalSalesVolume] = useState(0);
+  const [salesVolumeData, setSalesVolumeData] = useState<SalesVolumeData[]>([]);
   const [payoutsPeriod, setPayoutsPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -811,12 +817,27 @@ const Dashboard = () => {
     // Process revenue & deals
     const closedLeads = closedLeadsRes.data;
     if (closedLeads) {
-      // Calculate total sales volume from all closed leads with a sales_price
+      // Calculate total sales volume and chart data from closed leads with a sales_price
       const salesVolumeTotal = closedLeads.reduce((sum, lead) => {
         const price = parseFloat(lead.sales_price || '0');
         return sum + (isNaN(price) ? 0 : price);
       }, 0);
       setTotalSalesVolume(salesVolumeTotal);
+
+      const salesVolumeMap = new Map<string, { sortKey: string; volume: number }>();
+      closedLeads.forEach(lead => {
+        const price = parseFloat(lead.sales_price || '0');
+        if (!isNaN(price) && price > 0) {
+          const closeDate = new Date(lead.close_date);
+          const key = getChartDateKey(closeDate);
+          const sortKey = getChartSortKey(closeDate);
+          const existing = salesVolumeMap.get(key);
+          salesVolumeMap.set(key, { sortKey, volume: (existing?.volume || 0) + price });
+        }
+      });
+      const sortedSalesVolume = Array.from(salesVolumeMap.entries())
+        .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
+      setSalesVolumeData(sortedSalesVolume.map(([name, { volume }]) => ({ name, volume })));
 
       const revenueMap = new Map<string, { sortKey: string; amount: number; netAmount: number }>();
       const dealsMap = new Map<string, { sortKey: string; deals: number }>();
@@ -1074,25 +1095,6 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Total Sales Volume - Admin and Supreme Admin */}
-      {(role === 'supreme_admin' || role === 'admin') && (
-        <div className="mb-8">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Sales Volume</p>
-                <p className="text-3xl font-bold text-foreground mt-2">
-                  ${totalSalesVolume.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">All closed deals</p>
-              </div>
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
 
       {/* Past Due Tasks - Only current user's own */}
       {pastDueTasks.length > 0 && (
@@ -1449,6 +1451,30 @@ const Dashboard = () => {
                 dot={{ fill: "hsl(var(--primary))", r: 4 }}
               />
             </LineChart>
+          </ResponsiveContainer>
+        </Card>
+        )}
+
+        {/* Total Sales Volume Chart - Admin and Supreme Admin */}
+        {(role === 'supreme_admin' || role === 'admin') && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-semibold text-foreground">Total Sales Volume</h2>
+            </div>
+            <Badge variant="secondary" className="text-sm">
+              ${totalSalesVolume.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </Badge>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={salesVolumeData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+              <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Sales Volume']} />
+              <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </Card>
         )}
