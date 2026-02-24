@@ -1478,13 +1478,19 @@ const Dashboard = () => {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={salesVolumeData}>
+            <LineChart data={salesVolumeData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
               <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Sales Volume']} />
-              <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-            </BarChart>
+              <Line 
+                type="monotone" 
+                dataKey="volume" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={2}
+                dot={{ fill: "hsl(var(--primary))", r: 4 }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </Card>
         )}
