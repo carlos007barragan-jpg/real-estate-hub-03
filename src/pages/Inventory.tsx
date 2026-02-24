@@ -79,7 +79,7 @@ export default function Inventory() {
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [dealStrategyFilter, setDealStrategyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
@@ -107,6 +107,14 @@ export default function Inventory() {
     seller_id: "",
     down_payment: 0,
   });
+  // Deal Strategy options for the new classification
+  const dealStrategyOptions = [
+    { value: "traditional_listing", label: "Traditional Listing" },
+    { value: "wholesale", label: "Wholesale" },
+    { value: "owner_finance", label: "Owner Finance" },
+    { value: "lease", label: "Lease" },
+    { value: "rent_to_own", label: "Rent to Own" },
+  ];
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
   const [smartPasteText, setSmartPasteText] = useState("");
@@ -139,9 +147,9 @@ export default function Inventory() {
       );
     }
 
-    // Category filter
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter(item => item.category === categoryFilter);
+    // Deal Strategy filter
+    if (dealStrategyFilter !== "all") {
+      filtered = filtered.filter(item => item.transaction_type === dealStrategyFilter);
     }
 
     // Status filter
@@ -160,7 +168,7 @@ export default function Inventory() {
     }
 
     setFilteredItems(filtered);
-  }, [items, searchQuery, categoryFilter, statusFilter, propertyTypeFilter, ownerFilter]);
+  }, [items, searchQuery, dealStrategyFilter, statusFilter, propertyTypeFilter, ownerFilter]);
 
   // Real-time subscription with debouncing
   useEffect(() => {
@@ -393,12 +401,12 @@ export default function Inventory() {
       return;
     }
 
-    if (!formData.category) {
-      console.log('❌ Validation failed: category required');
+    if (!formData.transaction_type) {
+      console.log('❌ Validation failed: deal strategy required');
       setIsSubmitting(false);
       toast({
         title: "Validation Error",
-        description: "Property category is required. Please select a category.",
+        description: "Deal strategy is required. Please select a deal strategy.",
         variant: "destructive",
       });
       return;
@@ -768,19 +776,8 @@ export default function Inventory() {
       .map(opt => opt.option_value);
   };
 
-  const getUniqueCategories = () => {
-    const systemDefaults = ["Residential", "Commercial", "Wholesale", "Off-Market", "Luxury", "Multifamily"];
-    const customCats = getCustomOptions("category");
-    const hiddenDefaults = customFieldOptions
-      .filter(opt => opt.field_type === "category" && !opt.is_active)
-      .map(opt => opt.option_value);
-    
-    // Filter out hidden system defaults
-    const availableDefaults = systemDefaults.filter(def => !hiddenDefaults.includes(def));
-    
-    // Merge available defaults with custom options, removing duplicates
-    const allCategories = [...availableDefaults, ...customCats];
-    return Array.from(new Set(allCategories));
+  const getUniqueDealStrategies = () => {
+    return dealStrategyOptions;
   };
 
   const getUniqueStatuses = () => {
@@ -789,7 +786,7 @@ export default function Inventory() {
   };
 
   const getUniquePropertyTypes = () => {
-    const systemDefaults = ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"];
+    const systemDefaults = ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial", "Luxury", "Multifamily", "Mixed Use"];
     const customTypes = getCustomOptions("property_type");
     const hiddenDefaults = customFieldOptions
       .filter(opt => opt.field_type === "property_type" && !opt.is_active)
@@ -1124,18 +1121,35 @@ export default function Inventory() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="category" className="font-semibold">Property Category *</Label>
+                    <Label htmlFor="transaction_type" className="font-semibold">Deal Strategy *</Label>
                     <Select
-                      value={formData.category}
-                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                      value={formData.transaction_type}
+                      onValueChange={(value) => setFormData({ ...formData, transaction_type: value })}
                     >
-                      <SelectTrigger id="category" className="border-2">
-                        <SelectValue placeholder="Select category" />
+                      <SelectTrigger id="transaction_type" className="border-2">
+                        <SelectValue placeholder="Select deal strategy" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getUniqueCategories().map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        {dealStrategyOptions.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="market_status" className="font-semibold">Market Status</Label>
+                    <Select
+                      value={formData.market_status}
+                      onValueChange={(value) => setFormData({ ...formData, market_status: value })}
+                    >
+                      <SelectTrigger id="market_status" className="border-2">
+                        <SelectValue placeholder="Select market status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="on_market">On Market</SelectItem>
+                        <SelectItem value="off_market">Off Market</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1346,72 +1360,6 @@ export default function Inventory() {
                 </div>
               </div>
 
-              {/* Transaction Type */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Transaction Type</h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="transaction_type">Transaction Type</Label>
-                    <Select
-                      value={formData.transaction_type}
-                      onValueChange={(value) => setFormData({ ...formData, transaction_type: value })}
-                    >
-                      <SelectTrigger id="transaction_type">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sale">Sale</SelectItem>
-                        <SelectItem value="lease">Lease</SelectItem>
-                        <SelectItem value="rent_to_own">Rent to Own</SelectItem>
-                        <SelectItem value="owner_finance">Owner Finance</SelectItem>
-                        <SelectItem value="cash">Cash</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Transaction Details */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Transaction Details</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="finance_type">Finance Type</Label>
-                    <Input
-                      id="finance_type"
-                      value={formData.finance_type}
-                      onChange={(e) => setFormData({ ...formData, finance_type: e.target.value })}
-                      placeholder="e.g., Conventional, FHA"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="market_status">Market Status</Label>
-                    <Select
-                      value={formData.market_status}
-                      onValueChange={(value) => setFormData({ ...formData, market_status: value })}
-                    >
-                      <SelectTrigger id="market_status">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="on_market">On Market</SelectItem>
-                        <SelectItem value="off_market">Off Market</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="is_wholesale"
-                    checked={formData.is_wholesale}
-                    onChange={(e) => setFormData({ ...formData, is_wholesale: e.target.checked })}
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <Label htmlFor="is_wholesale" className="cursor-pointer">Wholesale Property</Label>
-                </div>
-              </div>
 
 
               {/* Photo Upload */}
@@ -1467,15 +1415,15 @@ export default function Inventory() {
             </div>
 
             <div className="space-y-2">
-              <Label>Category</Label>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Label>Deal Strategy</Label>
+              <Select value={dealStrategyFilter} onValueChange={setDealStrategyFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="All Categories" />
+                  <SelectValue placeholder="All Strategies" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {getUniqueCategories().map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  <SelectItem value="all">All Strategies</SelectItem>
+                  {dealStrategyOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1514,7 +1462,7 @@ export default function Inventory() {
             </div>
           </div>
 
-          {(searchQuery || categoryFilter !== "all" || statusFilter !== "all" || propertyTypeFilter !== "all") && (
+          {(searchQuery || dealStrategyFilter !== "all" || statusFilter !== "all" || propertyTypeFilter !== "all") && (
             <div className="mt-4 flex items-center gap-2">
               <span className="text-sm text-muted-foreground">
                 Showing {filteredItems.length} of {items.length} properties
@@ -1524,7 +1472,7 @@ export default function Inventory() {
                 size="sm"
                 onClick={() => {
                   setSearchQuery("");
-                  setCategoryFilter("all");
+                  setDealStrategyFilter("all");
                   setStatusFilter("all");
                   setPropertyTypeFilter("all");
                 }}
@@ -1557,7 +1505,7 @@ export default function Inventory() {
                   <TableHead>Price</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead>Deal Strategy</TableHead>
                   <TableHead className="text-center">Details</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -1596,9 +1544,6 @@ export default function Inventory() {
                           </div>
                           <div className="min-w-0">
                             <p className="font-medium truncate">{item.name}</p>
-                            {item.is_wholesale && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-0.5">Wholesale</Badge>
-                            )}
                           </div>
                         </div>
                       </TableCell>
@@ -1642,7 +1587,9 @@ export default function Inventory() {
                         <span className="text-sm text-muted-foreground">{item.property_type || '—'}</span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">{item.category || '—'}</span>
+                        <span className="text-sm text-muted-foreground capitalize">
+                          {item.transaction_type ? item.transaction_type.replace(/_/g, ' ') : '—'}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">

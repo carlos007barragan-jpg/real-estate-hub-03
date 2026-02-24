@@ -201,7 +201,6 @@ export default function OwnerPortalDashboard() {
         user_id: user.id,
         seller_id: seller?.id || null,
         quantity: 1,
-        is_wholesale: formData.property_type === "Wholesale",
       };
 
       if (editingProperty) {
@@ -337,15 +336,20 @@ export default function OwnerPortalDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="property_type">Type</Label>
+                <Label htmlFor="property_type">Property Type</Label>
                 <Select value={formData.property_type} onValueChange={(value) => setFormData({ ...formData, property_type: value })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Rental">Rental</SelectItem>
-                    <SelectItem value="For Sale">For Sale</SelectItem>
-                    <SelectItem value="Wholesale">Wholesale</SelectItem>
+                    <SelectItem value="Single Family">Single Family</SelectItem>
+                    <SelectItem value="Multi Family">Multi Family</SelectItem>
+                    <SelectItem value="Condo">Condo</SelectItem>
+                    <SelectItem value="Townhouse">Townhouse</SelectItem>
+                    <SelectItem value="Land">Land</SelectItem>
+                    <SelectItem value="Commercial">Commercial</SelectItem>
+                    <SelectItem value="Luxury">Luxury</SelectItem>
+                    <SelectItem value="Mixed Use">Mixed Use</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -380,7 +384,24 @@ export default function OwnerPortalDashboard() {
                 />
               </div>
             </div>
-            {formData.property_type === "Wholesale" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="transaction_type">Deal Strategy</Label>
+                <Select value={formData.transaction_type} onValueChange={(value) => setFormData({ ...formData, transaction_type: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select deal strategy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="traditional_listing">Traditional Listing</SelectItem>
+                    <SelectItem value="wholesale">Wholesale</SelectItem>
+                    <SelectItem value="owner_finance">Owner Finance</SelectItem>
+                    <SelectItem value="lease">Lease</SelectItem>
+                    <SelectItem value="rent_to_own">Rent to Own</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {formData.transaction_type === "wholesale" && (
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="acquisition_price">Acquisition Price</Label>
