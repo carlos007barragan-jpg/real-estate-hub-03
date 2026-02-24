@@ -809,6 +809,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          agent_payout: string | null
           agent_phone: string | null
           archived_at: string | null
           area: string | null
@@ -843,6 +844,7 @@ export type Database = {
           property_address: string | null
           property_of_interest: string | null
           property_type: string | null
+          sales_price: string | null
           social_status: string | null
           source: string
           source_call_sid: string | null
@@ -858,6 +860,7 @@ export type Database = {
           value: string | null
         }
         Insert: {
+          agent_payout?: string | null
           agent_phone?: string | null
           archived_at?: string | null
           area?: string | null
@@ -892,6 +895,7 @@ export type Database = {
           property_address?: string | null
           property_of_interest?: string | null
           property_type?: string | null
+          sales_price?: string | null
           social_status?: string | null
           source: string
           source_call_sid?: string | null
@@ -907,6 +911,7 @@ export type Database = {
           value?: string | null
         }
         Update: {
+          agent_payout?: string | null
           agent_phone?: string | null
           archived_at?: string | null
           area?: string | null
@@ -941,6 +946,7 @@ export type Database = {
           property_address?: string | null
           property_of_interest?: string | null
           property_type?: string | null
+          sales_price?: string | null
           social_status?: string | null
           source?: string
           source_call_sid?: string | null

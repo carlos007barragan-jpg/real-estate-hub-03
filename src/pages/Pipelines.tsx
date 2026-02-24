@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical, Trash2, Edit } from "lucide-react";
 import { EditDealDialog } from "@/components/EditDealDialog";
 import { OfferMadeValidationDialog } from "@/components/OfferMadeValidationDialog";
-import { CommissionDialog } from "@/components/CommissionDialog";
+import { DealClosedDialog } from "@/components/DealClosedDialog";
 import { fireDealWonConfetti } from "@/lib/confetti";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -755,14 +755,12 @@ const Pipelines = () => {
     if (isLastStage || isWonStage) {
       fireDealWonConfetti();
       
-      // Prompt supreme admins/admins for commission
-      if (role === 'supreme_admin' || role === 'admin') {
-        if (activeDeal?.leadId) {
-          setCommissionLeadId(activeDeal.leadId);
-          setCommissionLeadName(activeDeal.client);
-          setCommissionStageName(newStageName);
-          setCommissionDialogOpen(true);
-        }
+      // Show deal closed dialog for all roles
+      if (activeDeal?.leadId) {
+        setCommissionLeadId(activeDeal.leadId);
+        setCommissionLeadName(activeDeal.client);
+        setCommissionStageName(newStageName);
+        setCommissionDialogOpen(true);
       }
     }
   };
@@ -1084,7 +1082,7 @@ const Pipelines = () => {
           }}
         />
 
-        <CommissionDialog
+        <DealClosedDialog
           open={commissionDialogOpen}
           onOpenChange={setCommissionDialogOpen}
           leadId={commissionLeadId}
