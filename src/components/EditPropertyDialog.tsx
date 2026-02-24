@@ -105,13 +105,9 @@ export const EditPropertyDialog = ({
 
   const fetchInventoryItems = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data, error } = await supabase
         .from("inventory")
         .select("id, name, property_type, bedrooms, bathrooms, sqft, price")
-        .eq("user_id", user.id)
         .order("name", { ascending: true });
 
       if (error) throw error;
