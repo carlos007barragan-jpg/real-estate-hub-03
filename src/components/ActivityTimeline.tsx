@@ -120,8 +120,8 @@ export const ActivityTimeline = ({ leadId, notes, userRole }: ActivityTimelinePr
       all.push({
         id: `commission-${leadId}`,
         type: "commission",
-        title: "Commission recorded",
-        description: `Total payouts: $${commissionData.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        title: "Commission recorded and paid out",
+        description: "Commission completed",
         timestamp: new Date(commissionData.createdAt).toLocaleString(),
       });
     }
