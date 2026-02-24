@@ -281,6 +281,7 @@ const Pipelines = () => {
   const [commissionLeadName, setCommissionLeadName] = useState("");
   const [commissionStageName, setCommissionStageName] = useState("");
   const [commissionPipelineName, setCommissionPipelineName] = useState("");
+  const [isPerformingStageChange, setIsPerformingStageChange] = useState(false);
   const { toast } = useToast();
   const { role } = useAuth();
 
