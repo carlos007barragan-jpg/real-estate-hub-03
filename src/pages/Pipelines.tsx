@@ -752,8 +752,32 @@ const Pipelines = () => {
       })
     );
 
+    // Detect deal revert: moving FROM a won stage TO a non-won stage
+    const wasWonStage = wonStageNames.includes(activeStage.name.toLowerCase().trim()) ||
+      currentPipeline.stages[currentPipeline.stages.length - 1]?.id === activeStage.id;
+    const isNowWon = isLastStage || isWonStage;
+
+    if (wasWonStage && !isNowWon && activeDeal?.leadId) {
+      // Revert: clean up commission data, reset lead fields, delete tasks
+      await Promise.all([
+        supabase.from("commission_entries").delete().eq("lead_id", activeDeal.leadId),
+        supabase.from("leads").update({
+          commission: null,
+          sales_price: null,
+          close_date: null,
+          status: "active",
+        } as any).eq("id", activeDeal.leadId),
+        supabase.from("tasks").delete().eq("lead_id", activeDeal.leadId).ilike("title", "%Enter commission%payout%"),
+      ]);
+
+      toast({
+        title: "Deal Reverted",
+        description: "Commission data cleared. Move back to a won stage to re-enter.",
+      });
+    }
+
     // Fire confetti and prompt commission for won deals
-    if (isLastStage || isWonStage) {
+    if (isNowWon) {
       fireDealWonConfetti();
       
       // Show deal closed dialog for all roles
