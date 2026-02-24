@@ -50,7 +50,7 @@ const LeadProfile = () => {
   const { toast } = useToast();
   const { role } = useAuth();
   
-  const wonStageNames = ["closed", "sold", "funded"];
+  const wonStageNames = ["closed", "sold", "funded", "closed won", "deal won"];
   
   const [leadData, setLeadData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -742,6 +742,7 @@ const LeadProfile = () => {
           leadId={leadData.id}
           leadName={leadData.name}
           stageName={commissionStageName}
+          pipelineName={pipelineName}
           propertyOfInterest={leadData.property_of_interest || ""}
           onSuccess={fetchLead}
         />

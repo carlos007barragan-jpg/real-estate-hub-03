@@ -13,11 +13,15 @@ interface DealClosedDialogProps {
   leadId: string;
   leadName: string;
   stageName: string;
+  pipelineName?: string;
   propertyOfInterest?: string;
   onSuccess?: () => void;
 }
 
-export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageName, propertyOfInterest, onSuccess }: DealClosedDialogProps) => {
+export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageName, pipelineName, propertyOfInterest, onSuccess }: DealClosedDialogProps) => {
+  const isHardMoney = pipelineName?.toLowerCase().includes("hard money");
+  const priceLabel = isHardMoney ? "Total Financed ($)" : "Sale Price ($)";
+  const pricePlaceholder = isHardMoney ? "e.g. 250000" : "e.g. 350000";
   const [salesPrice, setSalesPrice] = useState("");
   const [closeDate, setCloseDate] = useState(new Date().toISOString().split("T")[0]);
   const [property, setProperty] = useState(propertyOfInterest || "");
@@ -53,7 +57,7 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
       if (profile?.organization_id) {
         const closerName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "A team member";
 
-        // Find all supreme_admin users in the org
+        // Find all org members with admin/supreme_admin roles
         const { data: orgProfiles } = await supabase
           .from("profiles")
           .select("user_id")
@@ -62,26 +66,46 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
         if (orgProfiles) {
           const orgUserIds = orgProfiles.map(p => p.user_id);
 
-          // Check which of these users are supreme_admins
           const { data: adminRoles } = await supabase
             .from("user_roles")
-            .select("user_id")
-            .eq("role", "supreme_admin")
+            .select("user_id, role")
+            .in("role", ["admin", "supreme_admin"])
             .in("user_id", orgUserIds);
 
           if (adminRoles && adminRoles.length > 0) {
-            const priceDisplay = salesPrice ? `$${salesPrice}` : "Not entered";
-            const notifications = adminRoles.map(r => ({
-              user_id: r.user_id,
-              title: `Commission Entry Needed: ${leadName}`,
-              description: `${closerName} closed a deal with ${leadName}. Sale price: ${priceDisplay}. Please enter the commission and agent payout.`,
-              type: "commission_entry_needed",
-              link: `/leads/${leadId}`,
-              entity_id: leadId,
-              entity_type: "lead",
-              organization_id: profile.organization_id,
-              read: false,
-            }));
+            const priceDisplay = salesPrice ? `$${Number(salesPrice).toLocaleString()}` : "Not entered";
+            const notifications: any[] = [];
+
+            adminRoles.forEach(r => {
+              // Deal closed notification for all admins
+              notifications.push({
+                user_id: r.user_id,
+                title: `🎉 Deal Closed: ${leadName}`,
+                description: `${closerName} closed a deal with ${leadName}. ${isHardMoney ? 'Total financed' : 'Sale price'}: ${priceDisplay}.`,
+                type: "deal_closed",
+                event_type: "deal_closed",
+                link: `/leads/${leadId}`,
+                entity_id: leadId,
+                entity_type: "lead",
+                organization_id: profile.organization_id,
+                read: false,
+              });
+
+              // Commission entry notification for supreme admins only
+              if (r.role === "supreme_admin") {
+                notifications.push({
+                  user_id: r.user_id,
+                  title: `Commission Entry Needed: ${leadName}`,
+                  description: `${closerName} closed a deal with ${leadName}. ${isHardMoney ? 'Total financed' : 'Sale price'}: ${priceDisplay}. Please enter the commission and agent payout.`,
+                  type: "commission_entry_needed",
+                  link: `/leads/${leadId}`,
+                  entity_id: leadId,
+                  entity_type: "lead",
+                  organization_id: profile.organization_id,
+                  read: false,
+                });
+              }
+            });
 
             await supabase.from("notifications").insert(notifications);
           }
@@ -114,11 +138,11 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="salesPrice">Sale Price ($)</Label>
+            <Label htmlFor="salesPrice">{priceLabel}</Label>
             <Input
               id="salesPrice"
               type="number"
-              placeholder="e.g. 350000"
+              placeholder={pricePlaceholder}
               value={salesPrice}
               onChange={(e) => setSalesPrice(e.target.value)}
               min="0"
