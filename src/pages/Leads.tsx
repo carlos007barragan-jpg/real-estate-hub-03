@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle, Globe, ChevronDown, ChevronRight, MapPin, DollarSign, Home, CreditCard } from "lucide-react";
+import { Search, Phone, Mail, MoreVertical, UserPlus, PhoneIncoming, AlertCircle, Globe, ChevronDown, ChevronRight, MapPin, DollarSign, Home, CreditCard, PhoneOff } from "lucide-react";
 import { LeadFilters } from "@/components/LeadFilters";
 import { CreateLeadDialog } from "@/components/CreateLeadDialog";
 import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
@@ -52,6 +52,7 @@ interface Lead {
   monthlyPayment?: string;
   propertyType?: string;
   isArchived?: boolean;
+  isUncontacted?: boolean;
 }
 
 
@@ -97,16 +98,30 @@ const Leads = () => {
 
       if (leadsError) throw leadsError;
 
-      // Fetch profiles separately
+      const leadIds = (leadsData || []).map((l: any) => l.id);
+
+      // Fetch profiles, call_logs, and sms_logs in parallel
       const userIds = [...new Set((leadsData || []).map((lead: any) => lead.user_id))];
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("user_id, first_name, last_name")
-        .in("user_id", userIds);
+      const [profilesResult, callLogsResult, smsLogsResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name")
+          .in("user_id", userIds),
+        leadIds.length > 0
+          ? supabase.from("call_logs").select("lead_id").in("lead_id", leadIds)
+          : Promise.resolve({ data: [] }),
+        leadIds.length > 0
+          ? supabase.from("sms_logs").select("lead_id").in("lead_id", leadIds)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      // Create sets for quick lookup of contacted leads
+      const contactedByCall = new Set((callLogsResult.data || []).map((c: any) => c.lead_id));
+      const contactedBySms = new Set((smsLogsResult.data || []).map((s: any) => s.lead_id));
 
       // Create a map for quick profile lookup
       const profilesMap = new Map(
-        (profilesData || []).map(profile => [profile.user_id, profile])
+        (profilesResult.data || []).map(profile => [profile.user_id, profile])
       );
 
       const formattedLeads: Lead[] = (leadsData || []).map((lead: any) => {
@@ -114,6 +129,8 @@ const Leads = () => {
         const createdBy = profile 
           ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || "Unknown User"
           : "Unknown User";
+
+        const hasBeenContacted = contactedByCall.has(lead.id) || contactedBySms.has(lead.id);
 
         return {
           id: lead.id,
@@ -140,6 +157,7 @@ const Leads = () => {
           monthlyPayment: lead.monthly_payment || undefined,
           propertyType: lead.property_type || undefined,
           isArchived: lead.is_archived || false,
+          isUncontacted: !hasBeenContacted,
         };
       });
 
@@ -634,6 +652,12 @@ const Leads = () => {
                       <Badge variant="outline" className="gap-1 border-warning text-warning bg-warning/5">
                         <AlertCircle className="h-3 w-3" />
                         <span className="text-xs">Demo</span>
+                      </Badge>
+                    )}
+                    {lead.isUncontacted && !lead.isDemoData && (
+                      <Badge variant="outline" className="gap-1 border-destructive text-destructive bg-destructive/5">
+                        <PhoneOff className="h-3 w-3" />
+                        <span className="text-xs">Uncontacted</span>
                       </Badge>
                     )}
                     <span>{lead.name}</span>
