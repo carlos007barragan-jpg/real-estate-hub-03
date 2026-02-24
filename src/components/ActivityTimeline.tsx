@@ -92,6 +92,16 @@ export const ActivityTimeline = ({ leadId, notes }: ActivityTimelineProps) => {
         timestamp: new Date(a.created_at).toLocaleString(),
         metadata: { status: a.status },
       });
+      // Add a separate "confirmed" event if the appointment was confirmed
+      if (a.status === "confirmed" && a.updated_at && a.updated_at !== a.created_at) {
+        all.push({
+          id: `apt-confirmed-${a.id}`, type: "appointment",
+          title: `✓ Appointment Confirmed: ${a.title}`,
+          description: `Confirmed for ${new Date(a.appointment_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} at ${new Date(a.appointment_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+          timestamp: new Date(a.updated_at).toLocaleString(),
+          metadata: { status: "confirmed" },
+        });
+      }
     });
 
     // Sort by timestamp descending
