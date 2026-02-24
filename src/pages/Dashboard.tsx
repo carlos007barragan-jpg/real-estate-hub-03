@@ -677,7 +677,7 @@ const Dashboard = () => {
         .from("appointments")
         .select("id, updated_at, appointment_date, status")
         .eq("status", "confirmed")
-        .gte("updated_at", dateFrom),
+        .order("appointment_date", { ascending: true }),
     ]);
 
     const closedLeads = closedLeadsRes.data;
@@ -704,23 +704,24 @@ const Dashboard = () => {
       setDealsData(Array.from(dealsMap.entries()).map(([name, deals]) => ({ name, deals })));
     }
 
-    // Process confirmed appointments
+    // Process confirmed appointments - show ALL historical data grouped by month
     const confirmedAppts = confirmedApptsRes.data;
     if (confirmedAppts) {
       const confirmedMap = new Map<string, number>();
 
       confirmedAppts.forEach(apt => {
-        const date = new Date(apt.updated_at);
-        let key: string;
-        if (chartView === 'daily') {
-          key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        } else {
-          key = date.toLocaleDateString('en-US', { month: 'short' });
-        }
+        const date = new Date(apt.appointment_date);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         confirmedMap.set(key, (confirmedMap.get(key) || 0) + 1);
       });
 
-      setAppointmentsConfirmedData(Array.from(confirmedMap.entries()).map(([name, confirmed]) => ({ name, confirmed })));
+      // Sort by date key and format for display
+      const sorted = Array.from(confirmedMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+      setAppointmentsConfirmedData(sorted.map(([key, confirmed]) => {
+        const [year, month] = key.split('-');
+        const d = new Date(parseInt(year), parseInt(month) - 1);
+        return { name: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), confirmed };
+      }));
     }
   };
 
