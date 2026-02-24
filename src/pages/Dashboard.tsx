@@ -135,6 +135,7 @@ const Dashboard = () => {
   const [payoutsData, setPayoutsData] = useState<PayoutData[]>([]);
   const [totalSalesVolume, setTotalSalesVolume] = useState(0);
   const [salesVolumeData, setSalesVolumeData] = useState<SalesVolumeData[]>([]);
+  const [salesVolumeView, setSalesVolumeView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [payoutsPeriod, setPayoutsPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -457,6 +458,10 @@ const Dashboard = () => {
     fetchChartsData();
   }, [chartView]);
 
+  useEffect(() => {
+    fetchSalesVolumeData();
+  }, [salesVolumeView, session?.user?.id]);
+
   // Fetch team payouts data for supreme admins
   useEffect(() => {
     if (role === 'supreme_admin') {
@@ -737,33 +742,34 @@ const Dashboard = () => {
     }
   };
 
-  const getChartDateKey = (date: Date): string => {
-    if (chartView === 'daily') {
+  const getChartDateKey = (date: Date, view?: string): string => {
+    const v = view || chartView;
+    if (v === 'daily') {
       return format(date, 'MMM d');
-    } else if (chartView === 'weekly') {
-      // ISO week: use the Monday of that week as label
+    } else if (v === 'weekly') {
       const day = date.getDay();
       const diff = date.getDate() - day + (day === 0 ? -6 : 1);
       const monday = new Date(date);
       monday.setDate(diff);
       return `Week of ${format(monday, 'MMM d')}`;
-    } else if (chartView === 'monthly') {
+    } else if (v === 'monthly') {
       return format(date, 'MMM yyyy');
     } else {
       return format(date, 'yyyy');
     }
   };
 
-  const getChartSortKey = (date: Date): string => {
-    if (chartView === 'daily') {
+  const getChartSortKey = (date: Date, view?: string): string => {
+    const v = view || chartView;
+    if (v === 'daily') {
       return format(date, 'yyyy-MM-dd');
-    } else if (chartView === 'weekly') {
+    } else if (v === 'weekly') {
       const day = date.getDay();
       const diff = date.getDate() - day + (day === 0 ? -6 : 1);
       const monday = new Date(date);
       monday.setDate(diff);
       return format(monday, 'yyyy-MM-dd');
-    } else if (chartView === 'monthly') {
+    } else if (v === 'monthly') {
       return format(date, 'yyyy-MM');
     } else {
       return format(date, 'yyyy');
@@ -817,28 +823,6 @@ const Dashboard = () => {
     // Process revenue & deals
     const closedLeads = closedLeadsRes.data;
     if (closedLeads) {
-      // Calculate total sales volume and chart data from closed leads with a sales_price
-      const salesVolumeTotal = closedLeads.reduce((sum, lead) => {
-        const price = parseFloat(lead.sales_price || '0');
-        return sum + (isNaN(price) ? 0 : price);
-      }, 0);
-      setTotalSalesVolume(salesVolumeTotal);
-
-      const salesVolumeMap = new Map<string, { sortKey: string; volume: number }>();
-      closedLeads.forEach(lead => {
-        const price = parseFloat(lead.sales_price || '0');
-        if (!isNaN(price) && price > 0) {
-          const closeDate = new Date(lead.close_date);
-          const key = getChartDateKey(closeDate);
-          const sortKey = getChartSortKey(closeDate);
-          const existing = salesVolumeMap.get(key);
-          salesVolumeMap.set(key, { sortKey, volume: (existing?.volume || 0) + price });
-        }
-      });
-      const sortedSalesVolume = Array.from(salesVolumeMap.entries())
-        .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
-      setSalesVolumeData(sortedSalesVolume.map(([name, { volume }]) => ({ name, volume })));
-
       const revenueMap = new Map<string, { sortKey: string; amount: number; netAmount: number }>();
       const dealsMap = new Map<string, { sortKey: string; deals: number }>();
 
@@ -897,6 +881,54 @@ const Dashboard = () => {
       const sortedShowings = Array.from(showingsMap.entries())
         .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
       setShowingsData(sortedShowings.map(([name, { count }]) => ({ name, count })));
+    }
+  };
+
+  const fetchSalesVolumeData = async () => {
+    if (!session?.user) return;
+
+    const today = new Date();
+    let dateFrom: string | null = null;
+
+    if (salesVolumeView === 'daily') {
+      dateFrom = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    } else if (salesVolumeView === 'weekly') {
+      dateFrom = new Date(today.getTime() - 12 * 7 * 24 * 60 * 60 * 1000).toISOString();
+    } else if (salesVolumeView === 'monthly') {
+      const twelveMonthsAgo = new Date(today);
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+      dateFrom = twelveMonthsAgo.toISOString();
+    }
+
+    let query = supabase
+      .from("leads")
+      .select("close_date, sales_price")
+      .not("close_date", "is", null);
+    if (dateFrom) query = query.gte("close_date", dateFrom);
+
+    const { data: closedLeads } = await query;
+
+    if (closedLeads) {
+      const salesVolumeTotal = closedLeads.reduce((sum, lead) => {
+        const price = parseFloat(lead.sales_price || '0');
+        return sum + (isNaN(price) ? 0 : price);
+      }, 0);
+      setTotalSalesVolume(salesVolumeTotal);
+
+      const salesVolumeMap = new Map<string, { sortKey: string; volume: number }>();
+      closedLeads.forEach(lead => {
+        const price = parseFloat(lead.sales_price || '0');
+        if (!isNaN(price) && price > 0) {
+          const closeDate = new Date(lead.close_date!);
+          const key = getChartDateKey(closeDate, salesVolumeView);
+          const sortKey = getChartSortKey(closeDate, salesVolumeView);
+          const existing = salesVolumeMap.get(key);
+          salesVolumeMap.set(key, { sortKey, volume: (existing?.volume || 0) + price });
+        }
+      });
+      const sortedSalesVolume = Array.from(salesVolumeMap.entries())
+        .sort(([, a], [, b]) => a.sortKey.localeCompare(b.sortKey));
+      setSalesVolumeData(sortedSalesVolume.map(([name, { volume }]) => ({ name, volume })));
     }
   };
 
@@ -1464,7 +1496,7 @@ const Dashboard = () => {
               <h2 className="text-xl font-semibold text-foreground">Total Sales Volume</h2>
             </div>
             <div className="flex items-center gap-3">
-              <Tabs value={chartView} onValueChange={(v) => setChartView(v as any)}>
+              <Tabs value={salesVolumeView} onValueChange={(v) => setSalesVolumeView(v as any)}>
                 <TabsList>
                   <TabsTrigger value="daily">Daily</TabsTrigger>
                   <TabsTrigger value="weekly">Weekly</TabsTrigger>
