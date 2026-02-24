@@ -174,7 +174,7 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
     setEditingTaskId(task.id);
     setEditTitle(task.title);
     setEditDescription(task.description || "");
-    setEditDueDate(task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : "");
+    setEditDueDate(task.due_date ? new Date(task.due_date).toISOString().slice(0, 16) : "");
     setEditAssignee(task.user_id);
   };
 
@@ -203,10 +203,37 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
 
   const isOverdue = (task: Task) => {
     if (!task.due_date || task.status === "completed") return false;
+    return new Date(task.due_date) < new Date();
+  };
+
+  const isDueSoon = (task: Task) => {
+    if (!task.due_date || task.status === "completed" || isOverdue(task)) return false;
     const due = new Date(task.due_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return due < today;
+    const hoursUntil = (due.getTime() - Date.now()) / (1000 * 60 * 60);
+    return hoursUntil <= 2;
+  };
+
+  const formatDueLabel = (task: Task) => {
+    if (!task.due_date) return null;
+    const due = new Date(task.due_date);
+    const now = new Date();
+    const diffMs = due.getTime() - now.getTime();
+    const diffMins = Math.round(diffMs / (1000 * 60));
+    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+
+    if (task.status === "completed") {
+      return due.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+    if (diffMs < 0) {
+      const overdueMins = Math.abs(diffMins);
+      if (overdueMins < 60) return `Overdue by ${overdueMins}m`;
+      const overdueHrs = Math.abs(diffHours);
+      if (overdueHrs < 24) return `Overdue by ${overdueHrs}h`;
+      return `Overdue · ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+    if (diffMins < 60) return `Due in ${diffMins}m`;
+    if (diffHours <= 2) return `Due in ${diffHours}h`;
+    return due.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   };
 
   const overdueTasks = tasks.filter(t => isOverdue(t));
@@ -224,7 +251,7 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
           <Textarea placeholder="Description (optional)..." value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="text-sm min-h-[50px] resize-none" />
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="text-sm h-8 flex-1" />
+            <Input type="datetime-local" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="text-sm h-8 flex-1" />
           </div>
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -262,13 +289,15 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
             )}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
               {task.due_date && (
-                <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${
+                <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium ${
                   isOverdue(task)
-                    ? "bg-destructive/10 text-destructive font-medium"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-destructive/10 text-destructive"
+                    : isDueSoon(task)
+                      ? "bg-warning/10 text-warning"
+                      : "bg-muted text-muted-foreground font-normal"
                 }`}>
-                  {isOverdue(task) ? <AlertTriangle className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
-                  {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {isOverdue(task) ? <AlertTriangle className="h-3 w-3" /> : isDueSoon(task) ? <Clock className="h-3 w-3" /> : <Calendar className="h-3 w-3" />}
+                  {formatDueLabel(task)}
                 </span>
               )}
               {task.assignedToName && (
@@ -377,7 +406,7 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
             />
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              <Input type="date" value={newTaskDueDate} onChange={(e) => setNewTaskDueDate(e.target.value)} className="text-sm h-8 flex-1 bg-background" />
+              <Input type="datetime-local" value={newTaskDueDate} onChange={(e) => setNewTaskDueDate(e.target.value)} className="text-sm h-8 flex-1 bg-background" />
             </div>
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground shrink-0" />
