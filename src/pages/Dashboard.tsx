@@ -631,8 +631,12 @@ const Dashboard = () => {
         supabase.from("user_roles").select("user_id, role").in("user_id", orgUserIds),
         supabase.from("agents").select("*"),
         supabase.from("profiles").select("*").in("user_id", orgUserIds),
-        // tasks: fetch all non-completed or due this month
-        supabase.from("tasks").select("*").or(`due_date.gte.${todayStart.toISOString()},and(due_date.lt.${todayStart.toISOString()},status.neq.completed)`).order("due_date", { ascending: true }),
+        // tasks: only pending/in-progress tasks needed for Today + Past Due widgets
+        supabase
+          .from("tasks")
+          .select("*")
+          .or(`and(due_date.gte.${todayStart.toISOString()},due_date.lte.${todayEnd.toISOString()},status.neq.completed),and(due_date.lt.${todayStart.toISOString()},status.neq.completed)`)
+          .order("due_date", { ascending: true }),
         // appointments: fetch full month
         supabase.from("appointments").select("*").gte("created_at", monthStart.toISOString()).lte("created_at", monthEnd.toISOString()),
         // deals (leads with close_date): filter by close_date instead of created_at
@@ -655,7 +659,7 @@ const Dashboard = () => {
       // Filter tasks client-side: today's tasks, past due tasks
       const allTasks = allTasksResult.data || [];
       const todayTasksFiltered = allTasks.filter(t => {
-        if (!t.due_date) return false;
+        if (!t.due_date || t.status === 'completed') return false;
         const d = new Date(t.due_date);
         return d >= todayStart && d <= todayEnd;
       });
@@ -924,11 +928,15 @@ const Dashboard = () => {
         setPastDueTasks((prev) => prev.filter((task) => task.id !== taskId));
       }
     } else {
-      setTodayTasks((prev) =>
-        prev.map((task) =>
-          task.id === taskId ? { ...task, status: newStatus } : task
-        )
-      );
+      if (newStatus === "completed") {
+        setTodayTasks((prev) => prev.filter((task) => task.id !== taskId));
+      } else {
+        setTodayTasks((prev) =>
+          prev.map((task) =>
+            task.id === taskId ? { ...task, status: newStatus } : task
+          )
+        );
+      }
     }
     toast.success(`Task ${newStatus === "completed" ? "completed" : "reopened"}`);
   };

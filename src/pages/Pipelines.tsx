@@ -285,7 +285,7 @@ const Pipelines = () => {
   const { role } = useAuth();
 
   // Final/won stage names that trigger confetti
-  const wonStageNames = ["closed", "sold", "funded", "closed won", "deal won"];
+  const wonStageNames = ["closed", "sold", "funded", "closed won", "deal won", "won", "done", "completed", "complete"];
 
   // Map lead_temperature values to pipeline names for auto-assignment
   const temperatureToPipelineMap: Record<string, string> = {
