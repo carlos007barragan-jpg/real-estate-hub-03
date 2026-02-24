@@ -1463,9 +1463,19 @@ const Dashboard = () => {
               <DollarSign className="h-5 w-5 text-primary" />
               <h2 className="text-xl font-semibold text-foreground">Total Sales Volume</h2>
             </div>
-            <Badge variant="secondary" className="text-sm">
+            <div className="flex items-center gap-3">
+              <Tabs value={chartView} onValueChange={(v) => setChartView(v as any)}>
+                <TabsList>
+                  <TabsTrigger value="daily">Daily</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  <TabsTrigger value="yearly">Yearly</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <Badge variant="secondary" className="text-sm">
               ${totalSalesVolume.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </Badge>
+            </div>
           </div>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={salesVolumeData}>
