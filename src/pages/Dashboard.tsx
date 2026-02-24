@@ -1174,8 +1174,9 @@ const Dashboard = () => {
             <Tabs value={chartView} onValueChange={(v) => setChartView(v as any)}>
               <TabsList>
                 <TabsTrigger value="daily">Daily</TabsTrigger>
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
                 <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                <TabsTrigger value="ytd">YTD</TabsTrigger>
+                <TabsTrigger value="yearly">Yearly</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -1210,8 +1211,9 @@ const Dashboard = () => {
               <Tabs value={chartView} onValueChange={(v) => setChartView(v as any)}>
                 <TabsList>
                   <TabsTrigger value="daily">Daily</TabsTrigger>
+                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
                   <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                  <TabsTrigger value="ytd">YTD</TabsTrigger>
+                  <TabsTrigger value="yearly">Yearly</TabsTrigger>
                 </TabsList>
               </Tabs>
             )}
@@ -1228,6 +1230,31 @@ const Dashboard = () => {
                 stroke="hsl(var(--success))" 
                 strokeWidth={2}
                 dot={{ fill: "hsl(var(--success))", r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* Showings Chart - visible to all */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-info" />
+              <h2 className="text-xl font-semibold text-foreground">Showings</h2>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={showingsData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Line 
+                type="monotone" 
+                dataKey="count" 
+                stroke="hsl(var(--info))" 
+                strokeWidth={2}
+                dot={{ fill: "hsl(var(--info))", r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>
