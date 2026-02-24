@@ -34,10 +34,13 @@ import { MultiAgentSelect } from "@/components/MultiAgentSelect";
 import { LeadQuickStats } from "@/components/LeadQuickStats";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { FollowUpReminder } from "@/components/FollowUpReminder";
+import { CommissionSection } from "@/components/CommissionSection";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, handleUpdateNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editPropertyDialogOpen, setEditPropertyDialogOpen] = useState(false);
   const [editAreasDialogOpen, setEditAreasDialogOpen] = useState(false);
@@ -535,6 +538,11 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
           handleAddNote={handleAddNote}
           handleUpdateNote={handleUpdateNote}
         />
+
+        {/* Commission Section - Supreme Admin only, won deals only */}
+        {role === 'supreme_admin' && leadData.status === 'won' && (
+          <CommissionSection leadId={id} leadData={leadData} onUpdate={onLeadUpdate} />
+        )}
 
         {/* 3. Tasks Section */}
         <TasksSection leadId={id} />
