@@ -1,90 +1,40 @@
 
 
-# Commission Management System
+# Commission Section: Collapse After Save + Activity Timeline Entry
 
-## Overview
+## What Changes
 
-When a deal closes, a task is automatically created for Supreme Admins with all deal details pre-filled. Supreme Admins can then enter the total commission, pay out multiple agents, and the system automatically calculates the office fee. The dashboard gets a dual revenue tracker showing total revenue vs. net income after payouts.
+1. **Commission section collapses after saving** -- Once saved, the form minimizes into a compact "Commission Complete" summary card showing just the total commission and office fee. A small "Edit" button lets Supreme Admins re-open it if adjustments are needed later.
 
-## Part 1: Auto-Create Commission Task on Deal Close
+2. **Commission entry added to the Activity Timeline** -- After saving, a "commission" event appears in the timeline showing "Commission recorded" with the total amount. This entry is only visible to Supreme Admins (filtered out for all other roles), keeping payout details internal.
 
-**File: `src/components/DealClosedDialog.tsx`**
+## Technical Details
 
-When `handleSave` runs, after notifications are inserted, automatically create a task for each Supreme Admin:
+### File: `src/components/CommissionSection.tsx`
 
-- **Title**: "Enter commission & payout: {leadName}"
-- **Description**: Auto-populated with closer name, sales price/total financed, property, and close date -- pulled from the data just entered
-- **Due date**: Day after the close date (not a static offset from today)
-- **Assigned to**: Each Supreme Admin in the organization
-- **Linked to**: The lead via `lead_id`
+- Add a `saved` state that starts as `true` when existing commission entries are found on load, or becomes `true` after a successful save.
+- When `saved` is true, render a collapsed summary card:
+  - Shows "Commission Complete" with a checkmark icon
+  - Displays total commission and office fee as read-only text
+  - An "Edit" button sets `saved = false` to re-open the full form
+- When `saved` is false (no data yet, or editing), show the current full form as-is.
+- After `handleSave` succeeds, also insert an activity note into the `lead_notes` table (or a timeline-compatible record) with a special type marker so the timeline can identify it.
 
-These tasks will automatically show up in the lead's Tasks tab and on the Supreme Admin's dashboard.
+### File: `src/components/ActivityTimeline.tsx`
 
-## Part 2: New `commission_entries` Table
+- Add a new event type: `"commission"` with a DollarSign icon and a distinct color (e.g., green/success).
+- Fetch commission entries for the lead (just checking if any exist and the total) -- but only if the current user's role is `supreme_admin`.
+- If the user is not a Supreme Admin, commission events are simply not added to the timeline array, so they never appear.
+- Add "Commission" to the filter chip list (only shown for Supreme Admins).
 
-A new database table to support multiple agent payouts per deal:
+### File: `src/components/layouts/TwoColumnLayout.tsx`
 
-```text
-commission_entries
-  - id (uuid, PK)
-  - lead_id (uuid, FK to leads)
-  - agent_name (text) -- who got paid
-  - agent_user_id (uuid, nullable) -- link to team member if applicable
-  - payout_amount (numeric)
-  - organization_id (uuid)
-  - created_at (timestamptz)
-  - created_by (uuid) -- who entered this record
-```
+- Pass the user's `role` to `ActivityTimeline` so it can conditionally show/hide commission events.
+- The existing `role === 'supreme_admin' && leadData.status === 'won'` guard on CommissionSection stays as-is.
 
-RLS policies will scope all access to the user's organization. Only admins/supreme_admins can insert, update, and delete entries. All org members can view.
+### Data Flow
 
-## Part 3: Commission Entry UI on Lead Profile
+- Commission save writes to `leads.commission` and `commission_entries` (already implemented).
+- The Activity Timeline reads from `commission_entries` to generate a single summary event per lead (not one per agent -- just "Commission recorded: $X total").
+- No new database tables or migrations needed. The timeline reads existing data.
 
-**New component: `src/components/CommissionSection.tsx`**
-
-Visible only to Supreme Admins on the lead profile (when `status = 'won'`):
-
-```text
-+----------------------------------------------+
-| Commission Details                            |
-+----------------------------------------------+
-| Total Commission    [ $10,000       ]         |
-| Property            123 Main St (read-only)   |
-| Close Date          Jan 15, 2026 (read-only)  |
-+----------------------------------------------+
-| Agent Payouts                    [+ Add Agent]|
-| John Smith          $4,500       [x Remove]   |
-| Sarah Lee           $2,000       [x Remove]   |
-+----------------------------------------------+
-| Office Fee (auto-calculated):     $3,500      |
-+----------------------------------------------+
-| [Save Commission Details]                     |
-+----------------------------------------------+
-```
-
-- Total commission saves to the existing `leads.commission` field
-- Each agent payout saves to the new `commission_entries` table
-- Office fee = Total Commission - Sum of Agent Payouts (calculated live, not stored)
-- Agent dropdown pulls from the organization's team members
-
-## Part 4: Dual Revenue Tracker on Dashboard
-
-**File: `src/pages/Dashboard.tsx`**
-
-Update the existing "Revenue" chart (Supreme Admin only) to show two lines:
-
-- **Total Company Revenue** (green): Sum of `leads.commission` for closed deals
-- **Net Earned Income** (blue): Total commission minus sum of `commission_entries.payout_amount` for those same deals
-
-The chart keeps the existing Daily/Weekly/Monthly/Yearly tabs. The legend clearly labels both lines so you can see at a glance how much was generated vs. how much was kept after paying agents.
-
-## Technical Summary
-
-| Change | File(s) |
-|--------|---------|
-| Auto-create task on deal close | `DealClosedDialog.tsx` |
-| New commission_entries table + RLS | Database migration |
-| Commission entry UI | New `CommissionSection.tsx`, update `LeadProfile.tsx` |
-| Dual revenue chart | `Dashboard.tsx` |
-
-No external dependencies needed. All data comes from existing tables plus the new `commission_entries` table.
