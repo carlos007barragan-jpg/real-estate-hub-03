@@ -23,6 +23,14 @@ const QUICK_TASK_PRESETS = [
   { label: "Follow Up Offer", title: "Follow up on submitted offer", description: "Check status and response on the submitted offer" },
   { label: "Negotiate", title: "Negotiate terms", description: "Follow up on counter-offer or negotiate deal terms" },
   { label: "Title/Escrow", title: "Verify title & escrow status", description: "Check title clearance and escrow progress" },
+  { label: "More Showings", title: "Follow up with more property showings", description: "Schedule additional property viewings based on client preferences" },
+  { label: "Office Consult", title: "Follow up for office consultation", description: "Arrange an in-office meeting to review options and next steps" },
+  { label: "Inspection", title: "Schedule home inspection", description: "Coordinate and confirm home inspection appointment" },
+  { label: "Appraisal", title: "Follow up on appraisal", description: "Check appraisal status and review results" },
+  { label: "Closing Prep", title: "Prepare for closing", description: "Confirm closing date, documents, and final walkthrough" },
+  { label: "Client Check-In", title: "Client check-in call", description: "Touch base with client to review progress and answer questions" },
+  { label: "Comp Analysis", title: "Run comparable market analysis", description: "Pull comps and prepare CMA report for the client" },
+  { label: "Referral Ask", title: "Ask for referral", description: "Request referrals from satisfied client after closing" },
 ];
 
 interface Task {
