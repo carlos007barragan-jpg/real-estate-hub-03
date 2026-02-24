@@ -1,93 +1,88 @@
 
 
-# Restructure Property Categorization
+# Deal Won Workflow: Split Into Agent + Supreme Admin Steps
 
-## The Core Insight
+## Overview
 
-Your business has two independent questions for every property, and they can mix freely:
+When a deal moves to the final pipeline stage (Won/Funded), the workflow changes from a single commission dialog to a two-step process:
 
-**1. What is the property?** (Property Type)
-- Single Family, Multi Family, Condo, Townhouse, Land, Commercial, Luxury, Multifamily, Mixed Use
+1. **Step 1 -- Agent/Admin confirms the sale details** (all roles see this)
+2. **Step 2 -- Supreme Admins get a task notification** to enter the financial details
 
-**2. What are we doing with it?** (Deal Strategy)
-- Traditional Listing (on-market, client hires us to sell)
-- Wholesale (we acquire off-market, then assign/sell the contract)
-- Owner Finance (we or seller carry the note)
+This ensures agents record what they know (sale price, close date, property) and Supreme Admins handle the financials (commission for the agency, payout to the agent).
 
-Any combination is valid: you can wholesale a multifamily, owner-finance a commercial property, or traditionally list a luxury home.
+---
 
-## Proposed Field Structure
+## Step 1: Deal Closed Dialog (All Roles)
 
-### Keep: Property Type (what is the building?)
-Single Family, Multi Family, Condo, Townhouse, Land, Commercial, Luxury, Multifamily, Mixed Use
+When ANY user moves a deal to Won/Funded, they see a confirmation dialog with:
 
-### Replace Category + Transaction Type + Is Wholesale with: Deal Strategy (what are we doing with it?)
-- **Traditional Listing** -- on-market, agent represents seller/buyer
-- **Wholesale** -- off-market acquisition, assigning contract
-- **Owner Finance** -- seller/we carry the note
-- **Lease** -- rental / lease agreement
-- **Rent to Own** -- lease with purchase option
+- **Sale Price** -- how much the property sold for
+- **Close Date** -- pre-filled with today
+- **Property Purchased** -- pre-filled from `property_of_interest` if available
 
-### Keep: Market Status
-- On Market / Off Market
-- (This auto-correlates with Deal Strategy but is still useful as a separate filter since a wholesale deal could technically go on-market)
+No commission fields. The lead status is set to "won". Confetti still fires.
 
-### Remove
-- **Category field** -- no longer needed. "Residential vs Commercial vs Luxury" is already answered by Property Type. Having both was the source of confusion.
-- **Transaction Type section** -- replaced by Deal Strategy inside the classification box
-- **Finance Type free-text input** -- removed (overlapped with Deal Strategy)
-- **Is Wholesale checkbox** -- removed (covered by Deal Strategy = Wholesale)
+After saving, the system automatically creates a notification for every Supreme Admin in the organization telling them to go enter the commission and agent payout.
 
-### Keep (unchanged)
-- Down Payment (shows when Deal Strategy = Owner Finance)
-- Monthly Payment, Interest Rate, ARV, Commission
-- All property details (sqft, beds, baths, etc.)
+---
 
-## How This Looks in the Form
+## Step 2: Supreme Admin Financial Entry (Task Notification)
 
-The "Property Classification" box at the top becomes a clean 2x2 grid:
+Supreme Admins receive a notification:
+- **Title**: "Commission Entry Needed: [Client Name]"
+- **Description**: "[Agent/Admin] closed a deal. Sale price: $X. Please enter the commission and agent payout."
+- **Link**: Goes to `/leads/{id}`
 
-```text
-+-------------------------+-------------------------+
-| Property Type *         | Deal Strategy *         |
-| [Single Family    v]    | [Wholesale         v]   |
-+-------------------------+-------------------------+
-| Market Status           |                         |
-| [Off Market       v]    |                         |
-+-------------------------+-------------------------+
+From the lead profile, the Supreme Admin opens the Edit Deal dialog which now includes:
+- **Sales Price** (read-only or editable -- already entered by the agent)
+- **Commission** (existing field -- brokerage commission)
+- **Agent Payout** (new field -- what the closing agent gets paid)
+
+This feeds into the revenue tracker for real-time financial reporting.
+
+---
+
+## Database Changes
+
+Add two new columns to the `leads` table:
+- `sales_price` (text, nullable) -- the final sale price
+- `agent_payout` (text, nullable) -- how much the agent is paid
+
+No new tables, no new RLS policies needed (existing leads policies already cover org-level access).
+
+---
+
+## Technical Details
+
+### Files to Modify
+
+**`src/components/CommissionDialog.tsx`** -- Repurpose as DealClosedDialog
+- Rename component to `DealClosedDialog`
+- Change title to "Deal Closed -- Confirm Details"
+- Replace commission field with **Sale Price** input
+- Add **Property Purchased** field (pre-filled from `property_of_interest`)
+- Keep **Close Date** field
+- On save: update lead with `sales_price`, `close_date`, `property_of_interest`, `status: 'won'`
+- After save: query all `supreme_admin` users in the org, insert a notification for each with type `commission_entry_needed` and link to `/leads/{id}`
+
+**`src/pages/Pipelines.tsx`**
+- Remove the `role === 'supreme_admin' || role === 'admin'` check -- show the dialog for ALL roles
+- Update import and state variable names from `CommissionDialog` to `DealClosedDialog`
+- Pass `property_of_interest` to the dialog
+
+**`src/pages/LeadProfile.tsx`**
+- Same role-gate removal -- all roles see the deal-closed confirmation
+- Update import to `DealClosedDialog`
+
+**`src/components/EditDealDialog.tsx`**
+- Add **Sales Price** field
+- Add **Agent Payout** field alongside existing Commission field
+- These are where Supreme Admins complete the financial details after clicking the notification
+
+**Database migration**
+```sql
+ALTER TABLE leads ADD COLUMN sales_price text;
+ALTER TABLE leads ADD COLUMN agent_payout text;
 ```
 
-The separate "Transaction Type" and "Transaction Details" sections below are removed entirely.
-
-## What Happens to Existing Data
-
-- Properties with old `category` values (like "Wholesale", "Off-Market") will still display their stored values -- they just won't appear as options for new entries
-- The `category` column stays in the database but won't be used in the form going forward
-- `transaction_type` column is reused for the new Deal Strategy values
-- No database migration needed
-
-## Files to Modify
-
-**`src/pages/Inventory.tsx`**
-- Expand Property Classification box to include Deal Strategy dropdown and Market Status
-- Deal Strategy options: traditional_listing, wholesale, owner_finance, lease, rent_to_own
-- Remove the standalone "Transaction Type" section (lines 1349-1372)
-- Remove the "Transaction Details" section with finance_type input + is_wholesale checkbox (lines 1374-1414)
-- Remove the Category dropdown from the classification box (replaced by Deal Strategy)
-- Update filter sidebar to use Deal Strategy instead of Category/Transaction Type
-- Keep down_payment conditional on `transaction_type === 'owner_finance'`
-
-**`src/components/EditPropertyDialog.tsx`**
-- Mirror the same changes: Deal Strategy dropdown, remove category, remove finance_type, remove is_wholesale
-
-**`src/components/InventoryFieldSettings.tsx`**
-- Remove the Category customization section (no longer a used field)
-- Keep Property Type customization
-- Optionally add Deal Strategy customization
-
-**`src/pages/PropertyDetail.tsx`**
-- Update display labels: show "Deal Strategy" instead of "Category" and "Transaction Type"
-- Remove finance_type display
-
-**`src/pages/OwnerPortalDashboard.tsx`**
-- Update any category references to use the new field structure
