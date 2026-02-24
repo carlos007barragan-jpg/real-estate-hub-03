@@ -88,9 +88,9 @@ interface DealsData {
   deals: number;
 }
 
-interface AppointmentsConfirmedData {
+interface AppointmentsData {
   name: string;
-  confirmed: number;
+  count: number;
 }
 
 const Dashboard = () => {
@@ -111,7 +111,7 @@ const Dashboard = () => {
   const [liveUsers, setLiveUsers] = useState<LiveUser[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [dealsData, setDealsData] = useState<DealsData[]>([]);
-  const [appointmentsConfirmedData, setAppointmentsConfirmedData] = useState<AppointmentsConfirmedData[]>([]);
+  const [appointmentsData, setAppointmentsData] = useState<AppointmentsData[]>([]);
   const [chartView, setChartView] = useState<'daily' | 'monthly' | 'ytd'>('monthly');
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
@@ -675,8 +675,7 @@ const Dashboard = () => {
         .gte("close_date", dateFrom),
       supabase
         .from("appointments")
-        .select("id, updated_at, appointment_date, status")
-        .eq("status", "confirmed")
+        .select("id, appointment_date, status")
         .order("appointment_date", { ascending: true }),
     ]);
 
@@ -704,23 +703,23 @@ const Dashboard = () => {
       setDealsData(Array.from(dealsMap.entries()).map(([name, deals]) => ({ name, deals })));
     }
 
-    // Process confirmed appointments - show ALL historical data grouped by month
-    const confirmedAppts = confirmedApptsRes.data;
-    if (confirmedAppts) {
-      const confirmedMap = new Map<string, number>();
+    // Process all appointments grouped by month (past + future)
+    const allAppts = confirmedApptsRes.data;
+    if (allAppts) {
+      const countMap = new Map<string, number>();
 
-      confirmedAppts.forEach(apt => {
+      allAppts.forEach(apt => {
         const date = new Date(apt.appointment_date);
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        confirmedMap.set(key, (confirmedMap.get(key) || 0) + 1);
+        countMap.set(key, (countMap.get(key) || 0) + 1);
       });
 
       // Sort by date key and format for display
-      const sorted = Array.from(confirmedMap.entries()).sort(([a], [b]) => a.localeCompare(b));
-      setAppointmentsConfirmedData(sorted.map(([key, confirmed]) => {
+      const sorted = Array.from(countMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+      setAppointmentsData(sorted.map(([key, count]) => {
         const [year, month] = key.split('-');
         const d = new Date(parseInt(year), parseInt(month) - 1);
-        return { name: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), confirmed };
+        return { name: d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), count };
       }));
     }
   };
@@ -1172,22 +1171,22 @@ const Dashboard = () => {
           </ResponsiveContainer>
         </Card>
 
-        {/* Appointments Confirmed Chart - Supreme Admin only */}
+        {/* Appointments Chart - Supreme Admin only */}
         {role === 'supreme_admin' && (
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <CalendarIcon className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold text-foreground">Appointments Confirmed</h2>
+            <h2 className="text-xl font-semibold text-foreground">Appointments</h2>
           </div>
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={appointmentsConfirmedData}>
+            <LineChart data={appointmentsData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Line 
                 type="monotone" 
-                dataKey="confirmed" 
+                dataKey="count" 
                 stroke="hsl(var(--primary))" 
                 strokeWidth={2}
                 dot={{ fill: "hsl(var(--primary))", r: 4 }}
