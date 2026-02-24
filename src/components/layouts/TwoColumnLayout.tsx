@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Phone, Mail, MapPin, Calendar, User, Building2, MoreVertical, ChevronDown, Edit, ExternalLink, Package } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, User, Building2, MoreVertical, ChevronDown, Edit, ExternalLink, Package, Plus, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +37,86 @@ import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { FollowUpReminder } from "@/components/FollowUpReminder";
 import { CommissionSection } from "@/components/CommissionSection";
 import { useAuth } from "@/contexts/AuthContext";
+
+// Investor Deals Card Component
+const InvestorDealsCard = ({ leadId, deals, onUpdate }: { leadId: string; deals: any[]; onUpdate: () => void }) => {
+  const { toast } = useToast();
+  const [localDeals, setLocalDeals] = useState<any[]>(deals);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setLocalDeals(deals); }, [deals]);
+
+  const addDeal = () => {
+    setLocalDeals([...localDeals, { property: "", address: "", budget: "", status: "Interested" }]);
+  };
+
+  const removeDeal = (index: number) => {
+    setLocalDeals(localDeals.filter((_, i) => i !== index));
+  };
+
+  const updateDeal = (index: number, field: string, value: string) => {
+    const updated = [...localDeals];
+    updated[index] = { ...updated[index], [field]: value };
+    setLocalDeals(updated);
+  };
+
+  const saveDeals = async () => {
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("leads")
+        .update({ investor_deals: localDeals, last_modified_by: user?.id } as any)
+        .eq("id", leadId);
+      if (error) throw error;
+      toast({ title: "Success", description: "Tracked deals updated" });
+      onUpdate();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="border">
+      <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold">Tracked Deals</CardTitle>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={addDeal}>
+          <Plus className="h-3 w-3" /> Add Deal
+        </Button>
+      </CardHeader>
+      <CardContent className="p-3 pt-0 space-y-3 text-xs">
+        {localDeals.length === 0 && <span className="text-muted-foreground">No deals tracked yet.</span>}
+        {localDeals.map((deal: any, i: number) => (
+          <div key={i} className="border rounded-lg p-2 space-y-2 relative">
+            <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-1 right-1" onClick={() => removeDeal(i)}>
+              <Trash2 className="h-3 w-3 text-destructive" />
+            </Button>
+            <Input placeholder="Property of Interest" value={deal.property || ""} onChange={(e) => updateDeal(i, "property", e.target.value)} className="h-7 text-xs" />
+            <Input placeholder="Address" value={deal.address || ""} onChange={(e) => updateDeal(i, "address", e.target.value)} className="h-7 text-xs" />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="Budget" value={deal.budget || ""} onChange={(e) => updateDeal(i, "budget", e.target.value)} className="h-7 text-xs" />
+              <Select value={deal.status || "Interested"} onValueChange={(v) => updateDeal(i, "status", v)}>
+                <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Interested">Interested</SelectItem>
+                  <SelectItem value="Under Contract">Under Contract</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        ))}
+        {localDeals.length > 0 && (
+          <Button size="sm" onClick={saveDeals} disabled={saving} className="w-full h-7 text-xs">
+            {saving ? "Saving..." : "Save Deals"}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, handleUpdateNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
   const { toast } = useToast();
@@ -390,113 +471,247 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
           </CardContent>
         </Card>
 
-        {/* Property Card */}
+        {/* Property Card - Dynamic by Transaction Type */}
         <Card className="border">
           <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Property</CardTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => setEditPropertyDialogOpen(true)}
-            >
+            <CardTitle className="text-sm font-semibold">
+              {transactionType === "Funding" ? "Funding Property" :
+               transactionType === "Listing" ? "Listing Property" :
+               transactionType === "Wholesale" ? "Wholesale Property" :
+               transactionType === "Multifamily" ? "Multifamily Property" :
+               transactionType === "Commercial" ? "Commercial Property" :
+               transactionType === "Investor's" ? "Investor Profile" :
+               "Property"}
+            </CardTitle>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditPropertyDialogOpen(true)}>
               <Edit className="h-3 w-3" />
             </Button>
           </CardHeader>
           <CardContent className="p-3 pt-0 space-y-2 text-xs">
-            {leadData.inventory_id ? (
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary">
-                  <Package className="h-3 w-3" />
-                  In Inventory
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs gap-1"
-                  onClick={() => navigate(`/inventory#${leadData.inventory_id}`)}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  View Property
-                </Button>
-              </div>
-            ) : (
-              <Badge variant="outline" className="gap-1 text-xs mb-2">
-                Not in Inventory
-              </Badge>
+            {/* Inventory badge for all non-investor types */}
+            {transactionType !== "Investor's" && (
+              <>
+                {leadData.inventory_id ? (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary">
+                      <Package className="h-3 w-3" />
+                      In Inventory
+                    </Badge>
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => navigate(`/inventory#${leadData.inventory_id}`)}>
+                      <ExternalLink className="h-3 w-3" />
+                      View Property
+                    </Button>
+                  </div>
+                ) : (
+                  <Badge variant="outline" className="gap-1 text-xs mb-2">Not in Inventory</Badge>
+                )}
+              </>
             )}
-            {leadData.propertyOfInterest && (
-              <div className="flex items-start gap-2">
-                <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
-                <div>
-                  <span className="text-muted-foreground">Property of Interest:</span>
-                  <span className="ml-1 leading-tight">{leadData.propertyOfInterest}</span>
+
+            {/* === INVESTOR === */}
+            {transactionType === "Investor's" && (
+              <>
+                {leadData.area && (
+                  <div>
+                    <span className="text-muted-foreground">Areas:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {leadData.area.split(",").map((a: string, i: number) => (
+                        <Badge key={i} variant="secondary" className="text-[10px]">{a.trim()}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {leadData.timeframe && leadData.timeframe !== "Not specified" && (
+                  <div><span className="text-muted-foreground">Timeframe:</span> {leadData.timeframe}</div>
+                )}
+              </>
+            )}
+
+            {/* === FUNDING === */}
+            {transactionType === "Funding" && (
+              <>
+                {leadData.propertyOfInterest && (
+                  <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><div><span className="text-muted-foreground">Property:</span><span className="ml-1">{leadData.propertyOfInterest}</span></div></div>
+                )}
+                <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><span>{leadData.propertyInterest.address}</span></div>
+                <Separator className="my-2" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div><span className="text-muted-foreground">Beds/Baths:</span> {leadData.propertyInterest.bedrooms}/{leadData.propertyInterest.bathrooms}</div>
+                  {leadData.purchase_price && <div><span className="text-muted-foreground">Purchase:</span> {leadData.purchase_price}</div>}
+                  {leadData.rehab_amount && <div><span className="text-muted-foreground">Rehab:</span> {leadData.rehab_amount}</div>}
+                  {leadData.estimated_credit_score && <div><span className="text-muted-foreground">Credit:</span> {leadData.estimated_credit_score}</div>}
+                  {leadData.estimated_close_date && <div><span className="text-muted-foreground">Close:</span> {new Date(leadData.estimated_close_date).toLocaleDateString()}</div>}
                 </div>
-              </div>
+              </>
             )}
-            <div className="flex items-start gap-2">
-              <MapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
-              <span className="leading-tight">{leadData.propertyInterest.address}</span>
-            </div>
-            <Separator className="my-2" />
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <span className="text-muted-foreground">Beds:</span> {leadData.propertyInterest.bedrooms} / {leadData.propertyInterest.bathrooms}
-              </div>
-              <div>
-                <span className="text-muted-foreground">Sqft:</span> {leadData.propertyInterest.sqft}
-              </div>
-            </div>
+
+            {/* === LISTING === */}
+            {transactionType === "Listing" && (
+              <>
+                {leadData.propertyOfInterest && (
+                  <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><div><span className="text-muted-foreground">Property:</span><span className="ml-1">{leadData.propertyOfInterest}</span></div></div>
+                )}
+                <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><span>{leadData.propertyInterest.address}</span></div>
+                <Separator className="my-2" />
+                <div className="grid grid-cols-2 gap-2">
+                  {leadData.list_price && <div><span className="text-muted-foreground">List Price:</span> {leadData.list_price}</div>}
+                  <div><span className="text-muted-foreground">Beds/Baths:</span> {leadData.propertyInterest.bedrooms}/{leadData.propertyInterest.bathrooms}</div>
+                  <div><span className="text-muted-foreground">Sqft:</span> {leadData.propertyInterest.sqft}</div>
+                  {leadData.town && <div><span className="text-muted-foreground">Town:</span> {leadData.town}</div>}
+                  {leadData.school_district && <div><span className="text-muted-foreground">School:</span> {leadData.school_district}</div>}
+                </div>
+              </>
+            )}
+
+            {/* === WHOLESALE === */}
+            {transactionType === "Wholesale" && (
+              <>
+                {leadData.propertyOfInterest && (
+                  <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><div><span className="text-muted-foreground">Property:</span><span className="ml-1">{leadData.propertyOfInterest}</span></div></div>
+                )}
+                <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><span>{leadData.propertyInterest.address}</span></div>
+                <Separator className="my-2" />
+                <div className="grid grid-cols-2 gap-2">
+                  {leadData.contract_price && <div><span className="text-muted-foreground">Contract:</span> {leadData.contract_price}</div>}
+                  {leadData.list_price && <div><span className="text-muted-foreground">List:</span> {leadData.list_price}</div>}
+                  {leadData.property_condition && <div><span className="text-muted-foreground">Condition:</span> {leadData.property_condition}</div>}
+                  <div><span className="text-muted-foreground">Beds/Baths:</span> {leadData.propertyInterest.bedrooms}/{leadData.propertyInterest.bathrooms}</div>
+                  <div><span className="text-muted-foreground">Sqft:</span> {leadData.propertyInterest.sqft}</div>
+                  {leadData.year_built && <div><span className="text-muted-foreground">Year:</span> {leadData.year_built}</div>}
+                </div>
+              </>
+            )}
+
+            {/* === MULTIFAMILY === */}
+            {transactionType === "Multifamily" && (
+              <>
+                <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><span>{leadData.propertyInterest.address}</span></div>
+                <Separator className="my-2" />
+                <div className="grid grid-cols-2 gap-2">
+                  {leadData.number_of_units && <div><span className="text-muted-foreground">Units:</span> {leadData.number_of_units}</div>}
+                  {leadData.unit_mix && <div><span className="text-muted-foreground">Mix:</span> {leadData.unit_mix}</div>}
+                  {leadData.cap_rate && <div><span className="text-muted-foreground">Cap Rate:</span> {leadData.cap_rate}</div>}
+                  {leadData.noi && <div><span className="text-muted-foreground">NOI:</span> {leadData.noi}</div>}
+                  {leadData.purchase_price && <div><span className="text-muted-foreground">Price:</span> {leadData.purchase_price}</div>}
+                  {leadData.year_built && <div><span className="text-muted-foreground">Year:</span> {leadData.year_built}</div>}
+                </div>
+              </>
+            )}
+
+            {/* === COMMERCIAL === */}
+            {transactionType === "Commercial" && (
+              <>
+                <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><span>{leadData.propertyInterest.address}</span></div>
+                <Separator className="my-2" />
+                <div className="grid grid-cols-2 gap-2">
+                  {leadData.commercial_property_type && <div><span className="text-muted-foreground">Type:</span> {leadData.commercial_property_type}</div>}
+                  <div><span className="text-muted-foreground">Sqft:</span> {leadData.propertyInterest.sqft}</div>
+                  {leadData.cap_rate && <div><span className="text-muted-foreground">Cap Rate:</span> {leadData.cap_rate}</div>}
+                  {leadData.noi && <div><span className="text-muted-foreground">NOI:</span> {leadData.noi}</div>}
+                  {leadData.purchase_price && <div><span className="text-muted-foreground">Price:</span> {leadData.purchase_price}</div>}
+                  {leadData.zoning && <div><span className="text-muted-foreground">Zoning:</span> {leadData.zoning}</div>}
+                </div>
+              </>
+            )}
+
+            {/* === DEFAULT (Buyer/Renter/Unassigned) === */}
+            {["Unassigned", "Buyer's", "Rental"].includes(transactionType) && (
+              <>
+                {leadData.propertyOfInterest && (
+                  <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><div><span className="text-muted-foreground">Property of Interest:</span><span className="ml-1 leading-tight">{leadData.propertyOfInterest}</span></div></div>
+                )}
+                <div className="flex items-start gap-2"><MapPin className="h-3 w-3 text-muted-foreground mt-0.5" /><span className="leading-tight">{leadData.propertyInterest.address}</span></div>
+                <Separator className="my-2" />
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><span className="text-muted-foreground">Beds:</span> {leadData.propertyInterest.bedrooms} / {leadData.propertyInterest.bathrooms}</div>
+                  <div><span className="text-muted-foreground">Sqft:</span> {leadData.propertyInterest.sqft}</div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {/* Areas of Interest & Budget Card */}
-        <Card className="border">
-          <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Areas of Interest & Budget</CardTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => setEditAreasDialogOpen(true)}
-            >
-              <Edit className="h-3 w-3" />
-            </Button>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 space-y-2 text-xs">
-            {leadData.area && (
-              <div>
-                <span className="text-muted-foreground">Areas:</span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {leadData.area.split(",").map((a: string, i: number) => (
-                    <Badge key={i} variant="secondary" className="text-[10px]">
-                      {a.trim()}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <span className="text-muted-foreground">Budget:</span> {leadData.propertyInterest.budget}
-              </div>
-              {leadData.downPayment && (
-                <div>
-                  <span className="text-muted-foreground">Down Payment:</span> {leadData.downPayment}
+        {/* Second Card - Dynamic by Transaction Type */}
+        {transactionType === "Investor's" ? (
+          <InvestorDealsCard leadId={id} deals={leadData.investor_deals || []} onUpdate={onLeadUpdate} />
+        ) : ["Multifamily", "Commercial"].includes(transactionType) ? (
+          <Card className="border">
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm font-semibold">Investment Analysis</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0 text-xs text-muted-foreground">
+              Property details shown above. Use the edit button to update.
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border">
+            <CardHeader className="p-3 pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-semibold">
+                {transactionType === "Funding" ? "Loan & LLC Details" :
+                 transactionType === "Listing" ? "Listing Requirements" :
+                 transactionType === "Wholesale" ? "Transaction Details" :
+                 "Areas of Interest & Budget"}
+              </CardTitle>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditAreasDialogOpen(true)}>
+                <Edit className="h-3 w-3" />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-3 pt-0 space-y-2 text-xs">
+              {/* DEFAULT second card content */}
+              {["Unassigned", "Buyer's", "Rental"].includes(transactionType) && (
+                <>
+                  {leadData.area && (
+                    <div>
+                      <span className="text-muted-foreground">Areas:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {leadData.area.split(",").map((a: string, i: number) => (
+                          <Badge key={i} variant="secondary" className="text-[10px]">{a.trim()}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><span className="text-muted-foreground">Budget:</span> {leadData.propertyInterest.budget}</div>
+                    {leadData.downPayment && <div><span className="text-muted-foreground">Down Payment:</span> {leadData.downPayment}</div>}
+                    <div><span className="text-muted-foreground">Type:</span> {leadData.propertyInterest.propertyType}</div>
+                    {leadData.financingType && <div><span className="text-muted-foreground">Finance:</span><span className="capitalize ml-1">{leadData.financingType}</span></div>}
+                  </div>
+                </>
+              )}
+              {/* FUNDING second card */}
+              {transactionType === "Funding" && (
+                <div className="space-y-1">
+                  {leadData.title_company && <div><span className="text-muted-foreground">Title Company:</span> {leadData.title_company}</div>}
+                  {leadData.loan_details && <div><span className="text-muted-foreground">Loan Details:</span> {leadData.loan_details}</div>}
+                  {leadData.llc_information && <div><span className="text-muted-foreground">LLC Info:</span> {leadData.llc_information}</div>}
+                  {!leadData.title_company && !leadData.loan_details && !leadData.llc_information && (
+                    <span className="text-muted-foreground">No loan or LLC details added yet.</span>
+                  )}
                 </div>
               )}
-              <div>
-                <span className="text-muted-foreground">Type:</span> {leadData.propertyInterest.propertyType}
-              </div>
-              {leadData.financingType && (
+              {/* LISTING second card */}
+              {transactionType === "Listing" && (
                 <div>
-                  <span className="text-muted-foreground">Finance:</span>
-                  <span className="capitalize ml-1">{leadData.financingType}</span>
+                  {leadData.listing_documents ? (
+                    <p className="whitespace-pre-wrap">{leadData.listing_documents}</p>
+                  ) : (
+                    <span className="text-muted-foreground">No listing notes added yet.</span>
+                  )}
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+              {/* WHOLESALE second card */}
+              {transactionType === "Wholesale" && (
+                <div>
+                  {leadData.titleOffice ? (
+                    <div><span className="text-muted-foreground">Title Office:</span> {leadData.titleOffice}</div>
+                  ) : (
+                    <span className="text-muted-foreground">No title office specified.</span>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Documents Section - moved from right */}
         <Card className="border">
@@ -570,6 +785,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         open={editPropertyDialogOpen}
         onOpenChange={setEditPropertyDialogOpen}
         leadId={id}
+        transactionType={transactionType}
         currentData={{
           propertyAddress: leadData.property_address,
           propertyType: leadData.property_type,
@@ -582,6 +798,24 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
           financingType: leadData.financingType,
           propertyOfInterest: leadData.propertyOfInterest,
           inventoryId: leadData.inventory_id,
+          purchasePrice: leadData.purchase_price,
+          rehabAmount: leadData.rehab_amount,
+          estimatedCreditScore: leadData.estimated_credit_score,
+          estimatedCloseDate: leadData.estimated_close_date,
+          preferredLenderId: leadData.preferred_lender_id,
+          listPrice: leadData.list_price,
+          town: leadData.town,
+          schoolDistrict: leadData.school_district,
+          contractPrice: leadData.contract_price,
+          propertyCondition: leadData.property_condition,
+          yearBuilt: leadData.year_built,
+          numberOfUnits: leadData.number_of_units,
+          unitMix: leadData.unit_mix,
+          capRate: leadData.cap_rate,
+          noi: leadData.noi,
+          zoning: leadData.zoning,
+          commercialPropertyType: leadData.commercial_property_type,
+          timeframe: leadData.timeframe === "Not specified" ? "" : leadData.timeframe,
         }}
         onSaved={onLeadUpdate}
       />
@@ -590,12 +824,18 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
         open={editAreasDialogOpen}
         onOpenChange={setEditAreasDialogOpen}
         leadId={id}
+        transactionType={transactionType}
         currentData={{
           area: leadData.area,
           budget: leadData.budget,
           downPayment: leadData.downPayment,
           propertyType: leadData.property_type,
           financingType: leadData.financingType,
+          titleCompany: leadData.title_company,
+          loanDetails: leadData.loan_details,
+          llcInformation: leadData.llc_information,
+          listingDocuments: leadData.listing_documents,
+          titleOffice: leadData.titleOffice,
         }}
         onSaved={onLeadUpdate}
       />

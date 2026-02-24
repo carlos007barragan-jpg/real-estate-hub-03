@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -23,30 +24,12 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 const KC_METRO_AREAS = [
-  "Kansas City, MO",
-  "Kansas City, KS",
-  "Independence, MO",
-  "Blue Springs, MO",
-  "Lee's Summit, MO",
-  "Raytown, MO",
-  "Grandview, MO",
-  "Belton, MO",
-  "Pleasant Hill, MO",
-  "Pleasant Valley, MO",
-  "North Kansas City, MO",
-  "Gladstone, MO",
-  "Parkville, MO",
-  "Liberty, MO",
-  "Platte City, MO",
-  "Smithville, MO",
-  "Kearney, MO",
-  "Overland Park, KS",
-  "Leawood, KS",
-  "Lenexa, KS",
-  "Shawnee, KS",
-  "Edwardsville, KS",
-  "Bonner Springs, KS",
-  "Gardner, KS",
+  "Kansas City, MO", "Kansas City, KS", "Independence, MO", "Blue Springs, MO",
+  "Lee's Summit, MO", "Raytown, MO", "Grandview, MO", "Belton, MO",
+  "Pleasant Hill, MO", "Pleasant Valley, MO", "North Kansas City, MO",
+  "Gladstone, MO", "Parkville, MO", "Liberty, MO", "Platte City, MO",
+  "Smithville, MO", "Kearney, MO", "Overland Park, KS", "Leawood, KS",
+  "Lenexa, KS", "Shawnee, KS", "Edwardsville, KS", "Bonner Springs, KS", "Gardner, KS",
 ];
 
 interface EditAreasInterestDialogProps {
@@ -59,8 +42,15 @@ interface EditAreasInterestDialogProps {
     downPayment: string | null;
     propertyType: string | null;
     financingType: string | null;
+    // New type-specific fields
+    titleCompany?: string | null;
+    loanDetails?: string | null;
+    llcInformation?: string | null;
+    listingDocuments?: string | null;
+    titleOffice?: string | null;
   };
   onSaved: () => void;
+  transactionType?: string;
 }
 
 export const EditAreasInterestDialog = ({
@@ -69,16 +59,27 @@ export const EditAreasInterestDialog = ({
   leadId,
   currentData,
   onSaved,
+  transactionType = "Unassigned",
 }: EditAreasInterestDialogProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  // area can be comma-separated for multi-select
+  const type = transactionType || "Unassigned";
+  const isDefault = ["Unassigned", "Buyer's", "Rental"].includes(type);
+
+  // Default fields
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [budget, setBudget] = useState("");
   const [downPayment, setDownPayment] = useState("");
   const [propertyType, setPropertyType] = useState("");
   const [financingType, setFinancingType] = useState("");
+
+  // Type-specific fields
+  const [titleCompany, setTitleCompany] = useState("");
+  const [loanDetails, setLoanDetails] = useState("");
+  const [llcInformation, setLlcInformation] = useState("");
+  const [listingDocuments, setListingDocuments] = useState("");
+  const [titleOffice, setTitleOffice] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -90,15 +91,17 @@ export const EditAreasInterestDialog = ({
       setDownPayment(currentData.downPayment || "");
       setPropertyType(currentData.propertyType || "");
       setFinancingType(currentData.financingType || "");
+      setTitleCompany(currentData.titleCompany || "");
+      setLoanDetails(currentData.loanDetails || "");
+      setLlcInformation(currentData.llcInformation || "");
+      setListingDocuments(currentData.listingDocuments || "");
+      setTitleOffice(currentData.titleOffice || "");
     }
   }, [open, currentData]);
 
   const addArea = (area: string) => {
-    if (!selectedAreas.includes(area)) {
-      setSelectedAreas([...selectedAreas, area]);
-    }
+    if (!selectedAreas.includes(area)) setSelectedAreas([...selectedAreas, area]);
   };
-
   const removeArea = (area: string) => {
     setSelectedAreas(selectedAreas.filter((a) => a !== area));
   };
@@ -108,21 +111,33 @@ export const EditAreasInterestDialog = ({
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
+      const updateData: any = { last_modified_by: user?.id };
+
+      if (isDefault) {
+        updateData.area = selectedAreas.length > 0 ? selectedAreas.join(", ") : null;
+        updateData.budget = budget || null;
+        updateData.down_payment = downPayment || null;
+        updateData.property_type = propertyType || null;
+        updateData.financing_type = financingType || null;
+      } else if (type === "Funding") {
+        updateData.title_company = titleCompany || null;
+        updateData.loan_details = loanDetails || null;
+        updateData.llc_information = llcInformation || null;
+      } else if (type === "Listing") {
+        updateData.listing_documents = listingDocuments || null;
+      } else if (type === "Wholesale") {
+        updateData.title_office = titleOffice || null;
+      }
+      // Multifamily/Commercial/Investor: no second-card fields to save (or handled elsewhere)
+
       const { error } = await supabase
         .from("leads")
-        .update({
-          area: selectedAreas.length > 0 ? selectedAreas.join(", ") : null,
-          budget: budget || null,
-          down_payment: downPayment || null,
-          property_type: propertyType || null,
-          financing_type: financingType || null,
-          last_modified_by: user?.id,
-        })
+        .update(updateData)
         .eq("id", leadId);
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Areas of interest & budget updated" });
+      toast({ title: "Success", description: "Details updated" });
       onSaved();
       onOpenChange(false);
     } catch (error: any) {
@@ -132,142 +147,162 @@ export const EditAreasInterestDialog = ({
     }
   };
 
+  const getDialogTitle = () => {
+    switch (type) {
+      case "Funding": return "Loan & LLC Details";
+      case "Listing": return "Listing Requirements";
+      case "Wholesale": return "Transaction Details";
+      case "Multifamily":
+      case "Commercial": return "Investment Analysis";
+      default: return "Areas of Interest & Budget";
+    }
+  };
+
+  // Investor and Multifamily/Commercial don't show this dialog
+  if (["Investor's", "Multifamily", "Commercial"].includes(type)) {
+    return null;
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Areas of Interest & Budget</DialogTitle>
+          <DialogTitle>{getDialogTitle()}</DialogTitle>
           <DialogDescription>
-            Update location preferences, budget, and property type criteria
+            {isDefault ? "Update location preferences, budget, and property type criteria" : `Update ${getDialogTitle().toLowerCase()} for this lead`}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Areas of Interest - multi-select */}
-          <div className="space-y-2">
-            <Label>Areas of Interest</Label>
-            {selectedAreas.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {selectedAreas.map((area) => (
-                  <Badge key={area} variant="secondary" className="gap-1 pr-1">
-                    {area}
-                    <button
-                      type="button"
-                      onClick={() => removeArea(area)}
-                      className="ml-0.5 hover:bg-muted rounded-full p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
+          {/* === DEFAULT (Buyer/Renter/Unassigned) === */}
+          {isDefault && (
+            <>
+              <div className="space-y-2">
+                <Label>Areas of Interest</Label>
+                {selectedAreas.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {selectedAreas.map((area) => (
+                      <Badge key={area} variant="secondary" className="gap-1 pr-1">
+                        {area}
+                        <button type="button" onClick={() => removeArea(area)} className="ml-0.5 hover:bg-muted rounded-full p-0.5">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <Select onValueChange={addArea} value="">
+                  <SelectTrigger><SelectValue placeholder="Add an area..." /></SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    {KC_METRO_AREAS.filter((a) => !selectedAreas.includes(a)).map((area) => (
+                      <SelectItem key={area} value={area}>{area}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-            <Select onValueChange={addArea} value="">
-              <SelectTrigger>
-                <SelectValue placeholder="Add an area..." />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px]">
-                {KC_METRO_AREAS.filter((a) => !selectedAreas.includes(a)).map((area) => (
-                  <SelectItem key={area} value={area}>
-                    {area}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label>Budget</Label>
+                <Select value={budget} onValueChange={setBudget}>
+                  <SelectTrigger><SelectValue placeholder="Select budget range" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Under $100,000">Under $100,000</SelectItem>
+                    <SelectItem value="$100,000 - $150,000">$100,000 - $150,000</SelectItem>
+                    <SelectItem value="$150,000 - $200,000">$150,000 - $200,000</SelectItem>
+                    <SelectItem value="$200,000 - $250,000">$200,000 - $250,000</SelectItem>
+                    <SelectItem value="$250,000 - $300,000">$250,000 - $300,000</SelectItem>
+                    <SelectItem value="$300,000 - $400,000">$300,000 - $400,000</SelectItem>
+                    <SelectItem value="$400,000 - $500,000">$400,000 - $500,000</SelectItem>
+                    <SelectItem value="$500,000+">$500,000+</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Down Payment Available</Label>
+                <Select value={downPayment} onValueChange={setDownPayment}>
+                  <SelectTrigger><SelectValue placeholder="Select down payment range" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Under $5,000">Under $5,000</SelectItem>
+                    <SelectItem value="$5,000 - $10,000">$5,000 - $10,000</SelectItem>
+                    <SelectItem value="$10,000 - $15,000">$10,000 - $15,000</SelectItem>
+                    <SelectItem value="$15,000 - $20,000">$15,000 - $20,000</SelectItem>
+                    <SelectItem value="$20,000 - $30,000">$20,000 - $30,000</SelectItem>
+                    <SelectItem value="$30,000 - $50,000">$30,000 - $50,000</SelectItem>
+                    <SelectItem value="$50,000 - $100,000">$50,000 - $100,000</SelectItem>
+                    <SelectItem value="$100,000+">$100,000+</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Type of Property</Label>
+                <Select value={propertyType} onValueChange={setPropertyType}>
+                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Single Family">Single Family</SelectItem>
+                    <SelectItem value="Condo">Condo</SelectItem>
+                    <SelectItem value="Townhouse">Townhouse</SelectItem>
+                    <SelectItem value="Multi-Family">Multi-Family</SelectItem>
+                    <SelectItem value="Land">Land</SelectItem>
+                    <SelectItem value="Commercial">Commercial</SelectItem>
+                    <SelectItem value="Duplex">Duplex</SelectItem>
+                    <SelectItem value="Triplex">Triplex</SelectItem>
+                    <SelectItem value="Fourplex">Fourplex</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Financing Type</Label>
+                <Select value={financingType} onValueChange={setFinancingType}>
+                  <SelectTrigger><SelectValue placeholder="Select financing" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="conventional">Conventional</SelectItem>
+                    <SelectItem value="fha">FHA</SelectItem>
+                    <SelectItem value="va">VA</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
 
-          {/* Budget */}
-          <div className="space-y-2">
-            <Label htmlFor="budget">Budget</Label>
-            <Select value={budget} onValueChange={setBudget}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select budget range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Under $100,000">Under $100,000</SelectItem>
-                <SelectItem value="$100,000 - $150,000">$100,000 - $150,000</SelectItem>
-                <SelectItem value="$150,000 - $200,000">$150,000 - $200,000</SelectItem>
-                <SelectItem value="$200,000 - $250,000">$200,000 - $250,000</SelectItem>
-                <SelectItem value="$250,000 - $300,000">$250,000 - $300,000</SelectItem>
-                <SelectItem value="$300,000 - $400,000">$300,000 - $400,000</SelectItem>
-                <SelectItem value="$400,000 - $500,000">$400,000 - $500,000</SelectItem>
-                <SelectItem value="$500,000+">$500,000+</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* === FUNDING === */}
+          {type === "Funding" && (
+            <>
+              <div className="space-y-2">
+                <Label>Title Company</Label>
+                <Input value={titleCompany} onChange={(e) => setTitleCompany(e.target.value)} placeholder="Enter title company name" />
+              </div>
+              <div className="space-y-2">
+                <Label>Loan Details</Label>
+                <Textarea value={loanDetails} onChange={(e) => setLoanDetails(e.target.value)} placeholder="Enter loan details..." rows={3} />
+              </div>
+              <div className="space-y-2">
+                <Label>LLC Information</Label>
+                <Textarea value={llcInformation} onChange={(e) => setLlcInformation(e.target.value)} placeholder="Enter LLC information..." rows={3} />
+              </div>
+            </>
+          )}
 
-          {/* Down Payment */}
-          <div className="space-y-2">
-            <Label htmlFor="downPayment">Down Payment Available</Label>
-            <Select value={downPayment} onValueChange={setDownPayment}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select down payment range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Under $5,000">Under $5,000</SelectItem>
-                <SelectItem value="$5,000 - $10,000">$5,000 - $10,000</SelectItem>
-                <SelectItem value="$10,000 - $15,000">$10,000 - $15,000</SelectItem>
-                <SelectItem value="$15,000 - $20,000">$15,000 - $20,000</SelectItem>
-                <SelectItem value="$20,000 - $30,000">$20,000 - $30,000</SelectItem>
-                <SelectItem value="$30,000 - $50,000">$30,000 - $50,000</SelectItem>
-                <SelectItem value="$50,000 - $100,000">$50,000 - $100,000</SelectItem>
-                <SelectItem value="$100,000+">$100,000+</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* === LISTING === */}
+          {type === "Listing" && (
+            <div className="space-y-2">
+              <Label>Listing Documents / Notes</Label>
+              <Textarea value={listingDocuments} onChange={(e) => setListingDocuments(e.target.value)} placeholder="Enter listing documents or requirements notes..." rows={5} />
+            </div>
+          )}
 
-          {/* Property Type */}
-          <div className="space-y-2">
-            <Label htmlFor="propertyType">Type of Property</Label>
-            <Select
-              value={propertyType}
-              onValueChange={setPropertyType}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Single Family">Single Family</SelectItem>
-                <SelectItem value="Condo">Condo</SelectItem>
-                <SelectItem value="Townhouse">Townhouse</SelectItem>
-                <SelectItem value="Multi-Family">Multi-Family</SelectItem>
-                <SelectItem value="Land">Land</SelectItem>
-                <SelectItem value="Commercial">Commercial</SelectItem>
-                <SelectItem value="Duplex">Duplex</SelectItem>
-                <SelectItem value="Triplex">Triplex</SelectItem>
-                <SelectItem value="Fourplex">Fourplex</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Financing Type */}
-          <div className="space-y-2">
-            <Label htmlFor="financingType">Financing Type</Label>
-            <Select
-              value={financingType}
-              onValueChange={setFinancingType}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select financing" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="conventional">Conventional</SelectItem>
-                <SelectItem value="fha">FHA</SelectItem>
-                <SelectItem value="va">VA</SelectItem>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* === WHOLESALE === */}
+          {type === "Wholesale" && (
+            <div className="space-y-2">
+              <Label>Title Office</Label>
+              <Input value={titleOffice} onChange={(e) => setTitleOffice(e.target.value)} placeholder="Enter title office name" />
+            </div>
+          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={loading}>
-            {loading ? "Saving..." : "Save Changes"}
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={handleSave} disabled={loading}>{loading ? "Saving..." : "Save Changes"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
