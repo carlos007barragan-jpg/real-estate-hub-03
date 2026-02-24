@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power } from "lucide-react";
+import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power, DollarSign } from "lucide-react";
 import { AgentMetricDetailDialog, MetricType } from "@/components/AgentMetricDetailDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AgentStats {
@@ -98,6 +98,11 @@ interface ShowingsData {
   count: number;
 }
 
+interface PayoutData {
+  name: string;
+  amount: number;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { session, isAdmin: cachedIsAdmin, role } = useAuth();
@@ -120,6 +125,8 @@ const Dashboard = () => {
   const [chartView, setChartView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [showingsData, setShowingsData] = useState<ShowingsData[]>([]);
   const [totalAppointments, setTotalAppointments] = useState(0);
+  const [payoutsData, setPayoutsData] = useState<PayoutData[]>([]);
+  const [payoutsPeriod, setPayoutsPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [performancePeriod, setPerformancePeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -440,6 +447,59 @@ const Dashboard = () => {
   useEffect(() => {
     fetchChartsData();
   }, [chartView]);
+
+  // Fetch team payouts data for supreme admins
+  useEffect(() => {
+    if (role === 'supreme_admin') {
+      fetchPayoutsData();
+    }
+  }, [payoutsPeriod, role, session?.user?.id]);
+
+  const fetchPayoutsData = async () => {
+    if (!session?.user) return;
+
+    const today = new Date();
+    let dateFrom: string;
+
+    if (payoutsPeriod === 'weekly') {
+      dateFrom = startOfWeek(today).toISOString();
+    } else if (payoutsPeriod === 'monthly') {
+      dateFrom = startOfMonth(today).toISOString();
+    } else {
+      // yearly - start of current year
+      const startOfYear = new Date(today.getFullYear(), 0, 1);
+      dateFrom = startOfYear.toISOString();
+    }
+
+    try {
+      const { data: wonLeads, error } = await supabase
+        .from("leads")
+        .select("assigned_to, agent_payout, close_date")
+        .eq("status", "won")
+        .not("agent_payout", "is", null)
+        .gte("close_date", dateFrom.split('T')[0]);
+
+      if (error) throw error;
+
+      // Group payouts by assigned_to (agent name)
+      const payoutMap = new Map<string, number>();
+      (wonLeads || []).forEach((lead: any) => {
+        const agentName = lead.assigned_to || "Unassigned";
+        const amount = parseFloat(lead.agent_payout || "0");
+        if (amount > 0) {
+          payoutMap.set(agentName, (payoutMap.get(agentName) || 0) + amount);
+        }
+      });
+
+      const data: PayoutData[] = Array.from(payoutMap.entries())
+        .map(([name, amount]) => ({ name, amount }))
+        .sort((a, b) => b.amount - a.amount);
+
+      setPayoutsData(data);
+    } catch (error) {
+      console.error("Error fetching payouts data:", error);
+    }
+  };
 
   const setupPresenceTracking = useCallback(async (userId: string) => {
     const channel = supabase.channel('dashboard-presence', {
@@ -1200,7 +1260,41 @@ const Dashboard = () => {
         </Card>
         )}
 
-        {/* Deals Closed Chart - visible to all */}
+        {/* Team Payouts Chart - Supreme Admin only */}
+        {role === 'supreme_admin' && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-success" />
+              <h2 className="text-xl font-semibold text-foreground">Team Payouts</h2>
+            </div>
+            <Tabs value={payoutsPeriod} onValueChange={(v) => setPayoutsPeriod(v as any)}>
+              <TabsList>
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly">Yearly</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          {payoutsData.length === 0 ? (
+            <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
+              No payout data for this period
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={payoutsData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+                <Bar dataKey="amount" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+        )}
+
+
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
