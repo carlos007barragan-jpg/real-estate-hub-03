@@ -101,6 +101,7 @@ interface ShowingsData {
 interface PayoutData {
   name: string;
   amount: number;
+  deals: number;
 }
 
 const Dashboard = () => {
@@ -482,17 +483,18 @@ const Dashboard = () => {
       if (error) throw error;
 
       // Group payouts by assigned_to (agent name)
-      const payoutMap = new Map<string, number>();
+      const payoutMap = new Map<string, { amount: number; deals: number }>();
       (wonLeads || []).forEach((lead: any) => {
         const agentName = lead.assigned_to || "Unassigned";
         const amount = parseFloat(lead.agent_payout || "0");
         if (amount > 0) {
-          payoutMap.set(agentName, (payoutMap.get(agentName) || 0) + amount);
+          const existing = payoutMap.get(agentName) || { amount: 0, deals: 0 };
+          payoutMap.set(agentName, { amount: existing.amount + amount, deals: existing.deals + 1 });
         }
       });
 
       const data: PayoutData[] = Array.from(payoutMap.entries())
-        .map(([name, amount]) => ({ name, amount }))
+        .map(([name, { amount, deals }]) => ({ name, amount, deals }))
         .sort((a, b) => b.amount - a.amount);
 
       setPayoutsData(data);
@@ -1277,19 +1279,25 @@ const Dashboard = () => {
             </Tabs>
           </div>
           {payoutsData.length === 0 ? (
-            <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
+            <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
               No payout data for this period
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={payoutsData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
-                <Bar dataKey="amount" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="space-y-1">
+              {payoutsData.map((agent) => (
+                <div key={agent.name} className="flex items-center justify-between py-3 px-3 rounded-md border border-border">
+                  <span className="font-medium text-foreground">{agent.name}</span>
+                  <div className="flex items-center gap-6">
+                    <span className="text-sm text-muted-foreground">
+                      {agent.deals} {agent.deals === 1 ? 'deal' : 'deals'} closed
+                    </span>
+                    <span className="font-bold text-success min-w-[90px] text-right">
+                      ${agent.amount.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </Card>
         )}
