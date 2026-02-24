@@ -7,8 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, Save, ChevronDown, ChevronRight, AlertTriangle, Clock, User, Zap } from "lucide-react";
+import { MultiAgentSelect } from "@/components/MultiAgentSelect";
+import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, Save, ChevronDown, ChevronRight, AlertTriangle, Clock, Users, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const QUICK_TASK_PRESETS = [
@@ -48,7 +48,8 @@ interface Task {
   completed_at?: string;
   created_at: string;
   user_id: string;
-  assignedToName?: string;
+  assigneeNames?: string[];
+  assigneeIds?: string[];
 }
 
 interface TasksSectionProps {
@@ -60,47 +61,17 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
-  const [newTaskAssignee, setNewTaskAssignee] = useState("");
+  const [newTaskAssignees, setNewTaskAssignees] = useState<string[]>([]);
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
-  const [editAssignee, setEditAssignee] = useState("");
+  const [editAssignees, setEditAssignees] = useState<string[]>([]);
   const [overdueOpen, setOverdueOpen] = useState(true);
   const [pendingOpen, setPendingOpen] = useState(true);
   const [completedOpen, setCompletedOpen] = useState(false);
-  const [teamMembers, setTeamMembers] = useState<{ user_id: string; name: string }[]>([]);
   const { toast } = useToast();
-
-  useEffect(() => {
-    fetchTeamMembers();
-  }, []);
-
-  const fetchTeamMembers = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!profile?.organization_id) return;
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, first_name, last_name")
-        .eq("organization_id", profile.organization_id);
-      setTeamMembers(
-        (profiles || []).map(p => ({
-          user_id: p.user_id,
-          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unknown",
-        }))
-      );
-    } catch (e) {
-      console.error("Error fetching team members:", e);
-    }
-  };
 
   useEffect(() => {
     fetchTasks();
@@ -115,22 +86,52 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      const tasks = data || [];
+      const tasksData = data || [];
 
-      const userIds = [...new Set(tasks.map(t => t.user_id))];
-      if (userIds.length > 0) {
+      // Fetch assignees for all tasks
+      const taskIds = tasksData.map(t => t.id);
+      let assigneeMap = new Map<string, string[]>();
+
+      if (taskIds.length > 0) {
+        const { data: assignees } = await supabase
+          .from("task_assignees")
+          .select("task_id, user_id")
+          .in("task_id", taskIds);
+
+        if (assignees) {
+          for (const a of assignees) {
+            const existing = assigneeMap.get(a.task_id) || [];
+            existing.push(a.user_id);
+            assigneeMap.set(a.task_id, existing);
+          }
+        }
+      }
+
+      // Get all unique user IDs (from tasks + assignees)
+      const allUserIds = new Set<string>();
+      tasksData.forEach(t => allUserIds.add(t.user_id));
+      assigneeMap.forEach(ids => ids.forEach(id => allUserIds.add(id)));
+
+      let profileMap = new Map<string, string>();
+      if (allUserIds.size > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
           .select("user_id, first_name, last_name")
-          .in("user_id", userIds);
+          .in("user_id", [...allUserIds]);
 
-        const profileMap = new Map(
+        profileMap = new Map(
           (profiles || []).map(p => [p.user_id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Unknown User'])
         );
-        setTasks(tasks.map(t => ({ ...t, assignedToName: profileMap.get(t.user_id) || 'Unknown User' })));
-      } else {
-        setTasks(tasks);
       }
+
+      setTasks(tasksData.map(t => {
+        const ids = assigneeMap.get(t.id) || [t.user_id];
+        return {
+          ...t,
+          assigneeIds: ids,
+          assigneeNames: ids.map(id => profileMap.get(id) || 'Unknown User'),
+        };
+      }));
     } catch (error: any) {
       console.error("Error fetching tasks:", error);
     }
@@ -145,15 +146,21 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const assigneeId = newTaskAssignee || user.id;
+      const assignees = newTaskAssignees.length > 0 ? newTaskAssignees : [user.id];
 
-      const { error } = await supabase.from("tasks").insert({
-        lead_id: leadId, user_id: assigneeId, title: newTaskTitle,
+      const { data: taskData, error } = await supabase.from("tasks").insert({
+        lead_id: leadId, user_id: user.id, title: newTaskTitle,
         description: newTaskDescription || null, due_date: newTaskDueDate || null, status: "pending",
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Insert assignees
+      const assigneeRows = assignees.map(uid => ({ task_id: taskData.id, user_id: uid }));
+      const { error: assigneeError } = await supabase.from("task_assignees").insert(assigneeRows);
+      if (assigneeError) console.error("Error adding assignees:", assigneeError);
+
       toast({ title: "Task added", description: "Task has been created successfully" });
-      setNewTaskTitle(""); setNewTaskDescription(""); setNewTaskDueDate(""); setNewTaskAssignee(""); setIsAddingTask(false);
+      setNewTaskTitle(""); setNewTaskDescription(""); setNewTaskDueDate(""); setNewTaskAssignees([]); setIsAddingTask(false);
       fetchTasks();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -189,11 +196,11 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
     setEditTitle(task.title);
     setEditDescription(task.description || "");
     setEditDueDate(task.due_date ? new Date(task.due_date).toISOString().slice(0, 16) : "");
-    setEditAssignee(task.user_id);
+    setEditAssignees(task.assigneeIds || [task.user_id]);
   };
 
   const cancelEditing = () => {
-    setEditingTaskId(null); setEditTitle(""); setEditDescription(""); setEditDueDate(""); setEditAssignee("");
+    setEditingTaskId(null); setEditTitle(""); setEditDescription(""); setEditDueDate(""); setEditAssignees([]);
   };
 
   const handleUpdateTask = async (taskId: string) => {
@@ -204,9 +211,16 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
     try {
       const { error } = await supabase.from("tasks").update({
         title: editTitle, description: editDescription || null, due_date: editDueDate || null,
-        user_id: editAssignee || undefined,
       }).eq("id", taskId);
       if (error) throw error;
+
+      // Update assignees: delete old, insert new
+      await supabase.from("task_assignees").delete().eq("task_id", taskId);
+      if (editAssignees.length > 0) {
+        const assigneeRows = editAssignees.map(uid => ({ task_id: taskId, user_id: uid }));
+        await supabase.from("task_assignees").insert(assigneeRows);
+      }
+
       toast({ title: "Task updated" });
       cancelEditing();
       fetchTasks();
@@ -268,17 +282,10 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
             <Input type="datetime-local" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="text-sm h-8 flex-1" />
           </div>
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Select value={editAssignee} onValueChange={setEditAssignee}>
-              <SelectTrigger className="text-sm h-8 flex-1">
-                <SelectValue placeholder="Assign to..." />
-              </SelectTrigger>
-              <SelectContent className="z-50 bg-popover">
-                {teamMembers.map(m => (
-                  <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Users className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+            <div className="flex-1">
+              <MultiAgentSelect selectedIds={editAssignees} onSelectionChange={setEditAssignees} placeholder="Assign to..." />
+            </div>
           </div>
           <div className="flex gap-2 pt-1">
             <Button onClick={() => handleUpdateTask(task.id)} size="sm" className="h-8 text-xs flex-1 gap-1">
@@ -314,10 +321,14 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
                   {formatDueLabel(task)}
                 </span>
               )}
-              {task.assignedToName && (
-                <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                  {task.assignedToName}
-                </span>
+              {task.assigneeNames && task.assigneeNames.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {task.assigneeNames.map((name, i) => (
+                    <span key={i} className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                      {name}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -423,17 +434,10 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
               <Input type="datetime-local" value={newTaskDueDate} onChange={(e) => setNewTaskDueDate(e.target.value)} className="text-sm h-8 flex-1 bg-background" />
             </div>
             <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground shrink-0" />
-              <Select value={newTaskAssignee} onValueChange={setNewTaskAssignee}>
-                <SelectTrigger className="text-sm h-8 flex-1 bg-background">
-                  <SelectValue placeholder="Assign to (default: me)..." />
-                </SelectTrigger>
-                <SelectContent className="z-50 bg-popover">
-                  {teamMembers.map(m => (
-                    <SelectItem key={m.user_id} value={m.user_id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Users className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+              <div className="flex-1">
+                <MultiAgentSelect selectedIds={newTaskAssignees} onSelectionChange={setNewTaskAssignees} placeholder="Assign to (default: me)..." />
+              </div>
             </div>
             <div className="flex gap-2 pt-1">
               <Button onClick={handleAddTask} size="sm" className="h-8 text-xs flex-1">Create Task</Button>
