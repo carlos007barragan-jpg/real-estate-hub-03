@@ -1,88 +1,39 @@
 
+# Team Payouts: Replace Chart with Clean Summary List
 
-# Deal Won Workflow: Split Into Agent + Supreme Admin Steps
+## What Changes
 
-## Overview
+The Team Payouts section on the Supreme Admin dashboard will switch from a bar chart to a clean, card-based list showing each agent with their name, total payout amount, and number of deals closed -- much easier to scan at a glance.
 
-When a deal moves to the final pipeline stage (Won/Funded), the workflow changes from a single commission dialog to a two-step process:
+## How It Will Look
 
-1. **Step 1 -- Agent/Admin confirms the sale details** (all roles see this)
-2. **Step 2 -- Supreme Admins get a task notification** to enter the financial details
+Each agent gets a row inside the card:
 
-This ensures agents record what they know (sale price, close date, property) and Supreme Admins handle the financials (commission for the agency, payout to the agent).
+```text
++-----------------------------------------------+
+| Team Payouts          [Weekly] [Monthly] [Yearly] |
++-----------------------------------------------+
+| John Smith          3 deals closed    $12,500  |
+| Sarah Lee           2 deals closed     $8,200  |
+| Mike Johnson        1 deal closed      $4,000  |
++-----------------------------------------------+
+```
 
----
-
-## Step 1: Deal Closed Dialog (All Roles)
-
-When ANY user moves a deal to Won/Funded, they see a confirmation dialog with:
-
-- **Sale Price** -- how much the property sold for
-- **Close Date** -- pre-filled with today
-- **Property Purchased** -- pre-filled from `property_of_interest` if available
-
-No commission fields. The lead status is set to "won". Confetti still fires.
-
-After saving, the system automatically creates a notification for every Supreme Admin in the organization telling them to go enter the commission and agent payout.
-
----
-
-## Step 2: Supreme Admin Financial Entry (Task Notification)
-
-Supreme Admins receive a notification:
-- **Title**: "Commission Entry Needed: [Client Name]"
-- **Description**: "[Agent/Admin] closed a deal. Sale price: $X. Please enter the commission and agent payout."
-- **Link**: Goes to `/leads/{id}`
-
-From the lead profile, the Supreme Admin opens the Edit Deal dialog which now includes:
-- **Sales Price** (read-only or editable -- already entered by the agent)
-- **Commission** (existing field -- brokerage commission)
-- **Agent Payout** (new field -- what the closing agent gets paid)
-
-This feeds into the revenue tracker for real-time financial reporting.
-
----
-
-## Database Changes
-
-Add two new columns to the `leads` table:
-- `sales_price` (text, nullable) -- the final sale price
-- `agent_payout` (text, nullable) -- how much the agent is paid
-
-No new tables, no new RLS policies needed (existing leads policies already cover org-level access).
-
----
+- Agent name on the left
+- Number of deals closed in the middle
+- Total payout amount on the right (bold, green)
+- If no data for the period, shows "No payout data for this period"
 
 ## Technical Details
 
-### Files to Modify
+### Data Changes (`fetchPayoutsData`)
+- Update `PayoutData` interface to add a `deals` count field
+- Track deal count per agent alongside the payout sum in the existing aggregation loop
 
-**`src/components/CommissionDialog.tsx`** -- Repurpose as DealClosedDialog
-- Rename component to `DealClosedDialog`
-- Change title to "Deal Closed -- Confirm Details"
-- Replace commission field with **Sale Price** input
-- Add **Property Purchased** field (pre-filled from `property_of_interest`)
-- Keep **Close Date** field
-- On save: update lead with `sales_price`, `close_date`, `property_of_interest`, `status: 'won'`
-- After save: query all `supreme_admin` users in the org, insert a notification for each with type `commission_entry_needed` and link to `/leads/{id}`
+### UI Changes (Team Payouts section, ~lines 1279-1293)
+- Remove the `BarChart` / `ResponsiveContainer` / `CartesianGrid` / `XAxis` / `YAxis` / `Tooltip` / `Bar` components
+- Replace with a simple list of rows, each showing the agent's name, deal count, and formatted payout amount
+- Keep the existing period tabs (Weekly / Monthly / Yearly) exactly as they are
+- Style using existing card/border utilities for consistency with the rest of the dashboard
 
-**`src/pages/Pipelines.tsx`**
-- Remove the `role === 'supreme_admin' || role === 'admin'` check -- show the dialog for ALL roles
-- Update import and state variable names from `CommissionDialog` to `DealClosedDialog`
-- Pass `property_of_interest` to the dialog
-
-**`src/pages/LeadProfile.tsx`**
-- Same role-gate removal -- all roles see the deal-closed confirmation
-- Update import to `DealClosedDialog`
-
-**`src/components/EditDealDialog.tsx`**
-- Add **Sales Price** field
-- Add **Agent Payout** field alongside existing Commission field
-- These are where Supreme Admins complete the financial details after clicking the notification
-
-**Database migration**
-```sql
-ALTER TABLE leads ADD COLUMN sales_price text;
-ALTER TABLE leads ADD COLUMN agent_payout text;
-```
-
+Only `src/pages/Dashboard.tsx` needs to change -- no new files, no database changes.
