@@ -232,7 +232,7 @@ export default function InventoryFieldSettings() {
 
   const renderFieldOptions = (fieldType: string) => {
     const systemDefaults = fieldType === "category" 
-      ? ["Residential", "Commercial", "Wholesale", "Off-Market", "Investment", "Luxury"]
+      ? ["Residential", "Commercial", "Wholesale", "Off-Market", "Luxury", "Multifamily"]
       : ["Single Family", "Multi Family", "Condo", "Townhouse", "Land", "Commercial"];
     
     const fieldOptions = options.filter(opt => opt.field_type === fieldType && opt.is_active)
@@ -384,7 +384,7 @@ export default function InventoryFieldSettings() {
           <div className="p-3 bg-muted/50 rounded-lg border">
             <p className="text-xs font-medium text-muted-foreground mb-2">System Defaults:</p>
             <div className="flex flex-wrap gap-2">
-              {["Residential", "Commercial", "Wholesale", "Off-Market", "Investment", "Luxury"].map(cat => (
+              {["Residential", "Commercial", "Wholesale", "Off-Market", "Luxury", "Multifamily"].map(cat => (
                 <Badge key={cat} variant="outline" className="text-xs">
                   {cat}
                 </Badge>
