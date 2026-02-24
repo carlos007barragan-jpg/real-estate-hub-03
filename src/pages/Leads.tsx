@@ -88,6 +88,7 @@ const Leads = () => {
   const [areaFilter, setAreaFilter] = useState("all");
   const [downPaymentFilter, setDownPaymentFilter] = useState("all");
   const [archiveFilter, setArchiveFilter] = useState("active");
+  const [contactStatusFilter, setContactStatusFilter] = useState("all");
   const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
   const fetchLeads = useCallback(async () => {
     try {
@@ -387,6 +388,12 @@ const Leads = () => {
           if (downPaymentFilter === "100k-plus" && dpNum < 100000) return false;
         }
 
+        // Contact Status filter
+        if (contactStatusFilter !== "all") {
+          if (contactStatusFilter === "uncontacted" && !lead.isUncontacted) return false;
+          if (contactStatusFilter === "contacted" && lead.isUncontacted) return false;
+        }
+
         // Tab filter
         if (activeTab !== "all") {
           const category = getLeadCategory(lead);
@@ -429,7 +436,7 @@ const Leads = () => {
         // Finally sort by date (newest first)
         return new Date(b.rawDate).getTime() - new Date(a.rawDate).getTime();
       });
-  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly, statusFilter, assignedToFilter, transactionTypeFilter, dateFilter, createdByFilter, areaFilter, downPaymentFilter, archiveFilter]);
+  }, [leads, searchTerm, activeTab, currentUserPhone, currentUserName, myAssignedLeadIds, getLeadCategory, showMyLeadsOnly, statusFilter, assignedToFilter, transactionTypeFilter, dateFilter, createdByFilter, areaFilter, downPaymentFilter, archiveFilter, contactStatusFilter]);
 
   const getLeadCountByCategory = useCallback((category: string) => {
     if (category === "all") return leads.length;
@@ -538,6 +545,8 @@ const Leads = () => {
             onDownPaymentFilterChange={setDownPaymentFilter}
             archiveFilter={archiveFilter}
             onArchiveFilterChange={setArchiveFilter}
+            contactStatusFilter={contactStatusFilter}
+            onContactStatusFilterChange={setContactStatusFilter}
             availableUsers={availableUsers}
             transactionTypes={transactionTypes}
             createdByOptions={createdByOptions}
@@ -628,7 +637,7 @@ const Leads = () => {
                     {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                   </Button>
                 </TableCell>
-                <TableCell className="font-medium">
+                <TableCell className={`font-medium ${lead.isUncontacted && !lead.isDemoData ? 'bg-destructive/10' : ''}`}>
                   <div className="flex items-center gap-2">
                     {lead.isInboundCall && (
                       <Badge variant="outline" className="gap-1 border-info text-info bg-info/5">
