@@ -31,6 +31,8 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
   const [closeDate, setCloseDate] = useState<Date>();
   const [agent, setAgent] = useState("");
   const [commission, setCommission] = useState("");
+  const [salesPrice, setSalesPrice] = useState("");
+  const [agentPayout, setAgentPayout] = useState("");
   const [propertyOfInterest, setPropertyOfInterest] = useState("");
   const [titleOffice, setTitleOffice] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -84,7 +86,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
     try {
       const { data, error } = await supabase
         .from("leads")
-        .select("name, spouse_name, close_date, assigned_to, commission, property_of_interest, title_office")
+        .select("name, spouse_name, close_date, assigned_to, commission, property_of_interest, title_office, sales_price, agent_payout")
         .eq("id", leadId)
         .single();
 
@@ -96,6 +98,8 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
         setCloseDate(data.close_date ? new Date(data.close_date) : undefined);
         setAgent(data.assigned_to || "");
         setCommission(data.commission || "");
+        setSalesPrice((data as any).sales_price || "");
+        setAgentPayout((data as any).agent_payout || "");
         setPropertyOfInterest(data.property_of_interest || "");
         setTitleOffice(data.title_office || "");
       }
@@ -122,10 +126,12 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
           close_date: closeDate ? format(closeDate, "yyyy-MM-dd") : null,
           assigned_to: agent,
           commission,
+          sales_price: salesPrice || null,
+          agent_payout: agentPayout || null,
           property_of_interest: propertyOfInterest,
           title_office: titleOffice,
           last_modified_by: user?.id,
-        })
+        } as any)
         .eq("id", leadId);
 
       if (error) throw error;
@@ -213,12 +219,32 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
           </div>
 
           <div>
-            <Label htmlFor="commission">Commission</Label>
+            <Label htmlFor="salesPrice">Sales Price</Label>
+            <Input
+              id="salesPrice"
+              value={salesPrice}
+              onChange={(e) => setSalesPrice(e.target.value)}
+              placeholder="Final sale price"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="commission">Commission (Agency)</Label>
             <Input
               id="commission"
               value={commission}
               onChange={(e) => setCommission(e.target.value)}
-              placeholder="Commission amount"
+              placeholder="Agency commission amount"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="agentPayout">Agent Payout</Label>
+            <Input
+              id="agentPayout"
+              value={agentPayout}
+              onChange={(e) => setAgentPayout(e.target.value)}
+              placeholder="Amount paid to closing agent"
             />
           </div>
 

@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { TwoColumnLayout } from "@/components/layouts/TwoColumnLayout";
 import { PipelineAssignmentDialog } from "@/components/PipelineAssignmentDialog";
-import { CommissionDialog } from "@/components/CommissionDialog";
+import { DealClosedDialog } from "@/components/DealClosedDialog";
 import { fireDealWonConfetti } from "@/lib/confetti";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -480,10 +480,8 @@ const LeadProfile = () => {
       
       if (isWonStage || isLastStage) {
         fireDealWonConfetti();
-        if (role === 'supreme_admin' || role === 'admin') {
-          setCommissionStageName(newStage);
-          setCommissionDialogOpen(true);
-        }
+        setCommissionStageName(newStage);
+        setCommissionDialogOpen(true);
       }
       
       toast({
@@ -738,12 +736,13 @@ const LeadProfile = () => {
           onSuccess={fetchLead}
         />
 
-        <CommissionDialog
+        <DealClosedDialog
           open={commissionDialogOpen}
           onOpenChange={setCommissionDialogOpen}
           leadId={leadData.id}
           leadName={leadData.name}
           stageName={commissionStageName}
+          propertyOfInterest={leadData.property_of_interest || ""}
           onSuccess={fetchLead}
         />
       </div>
