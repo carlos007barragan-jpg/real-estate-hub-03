@@ -88,6 +88,11 @@ interface DealsData {
   deals: number;
 }
 
+interface AppointmentsConfirmedData {
+  name: string;
+  confirmed: number;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { session, isAdmin: cachedIsAdmin, role } = useAuth();
@@ -106,6 +111,7 @@ const Dashboard = () => {
   const [liveUsers, setLiveUsers] = useState<LiveUser[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [dealsData, setDealsData] = useState<DealsData[]>([]);
+  const [appointmentsConfirmedData, setAppointmentsConfirmedData] = useState<AppointmentsConfirmedData[]>([]);
   const [chartView, setChartView] = useState<'daily' | 'monthly' | 'ytd'>('monthly');
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
@@ -653,20 +659,29 @@ const Dashboard = () => {
 
     const today = new Date();
     const startOfYear = new Date(today.getFullYear(), 0, 1);
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfMonthDate = new Date(today.getFullYear(), today.getMonth(), 1);
     const last7Days = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    // Fetch closed deals (leads with status 'closed' or having close_date)
-    const { data: closedLeads } = await supabase
-      .from("leads")
-      .select("*")
-      .not("close_date", "is", null)
-      .gte("close_date", chartView === 'ytd' ? startOfYear.toISOString() : 
-           chartView === 'monthly' ? startOfMonth.toISOString() : 
-           last7Days.toISOString());
+    const dateFrom = chartView === 'ytd' ? startOfYear.toISOString() : 
+         chartView === 'monthly' ? startOfMonthDate.toISOString() : 
+         last7Days.toISOString();
 
+    // Fetch closed deals and confirmed appointments in parallel
+    const [closedLeadsRes, confirmedApptsRes] = await Promise.all([
+      supabase
+        .from("leads")
+        .select("*")
+        .not("close_date", "is", null)
+        .gte("close_date", dateFrom),
+      supabase
+        .from("appointments")
+        .select("id, updated_at, appointment_date, status")
+        .eq("status", "confirmed")
+        .gte("updated_at", dateFrom),
+    ]);
+
+    const closedLeads = closedLeadsRes.data;
     if (closedLeads) {
-      // Calculate revenue data
       const revenueMap = new Map<string, number>();
       const dealsMap = new Map<string, number>();
 
@@ -676,8 +691,6 @@ const Dashboard = () => {
         
         if (chartView === 'daily') {
           key = closeDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        } else if (chartView === 'monthly') {
-          key = closeDate.toLocaleDateString('en-US', { month: 'short' });
         } else {
           key = closeDate.toLocaleDateString('en-US', { month: 'short' });
         }
@@ -687,18 +700,27 @@ const Dashboard = () => {
         dealsMap.set(key, (dealsMap.get(key) || 0) + 1);
       });
 
-      const revenueArray = Array.from(revenueMap.entries()).map(([name, amount]) => ({
-        name,
-        amount
-      }));
+      setRevenueData(Array.from(revenueMap.entries()).map(([name, amount]) => ({ name, amount })));
+      setDealsData(Array.from(dealsMap.entries()).map(([name, deals]) => ({ name, deals })));
+    }
 
-      const dealsArray = Array.from(dealsMap.entries()).map(([name, deals]) => ({
-        name,
-        deals
-      }));
+    // Process confirmed appointments
+    const confirmedAppts = confirmedApptsRes.data;
+    if (confirmedAppts) {
+      const confirmedMap = new Map<string, number>();
 
-      setRevenueData(revenueArray);
-      setDealsData(dealsArray);
+      confirmedAppts.forEach(apt => {
+        const date = new Date(apt.updated_at);
+        let key: string;
+        if (chartView === 'daily') {
+          key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        } else {
+          key = date.toLocaleDateString('en-US', { month: 'short' });
+        }
+        confirmedMap.set(key, (confirmedMap.get(key) || 0) + 1);
+      });
+
+      setAppointmentsConfirmedData(Array.from(confirmedMap.entries()).map(([name, confirmed]) => ({ name, confirmed })));
     }
   };
 
@@ -1079,7 +1101,8 @@ const Dashboard = () => {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Revenue Chart */}
+        {/* Revenue Chart - Supreme Admin only */}
+        {role === 'supreme_admin' && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -1112,12 +1135,24 @@ const Dashboard = () => {
             </LineChart>
           </ResponsiveContainer>
         </Card>
+        )}
 
-        {/* Deals Chart */}
+        {/* Deals Closed Chart - visible to all */}
         <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCircle2 className="h-5 w-5 text-success" />
-            <h2 className="text-xl font-semibold text-foreground">Deals Closed</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-success" />
+              <h2 className="text-xl font-semibold text-foreground">Deals Closed</h2>
+            </div>
+            {role !== 'supreme_admin' && (
+              <Tabs value={chartView} onValueChange={(v) => setChartView(v as any)}>
+                <TabsList>
+                  <TabsTrigger value="daily">Daily</TabsTrigger>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  <TabsTrigger value="ytd">YTD</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
           </div>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={dealsData}>
@@ -1135,6 +1170,31 @@ const Dashboard = () => {
             </LineChart>
           </ResponsiveContainer>
         </Card>
+
+        {/* Appointments Confirmed Chart - Supreme Admin only */}
+        {role === 'supreme_admin' && (
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold text-foreground">Appointments Confirmed</h2>
+          </div>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={appointmentsConfirmedData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Line 
+                type="monotone" 
+                dataKey="confirmed" 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={2}
+                dot={{ fill: "hsl(var(--primary))", r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+        )}
       </div>
 
       {/* Agent Performance Table - Supreme Admin + Admin only */}
