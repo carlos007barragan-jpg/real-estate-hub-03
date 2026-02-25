@@ -879,10 +879,12 @@ export type Database = {
           organization_id: string
           pipeline_id: string
           pipeline_stage: string
+          points_charged: string | null
           property_of_interest: string | null
           sales_price: string | null
           status: string
           title_office: string | null
+          total_fee: string | null
           transaction_type: string | null
           updated_at: string
         }
@@ -899,10 +901,12 @@ export type Database = {
           organization_id: string
           pipeline_id: string
           pipeline_stage: string
+          points_charged?: string | null
           property_of_interest?: string | null
           sales_price?: string | null
           status?: string
           title_office?: string | null
+          total_fee?: string | null
           transaction_type?: string | null
           updated_at?: string
         }
@@ -919,10 +923,12 @@ export type Database = {
           organization_id?: string
           pipeline_id?: string
           pipeline_stage?: string
+          points_charged?: string | null
           property_of_interest?: string | null
           sales_price?: string | null
           status?: string
           title_office?: string | null
+          total_fee?: string | null
           transaction_type?: string | null
           updated_at?: string
         }
@@ -973,6 +979,7 @@ export type Database = {
           phone: string
           pipeline: string | null
           pipeline_stage: string
+          points_charged: string | null
           preferred_contact_method: string | null
           preferred_lender_id: string | null
           property_address: string | null
@@ -994,6 +1001,7 @@ export type Database = {
           timeframe: string | null
           title_company: string | null
           title_office: string | null
+          total_fee: string | null
           town: string | null
           unit_mix: string | null
           updated_at: string
@@ -1046,6 +1054,7 @@ export type Database = {
           phone: string
           pipeline?: string | null
           pipeline_stage?: string
+          points_charged?: string | null
           preferred_contact_method?: string | null
           preferred_lender_id?: string | null
           property_address?: string | null
@@ -1067,6 +1076,7 @@ export type Database = {
           timeframe?: string | null
           title_company?: string | null
           title_office?: string | null
+          total_fee?: string | null
           town?: string | null
           unit_mix?: string | null
           updated_at?: string
@@ -1119,6 +1129,7 @@ export type Database = {
           phone?: string
           pipeline?: string | null
           pipeline_stage?: string
+          points_charged?: string | null
           preferred_contact_method?: string | null
           preferred_lender_id?: string | null
           property_address?: string | null
@@ -1140,6 +1151,7 @@ export type Database = {
           timeframe?: string | null
           title_company?: string | null
           title_office?: string | null
+          total_fee?: string | null
           town?: string | null
           unit_mix?: string | null
           updated_at?: string
