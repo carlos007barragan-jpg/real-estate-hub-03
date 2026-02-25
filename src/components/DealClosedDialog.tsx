@@ -15,10 +15,11 @@ interface DealClosedDialogProps {
   stageName: string;
   pipelineName?: string;
   propertyOfInterest?: string;
+  dealId?: string; // When provided, updates lead_deals instead of leads
   onSuccess?: () => void;
 }
 
-export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageName, pipelineName, propertyOfInterest, onSuccess }: DealClosedDialogProps) => {
+export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageName, pipelineName, propertyOfInterest, dealId, onSuccess }: DealClosedDialogProps) => {
   const isHardMoney = pipelineName?.toLowerCase().includes("hard money");
   const priceLabel = isHardMoney ? "Total Financed ($)" : "Sale Price ($)";
   const pricePlaceholder = isHardMoney ? "e.g. 250000" : "e.g. 350000";
@@ -34,18 +35,30 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Update lead with sale details
-      const { error } = await supabase
-        .from("leads")
-        .update({
-          sales_price: salesPrice || null,
-          close_date: closeDate,
-          property_of_interest: property || null,
-          status: "won",
-        } as any)
-        .eq("id", leadId);
-
-      if (error) throw error;
+      // Update the correct table based on whether this is a lead_deals record or the primary lead
+      if (dealId) {
+        const { error } = await supabase
+          .from("lead_deals")
+          .update({
+            sales_price: salesPrice || null,
+            close_date: closeDate,
+            property_of_interest: property || null,
+            status: "won",
+          } as any)
+          .eq("id", dealId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("leads")
+          .update({
+            sales_price: salesPrice || null,
+            close_date: closeDate,
+            property_of_interest: property || null,
+            status: "won",
+          } as any)
+          .eq("id", leadId);
+        if (error) throw error;
+      }
 
       // Get current user's profile for the notification message
       const { data: profile } = await supabase
