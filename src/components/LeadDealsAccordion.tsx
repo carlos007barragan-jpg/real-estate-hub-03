@@ -350,6 +350,7 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
           stageName={closedStageName}
           pipelineName={pipelineCache[closedDeal.pipeline_id]?.name}
           propertyOfInterest={closedDeal.property_of_interest || ""}
+          dealId={closedDeal.id}
           onSuccess={onDealsChange}
         />
       )}
