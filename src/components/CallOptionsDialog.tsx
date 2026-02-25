@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ export const CallOptionsDialog = ({
   const [showLogForm, setShowLogForm] = useState(false);
   const [duration, setDuration] = useState("");
   const [notes, setNotes] = useState("");
+  const [outcome, setOutcome] = useState("connected");
   const [logging, setLogging] = useState(false);
 
   const handleSystemCall = () => {
@@ -45,6 +47,7 @@ export const CallOptionsDialog = ({
       if (!user) throw new Error("Not authenticated");
 
       const durationSecs = duration ? parseInt(duration) * 60 : 0;
+      const callStatus = outcome === "connected" ? "completed" : outcome;
 
       const { error } = await supabase.from("call_logs").insert({
         user_id: user.id,
@@ -52,7 +55,7 @@ export const CallOptionsDialog = ({
         call_sid: `manual-${Date.now()}`,
         from_number: "personal",
         to_number: leadPhone,
-        status: "completed",
+        status: callStatus,
         duration: durationSecs,
         direction: "outbound",
       });
@@ -71,29 +74,42 @@ export const CallOptionsDialog = ({
           ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Unknown"
           : "Unknown";
 
+        const outcomeLabels: Record<string, string> = {
+          connected: "Connected",
+          "no-answer": "No Answer",
+          voicemail: "Left Voicemail",
+          "call-back": "Call Back Later",
+          busy: "Busy",
+        };
+        const outcomeLabel = outcomeLabels[outcome] || outcome;
+
         await supabase.from("notes").insert({
           lead_id: leadId,
           user_id: user.id,
           author: authorName,
-          content: `📞 Manual call logged (${duration || "0"} min): ${notes}`,
+          content: `📞 Manual call logged (${outcomeLabel}${duration ? `, ${duration} min` : ""}): ${notes}`,
           note_type: "call_note",
         });
       }
 
-      // Auto-complete matching pending follow-up (call type)
-      await supabase
-        .from("follow_ups")
-        .update({ status: "completed", completed_at: new Date().toISOString() })
-        .eq("lead_id", leadId)
-        .eq("action_type", "call")
-        .eq("status", "pending")
-        .order("sequence_order", { ascending: true })
-        .limit(1);
+      // Auto-complete matching pending follow-up (call type) only if connected
+      if (outcome === "connected") {
+        await supabase
+          .from("follow_ups")
+          .update({ status: "completed", completed_at: new Date().toISOString() })
+          .eq("lead_id", leadId)
+          .eq("action_type", "call")
+          .eq("status", "pending")
+          .order("sequence_order", { ascending: true })
+          .limit(1);
+      }
 
-      toast({ title: "Call logged", description: "Manual call has been recorded successfully" });
+      const outcomeToast = outcome === "connected" ? "Call logged" : "Call attempt logged";
+      toast({ title: outcomeToast, description: outcome === "connected" ? "Manual call has been recorded successfully" : `Recorded as: ${outcome === "no-answer" ? "No Answer" : outcome}` });
       setShowLogForm(false);
       setDuration("");
       setNotes("");
+      setOutcome("connected");
       onOpenChange(false);
       onCallLogged?.();
     } catch (error: any) {
@@ -108,6 +124,7 @@ export const CallOptionsDialog = ({
       setShowLogForm(false);
       setDuration("");
       setNotes("");
+      setOutcome("connected");
     }
     onOpenChange(isOpen);
   };
@@ -152,6 +169,23 @@ export const CallOptionsDialog = ({
           </div>
         ) : (
           <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1.5 block">
+                Call Outcome
+              </label>
+              <Select value={outcome} onValueChange={setOutcome}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="connected">Connected</SelectItem>
+                  <SelectItem value="no-answer">No Answer</SelectItem>
+                  <SelectItem value="voicemail">Left Voicemail</SelectItem>
+                  <SelectItem value="call-back">Call Back Later</SelectItem>
+                  <SelectItem value="busy">Busy</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-1.5 block">
                 Call Duration (minutes)
