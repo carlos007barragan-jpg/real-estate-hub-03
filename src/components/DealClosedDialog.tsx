@@ -58,6 +58,12 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
           .update(updatePayload)
           .eq("id", dealId);
         if (error) throw error;
+
+        // Also update the main lead status to 'won' so CommissionSection appears
+        await supabase
+          .from("leads")
+          .update({ status: "won", close_date: closeDate, property_of_interest: property || null } as any)
+          .eq("id", leadId);
       } else {
         const { error } = await supabase
           .from("leads")
