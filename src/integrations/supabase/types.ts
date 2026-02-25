@@ -157,6 +157,7 @@ export type Database = {
           agent_user_id: string | null
           created_at: string
           created_by: string
+          deal_id: string | null
           id: string
           lead_id: string
           organization_id: string
@@ -167,6 +168,7 @@ export type Database = {
           agent_user_id?: string | null
           created_at?: string
           created_by: string
+          deal_id?: string | null
           id?: string
           lead_id: string
           organization_id: string
@@ -177,12 +179,20 @@ export type Database = {
           agent_user_id?: string | null
           created_at?: string
           created_by?: string
+          deal_id?: string | null
           id?: string
           lead_id?: string
           organization_id?: string
           payout_amount?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "commission_entries_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "lead_deals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "commission_entries_lead_id_fkey"
             columns: ["lead_id"]
@@ -854,6 +864,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lead_deals: {
+        Row: {
+          agent_payout: string | null
+          close_date: string | null
+          commission: string | null
+          created_at: string
+          created_by: string
+          deal_label: string | null
+          display_order: number
+          id: string
+          lead_id: string
+          organization_id: string
+          pipeline_id: string
+          pipeline_stage: string
+          property_of_interest: string | null
+          sales_price: string | null
+          status: string
+          title_office: string | null
+          transaction_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_payout?: string | null
+          close_date?: string | null
+          commission?: string | null
+          created_at?: string
+          created_by: string
+          deal_label?: string | null
+          display_order?: number
+          id?: string
+          lead_id: string
+          organization_id: string
+          pipeline_id: string
+          pipeline_stage: string
+          property_of_interest?: string | null
+          sales_price?: string | null
+          status?: string
+          title_office?: string | null
+          transaction_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_payout?: string | null
+          close_date?: string | null
+          commission?: string | null
+          created_at?: string
+          created_by?: string
+          deal_label?: string | null
+          display_order?: number
+          id?: string
+          lead_id?: string
+          organization_id?: string
+          pipeline_id?: string
+          pipeline_stage?: string
+          property_of_interest?: string | null
+          sales_price?: string | null
+          status?: string
+          title_office?: string | null
+          transaction_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       leads: {
         Row: {

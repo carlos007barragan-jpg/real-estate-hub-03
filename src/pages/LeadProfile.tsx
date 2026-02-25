@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { TwoColumnLayout } from "@/components/layouts/TwoColumnLayout";
 import { PipelineAssignmentDialog } from "@/components/PipelineAssignmentDialog";
 import { DealClosedDialog } from "@/components/DealClosedDialog";
+import { AddDealDialog } from "@/components/AddDealDialog";
+import { LeadDealsAccordion } from "@/components/LeadDealsAccordion";
 import { fireDealWonConfetti } from "@/lib/confetti";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -67,6 +69,24 @@ const LeadProfile = () => {
   const [newNote, setNewNote] = useState("");
   const [commissionDialogOpen, setCommissionDialogOpen] = useState(false);
   const [commissionStageName, setCommissionStageName] = useState("");
+  const [addDealOpen, setAddDealOpen] = useState(false);
+  const [leadDeals, setLeadDeals] = useState<any[]>([]);
+
+  const fetchLeadDeals = async () => {
+    if (!id) return;
+    try {
+      const { data, error } = await supabase
+        .from("lead_deals")
+        .select("*")
+        .eq("lead_id", id)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      setLeadDeals(data || []);
+    } catch (error) {
+      console.error("Error fetching lead deals:", error);
+    }
+  };
   const fetchNotes = async () => {
     if (!id) return;
     
@@ -246,6 +266,7 @@ const LeadProfile = () => {
   useEffect(() => {
     fetchLead();
     fetchNotes();
+    fetchLeadDeals();
 
     // Fetch SMS logs
     const fetchMessages = async () => {
@@ -620,6 +641,17 @@ const LeadProfile = () => {
                 Assign Pipeline
               </Button>
             )}
+            {leadDeals.length < 3 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAddDealOpen(true)}
+                className="gap-2"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Add Transaction
+              </Button>
+            )}
             {currentLifecycle === "Archived" ? (
               <Button
                 size="sm"
@@ -734,6 +766,16 @@ const LeadProfile = () => {
           </>
         )}
 
+        {/* Additional Deals Accordion */}
+        {leadDeals.length > 0 && (
+          <LeadDealsAccordion
+            leadId={leadData.id}
+            leadName={leadData.name}
+            deals={leadDeals}
+            onDealsChange={() => { fetchLeadDeals(); fetchLead(); }}
+          />
+        )}
+
         <TwoColumnLayout
           leadData={leadData}
           customFields={customFields}
@@ -768,6 +810,14 @@ const LeadProfile = () => {
           pipelineName={pipelineName}
           propertyOfInterest={leadData.property_of_interest || ""}
           onSuccess={fetchLead}
+        />
+
+        <AddDealDialog
+          open={addDealOpen}
+          onOpenChange={setAddDealOpen}
+          leadId={leadData.id}
+          leadName={leadData.name}
+          onSuccess={() => { fetchLeadDeals(); fetchLead(); }}
         />
       </div>
     </div>
