@@ -136,6 +136,8 @@ const Dashboard = () => {
   const [totalSalesVolume, setTotalSalesVolume] = useState(0);
   const [salesVolumeData, setSalesVolumeData] = useState<SalesVolumeData[]>([]);
   const [payoutsPeriod, setPayoutsPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [ytdRevenue, setYtdRevenue] = useState(0);
+  const [ytdNet, setYtdNet] = useState(0);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [performancePeriod, setPerformancePeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -802,11 +804,20 @@ const Dashboard = () => {
       .order("appointment_date", { ascending: true });
     if (dateFrom) apptsQuery = apptsQuery.gte("appointment_date", dateFrom);
 
+    // YTD query - always fetches from Jan 1 of current year
+    const ytdFrom = new Date(new Date().getFullYear(), 0, 1).toISOString();
+    const ytdLeadsQuery = supabase
+      .from("leads")
+      .select("id, commission, close_date")
+      .not("close_date", "is", null)
+      .gte("close_date", ytdFrom);
+
     // Also fetch commission_entries for net income calculation
-    const [closedLeadsRes, apptsRes, commissionEntriesRes] = await Promise.all([
+    const [closedLeadsRes, apptsRes, commissionEntriesRes, ytdLeadsRes] = await Promise.all([
       closedLeadsQuery,
       apptsQuery,
       supabase.from("commission_entries").select("lead_id, payout_amount"),
+      ytdLeadsQuery,
     ]);
 
     // Build a map of total payouts per lead
@@ -815,6 +826,18 @@ const Dashboard = () => {
       const current = payoutsByLead.get(entry.lead_id) || 0;
       payoutsByLead.set(entry.lead_id, current + Number(entry.payout_amount || 0));
     });
+
+    // Compute YTD totals
+    let ytdRev = 0;
+    let ytdNetVal = 0;
+    (ytdLeadsRes.data || []).forEach((lead: any) => {
+      const commission = parseFloat(lead.commission || '0');
+      const payout = payoutsByLead.get(lead.id) || 0;
+      ytdRev += commission;
+      ytdNetVal += commission - payout;
+    });
+    setYtdRevenue(ytdRev);
+    setYtdNet(ytdNetVal);
 
     // Process revenue & deals
     const closedLeads = closedLeadsRes.data;
@@ -1309,6 +1332,30 @@ const Dashboard = () => {
           </div>
         </Card>
       </div>
+
+      {/* YTD Revenue Summary - Supreme Admin only */}
+      {role === 'supreme_admin' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <Card className="p-5 border-l-4 border-l-success">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-1">
+              {new Date().getFullYear()} Year-to-Date Revenue
+            </p>
+            <p className="text-3xl font-bold text-success">
+              ${ytdRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Total company commission earned</p>
+          </Card>
+          <Card className="p-5 border-l-4 border-l-info">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-1">
+              {new Date().getFullYear()} Net Earned Income
+            </p>
+            <p className="text-3xl font-bold text-info">
+              ${ytdNet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">After all agent payouts</p>
+          </Card>
+        </div>
+      )}
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
