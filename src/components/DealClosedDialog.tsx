@@ -15,15 +15,18 @@ interface DealClosedDialogProps {
   stageName: string;
   pipelineName?: string;
   propertyOfInterest?: string;
-  dealId?: string; // When provided, updates lead_deals instead of leads
+  dealId?: string;
+  transactionType?: string;
   onSuccess?: () => void;
 }
 
-export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageName, pipelineName, propertyOfInterest, dealId, onSuccess }: DealClosedDialogProps) => {
-  const isHardMoney = pipelineName?.toLowerCase().includes("hard money");
-  const priceLabel = isHardMoney ? "Total Financed ($)" : "Sale Price ($)";
-  const pricePlaceholder = isHardMoney ? "e.g. 250000" : "e.g. 350000";
+export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageName, pipelineName, propertyOfInterest, dealId, transactionType, onSuccess }: DealClosedDialogProps) => {
+  const isFunding = pipelineName?.toLowerCase().includes("hard money") || 
+                    pipelineName?.toLowerCase().includes("funding") ||
+                    transactionType?.toLowerCase() === "funding";
   const [salesPrice, setSalesPrice] = useState("");
+  const [pointsCharged, setPointsCharged] = useState("");
+  const [totalFee, setTotalFee] = useState("");
   const [closeDate, setCloseDate] = useState(new Date().toISOString().split("T")[0]);
   const [property, setProperty] = useState(propertyOfInterest || "");
   const [saving, setSaving] = useState(false);
@@ -35,27 +38,30 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Update the correct table based on whether this is a lead_deals record or the primary lead
+      const updatePayload: any = {
+        close_date: closeDate,
+        property_of_interest: property || null,
+        status: "won",
+      };
+
+      if (isFunding) {
+        updatePayload.sales_price = salesPrice || null; // Total Financed
+        updatePayload.points_charged = pointsCharged || null;
+        updatePayload.total_fee = totalFee || null;
+      } else {
+        updatePayload.sales_price = salesPrice || null;
+      }
+
       if (dealId) {
         const { error } = await supabase
           .from("lead_deals")
-          .update({
-            sales_price: salesPrice || null,
-            close_date: closeDate,
-            property_of_interest: property || null,
-            status: "won",
-          } as any)
+          .update(updatePayload)
           .eq("id", dealId);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("leads")
-          .update({
-            sales_price: salesPrice || null,
-            close_date: closeDate,
-            property_of_interest: property || null,
-            status: "won",
-          } as any)
+          .update(updatePayload)
           .eq("id", leadId);
         if (error) throw error;
       }
@@ -70,7 +76,6 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
       if (profile?.organization_id) {
         const closerName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "A team member";
 
-        // Find all org members with admin/supreme_admin roles
         const { data: orgProfiles } = await supabase
           .from("profiles")
           .select("user_id")
@@ -87,14 +92,16 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
 
           if (adminRoles && adminRoles.length > 0) {
             const priceDisplay = salesPrice ? `$${Number(salesPrice).toLocaleString()}` : "Not entered";
+            const fundingDetails = isFunding
+              ? ` Points: ${pointsCharged || "N/A"}. Total fee: ${totalFee ? `$${Number(totalFee).toLocaleString()}` : "N/A"}.`
+              : "";
             const notifications: any[] = [];
 
             adminRoles.forEach(r => {
-              // Deal closed notification for all admins
               notifications.push({
                 user_id: r.user_id,
                 title: `🎉 Deal Closed: ${leadName}`,
-                description: `${closerName} closed a deal with ${leadName}. ${isHardMoney ? 'Total financed' : 'Sale price'}: ${priceDisplay}.`,
+                description: `${closerName} closed a deal with ${leadName}. ${isFunding ? 'Total financed' : 'Sale price'}: ${priceDisplay}.${fundingDetails}`,
                 type: "deal_closed",
                 event_type: "deal_closed",
                 link: `/leads/${leadId}`,
@@ -104,12 +111,11 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
                 read: false,
               });
 
-              // Commission entry notification for supreme admins only
               if (r.role === "supreme_admin") {
                 notifications.push({
                   user_id: r.user_id,
                   title: `Commission Entry Needed: ${leadName}`,
-                  description: `${closerName} closed a deal with ${leadName}. ${isHardMoney ? 'Total financed' : 'Sale price'}: ${priceDisplay}. Please enter the commission and agent payout.`,
+                  description: `${closerName} closed a deal with ${leadName}. ${isFunding ? 'Total financed' : 'Sale price'}: ${priceDisplay}.${fundingDetails} Please enter the commission and agent payout.`,
                   type: "commission_entry_needed",
                   link: `/leads/${leadId}`,
                   entity_id: leadId,
@@ -122,10 +128,9 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
 
             await supabase.from("notifications").insert(notifications);
 
-            // Auto-create ONE commission task assigned to all Supreme Admins
             const supremeAdmins = adminRoles.filter(r => r.role === "supreme_admin");
             if (supremeAdmins.length > 0) {
-              const priceFieldLabel = isHardMoney ? "Total financed" : "Sale price";
+              const priceFieldLabel = isFunding ? "Total financed" : "Sale price";
               const nextDay = new Date(closeDate);
               nextDay.setDate(nextDay.getDate() + 1);
               const dueDateStr = nextDay.toISOString();
@@ -134,12 +139,11 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
                 lead_id: leadId,
                 user_id: supremeAdmins[0].user_id,
                 title: `Enter commission & payout: ${leadName}`,
-                description: `${closerName} closed a deal with ${leadName}. ${priceFieldLabel}: ${priceDisplay}. Property: ${property || "Not entered"}. Close date: ${closeDate}. Please enter the total commission and agent payouts.`,
+                description: `${closerName} closed a deal with ${leadName}. ${priceFieldLabel}: ${priceDisplay}.${fundingDetails} Property: ${property || "Not entered"}. Close date: ${closeDate}. Please enter the total commission and agent payouts.`,
                 due_date: dueDateStr,
                 status: "pending",
               }).select("id").single();
 
-              // Assign all Supreme Admins to the single task
               if (taskData) {
                 const assigneeRows = supremeAdmins.map(sa => ({ task_id: taskData.id, user_id: sa.user_id }));
                 await supabase.from("task_assignees").insert(assigneeRows);
@@ -152,6 +156,8 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
       toast({ title: "🎉 Deal Won!", description: `Sale details recorded for ${leadName}` });
       onOpenChange(false);
       setSalesPrice("");
+      setPointsCharged("");
+      setTotalFee("");
       setProperty("");
       onSuccess?.();
     } catch (error: any) {
@@ -170,22 +176,63 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
             Deal Closed – Confirm Details
           </DialogTitle>
           <DialogDescription>
-            <span className="font-semibold">{leadName}</span> has been moved to <span className="font-semibold">{stageName}</span>. Please confirm the sale details.
+            <span className="font-semibold">{leadName}</span> has been moved to <span className="font-semibold">{stageName}</span>. Please confirm the {isFunding ? "funding" : "sale"} details.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="salesPrice">{priceLabel}</Label>
-            <Input
-              id="salesPrice"
-              type="number"
-              placeholder={pricePlaceholder}
-              value={salesPrice}
-              onChange={(e) => setSalesPrice(e.target.value)}
-              min="0"
-              step="0.01"
-            />
-          </div>
+          {isFunding ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="salesPrice">Total Financed ($)</Label>
+                <Input
+                  id="salesPrice"
+                  type="number"
+                  placeholder="e.g. 250000"
+                  value={salesPrice}
+                  onChange={(e) => setSalesPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pointsCharged">Points Charged (%)</Label>
+                <Input
+                  id="pointsCharged"
+                  type="number"
+                  placeholder="e.g. 2.5"
+                  value={pointsCharged}
+                  onChange={(e) => setPointsCharged(e.target.value)}
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="totalFee">Total Fee ($)</Label>
+                <Input
+                  id="totalFee"
+                  type="number"
+                  placeholder="e.g. 6250"
+                  value={totalFee}
+                  onChange={(e) => setTotalFee(e.target.value)}
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="salesPrice">Sale Price ($)</Label>
+              <Input
+                id="salesPrice"
+                type="number"
+                placeholder="e.g. 350000"
+                value={salesPrice}
+                onChange={(e) => setSalesPrice(e.target.value)}
+                min="0"
+                step="0.01"
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="closeDate">Close Date</Label>
             <Input
@@ -196,7 +243,7 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="property">Property Purchased</Label>
+            <Label htmlFor="property">Property {isFunding ? "Financed" : "Purchased"}</Label>
             <Input
               id="property"
               type="text"
