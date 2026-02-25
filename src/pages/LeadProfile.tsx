@@ -454,6 +454,36 @@ const LeadProfile = () => {
 
       if (error) throw error;
 
+      // When archiving, clean up all open items for this lead
+      if (isArchiving) {
+        await Promise.all([
+          // Cancel open tasks
+          supabase
+            .from("tasks")
+            .update({ status: "cancelled" })
+            .eq("lead_id", leadData.id)
+            .in("status", ["pending", "in_progress"]),
+          // Cancel upcoming appointments
+          supabase
+            .from("appointments")
+            .update({ status: "cancelled" })
+            .eq("lead_id", leadData.id)
+            .in("status", ["scheduled", "pending"]),
+          // Cancel pending follow-ups
+          supabase
+            .from("follow_ups")
+            .update({ status: "cancelled" })
+            .eq("lead_id", leadData.id)
+            .eq("status", "pending"),
+          // Cancel active workflow instances
+          supabase
+            .from("workflow_instances")
+            .update({ status: "cancelled" })
+            .eq("lead_id", leadData.id)
+            .eq("status", "active"),
+        ]);
+      }
+
       setCurrentLifecycle(newLifecycle);
       await fetchLead();
       toast({
