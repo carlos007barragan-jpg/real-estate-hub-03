@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
         down_payment, interest_rate, payment, max_loan_amount,
         finance_type, transaction_type, market_status, status,
         share_token, assigned_agent_id, show_on_public_page,
-        city, state
+        city, state, video_url, video_type
       `)
       .in('user_id', userIds)
       .order('created_at', { ascending: false });
@@ -159,6 +159,8 @@ Deno.serve(async (req) => {
       category: p.category,
       share_token: p.share_token,
       assigned_agent: p.assigned_agent_id ? agents[p.assigned_agent_id] || null : null,
+      video_url: p.video_url || null,
+      video_type: p.video_type || null,
     }));
 
     return new Response(
