@@ -676,6 +676,8 @@ export type Database = {
           transaction_type: string | null
           updated_at: string
           user_id: string
+          video_type: string | null
+          video_url: string | null
           wholesale_approval_status: string | null
         }
         Insert: {
@@ -725,6 +727,8 @@ export type Database = {
           transaction_type?: string | null
           updated_at?: string
           user_id: string
+          video_type?: string | null
+          video_url?: string | null
           wholesale_approval_status?: string | null
         }
         Update: {
@@ -774,6 +778,8 @@ export type Database = {
           transaction_type?: string | null
           updated_at?: string
           user_id?: string
+          video_type?: string | null
+          video_url?: string | null
           wholesale_approval_status?: string | null
         }
         Relationships: [

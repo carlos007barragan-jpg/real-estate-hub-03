@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import InventoryFieldSettings from "@/components/InventoryFieldSettings";
 import MultiPhotoUpload from "@/components/MultiPhotoUpload";
+import PropertyVideoUpload, { uploadPropertyVideo } from "@/components/PropertyVideoUpload";
 import BulkPropertyUpload from "@/components/BulkPropertyUpload";
 
 
@@ -117,6 +118,9 @@ export default function Inventory() {
   ];
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoType, setVideoType] = useState<string | null>(null);
   const [smartPasteText, setSmartPasteText] = useState("");
   const [isParsing, setIsParsing] = useState(false);
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
@@ -446,6 +450,8 @@ export default function Inventory() {
             finance_type: formData.finance_type || null,
             photo_urls: existingPhotoUrls,
             photo_url: existingPhotoUrls[0] || null,
+            video_url: videoUrl === "pending-upload" ? null : (videoUrl || null),
+            video_type: videoUrl === "pending-upload" ? null : (videoType || null),
           })
           .eq("id", editingItem.id);
 
@@ -454,6 +460,15 @@ export default function Inventory() {
           throw error;
         }
         console.log('✅ Item updated successfully');
+
+        // Upload video file if pending
+        if (videoFile && videoUrl === "pending-upload") {
+          uploadPropertyVideo(videoFile, editingItem.id).then((uploadedVideoUrl) => {
+            if (uploadedVideoUrl) {
+              supabase.from("inventory").update({ video_url: uploadedVideoUrl, video_type: "upload" }).eq("id", editingItem.id);
+            }
+          });
+        }
 
         // Upload new photos in the background if any
         if (photoFiles.length > 0) {
@@ -512,6 +527,8 @@ export default function Inventory() {
             transaction_type: formData.transaction_type || null,
             finance_type: formData.finance_type || null,
             user_id: user.id,
+            video_url: videoUrl === "pending-upload" ? null : (videoUrl || null),
+            video_type: videoUrl === "pending-upload" ? null : (videoType || null),
           })
           .select()
           .single();
@@ -521,6 +538,15 @@ export default function Inventory() {
           throw insertError;
         }
         console.log('✅ Item created:', newItem?.id);
+
+        // Upload video in background if pending
+        if (videoFile && videoUrl === "pending-upload" && newItem) {
+          uploadPropertyVideo(videoFile, newItem.id).then((uploadedVideoUrl) => {
+            if (uploadedVideoUrl) {
+              supabase.from("inventory").update({ video_url: uploadedVideoUrl, video_type: "upload" }).eq("id", newItem.id);
+            }
+          });
+        }
 
         // Upload photos in the background without blocking
         if (photoFiles.length > 0 && newItem) {
@@ -620,6 +646,10 @@ export default function Inventory() {
     const existingPhotos = (item as any).photo_urls || (item.photo_url ? [item.photo_url] : []);
     setExistingPhotoUrls(existingPhotos);
     setPhotoFiles([]);
+    // Load existing video
+    setVideoUrl((item as any).video_url || null);
+    setVideoType((item as any).video_type || null);
+    setVideoFile(null);
     setIsDialogOpen(true);
   };
 
@@ -826,6 +856,9 @@ export default function Inventory() {
     });
     setPhotoFiles([]);
     setExistingPhotoUrls([]);
+    setVideoFile(null);
+    setVideoUrl(null);
+    setVideoType(null);
     setEditingItem(null);
     setSmartPasteText("");
   };
@@ -1370,6 +1403,17 @@ export default function Inventory() {
                   setExistingPhotoUrls(urls);
                 }}
                 maxPhotos={0}
+              />
+
+              {/* Video Upload */}
+              <PropertyVideoUpload
+                existingVideoUrl={videoUrl}
+                existingVideoType={videoType}
+                onVideoChange={(url, type, file) => {
+                  setVideoUrl(url);
+                  setVideoType(type);
+                  setVideoFile(file || null);
+                }}
               />
 
               <DialogFooter>

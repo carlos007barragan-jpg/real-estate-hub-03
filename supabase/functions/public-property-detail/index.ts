@@ -115,7 +115,9 @@ Deno.serve(async (req) => {
         status,
         share_token,
         assigned_agent_id,
-        commission
+        commission,
+        video_url,
+        video_type
       `)
       .eq('id', propertyId)
       .in('user_id', userIds)
