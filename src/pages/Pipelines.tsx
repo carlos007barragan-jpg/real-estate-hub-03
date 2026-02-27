@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical, Trash2, Edit } from "lucide-react";
 import { EditDealDialog } from "@/components/EditDealDialog";
@@ -282,6 +282,7 @@ const Pipelines = () => {
   const [commissionStageName, setCommissionStageName] = useState("");
   const [commissionPipelineName, setCommissionPipelineName] = useState("");
   const [isPerformingStageChange, setIsPerformingStageChange] = useState(false);
+  const stageChangeGuardRef = useRef(false);
   const { toast } = useToast();
   const { role } = useAuth();
 
@@ -611,7 +612,9 @@ const Pipelines = () => {
           table: "leads",
         },
         () => {
-          fetchPipelinesAndLeads();
+          if (!stageChangeGuardRef.current) {
+            fetchPipelinesAndLeads();
+          }
         }
       )
       .subscribe();
@@ -701,6 +704,7 @@ const Pipelines = () => {
 
   const performStageChange = async (dealId: string, newStageName: string) => {
     if (!currentPipeline) return;
+    stageChangeGuardRef.current = true;
 
     // Find which stage contains the deal
     const activeStage = currentPipeline.stages.find((stage) =>
@@ -788,7 +792,16 @@ const Pipelines = () => {
         setCommissionStageName(newStageName);
         setCommissionPipelineName(currentPipeline.name);
         setCommissionDialogOpen(true);
+        // Guard will be released when dialog closes
+      } else {
+        stageChangeGuardRef.current = false;
       }
+    } else {
+      // Release guard after non-won stage changes, with a small delay for realtime
+      setTimeout(() => {
+        stageChangeGuardRef.current = false;
+        fetchPipelinesAndLeads();
+      }, 500);
     }
   };
 
@@ -1111,7 +1124,14 @@ const Pipelines = () => {
 
         <DealClosedDialog
           open={commissionDialogOpen}
-          onOpenChange={setCommissionDialogOpen}
+          onOpenChange={(open) => {
+            setCommissionDialogOpen(open);
+            if (!open) {
+              // Release the guard and refetch when dialog closes
+              stageChangeGuardRef.current = false;
+              fetchPipelinesAndLeads();
+            }
+          }}
           leadId={commissionLeadId}
           leadName={commissionLeadName}
           stageName={commissionStageName}
