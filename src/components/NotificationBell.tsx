@@ -67,30 +67,52 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const { role } = useUserRole();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user id
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUserId(session?.user?.id || null);
+    });
+  }, []);
 
   useEffect(() => {
+    if (!currentUserId) return;
+
     fetchNotifications();
 
+    // Realtime subscription filtered by user_id for reliability
     const channel = supabase
-      .channel('notifications-changes')
+      .channel(`notifications-${currentUserId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
+          filter: `user_id=eq.${currentUserId}`,
         },
-      () => {
+        () => {
           playNotificationChime();
           fetchNotifications();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.warn('Notification realtime subscription failed, using polling fallback');
+        }
+      });
+
+    // Polling fallback every 15 seconds to catch missed realtime events
+    const pollInterval = setInterval(() => {
+      fetchNotifications();
+    }, 15000);
 
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
-  }, [role]);
+  }, [role, currentUserId]);
 
   const fetchNotifications = async () => {
     try {
