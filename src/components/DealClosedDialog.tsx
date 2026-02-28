@@ -123,6 +123,7 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
                   title: `Commission Entry Needed: ${leadName}`,
                   description: `${closerName} closed a deal with ${leadName}. ${isFunding ? 'Total financed' : 'Sale price'}: ${priceDisplay}.${fundingDetails} Please enter the commission and agent payout.`,
                   type: "commission_entry_needed",
+                  event_type: "deal_closed",
                   link: `/leads/${leadId}`,
                   entity_id: leadId,
                   entity_type: "lead",
