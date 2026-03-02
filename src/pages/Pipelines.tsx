@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical, Trash2, Edit } from "lucide-react";
+import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical, Trash2, Edit, User } from "lucide-react";
 import { EditDealDialog } from "@/components/EditDealDialog";
 import { OfferMadeValidationDialog } from "@/components/OfferMadeValidationDialog";
 import { DealClosedDialog } from "@/components/DealClosedDialog";
@@ -223,7 +223,7 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit
 
           <div className="space-y-1.5 text-xs">
             <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Building2 className="h-3 w-3 flex-shrink-0" />
+              <User className="h-3 w-3 flex-shrink-0" />
               <span className="truncate">Agent: {deal.agent || 'Not assigned'}</span>
             </div>
             <div className="flex items-center justify-between">
