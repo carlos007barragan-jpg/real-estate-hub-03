@@ -741,10 +741,18 @@ const LeadProfile = () => {
               <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
                 <Building2 className="h-4 w-4 text-primary" />
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium">
-                      {pipelineName || "Pipeline"} Progress
-                    </span>
+                    <div className="flex items-center justify-between mb-1">
+745:                     <div className="flex flex-col">
+                      <span className="text-xs font-medium">
+                        {pipelineName || "Pipeline"} Progress
+                      </span>
+                      {leadData.propertyOfInterest && ["terms negotiation","contract signed","under contract","in process","closing","closed","sold","funded","closed won","deal won","won","pending close","settlement"].includes(currentStage.toLowerCase().trim()) && (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-2.5 w-2.5" />
+                          {leadData.propertyOfInterest}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-muted-foreground">{Math.round(getStageProgress())}%</span>
                   </div>
                   <Progress value={getStageProgress()} className="h-1.5" />
