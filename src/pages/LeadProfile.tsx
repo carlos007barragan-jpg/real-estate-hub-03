@@ -734,10 +734,10 @@ const LeadProfile = () => {
           </div>
         )}
 
-        {/* Show Pipeline Progress only when lead is in pipeline */}
+        {/* Show Pipeline Progress only when lead is in pipeline AND has no deals (deals have their own progress) */}
         {leadData?.leadLifecycle === "Moved to Pipeline" && (
           <>
-            {(currentPipeline || leadData?.pipeline) ? (
+            {(currentPipeline || leadData?.pipeline) && leadDeals.length === 0 ? (
               <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
                 <Building2 className="h-4 w-4 text-primary" />
                 <div className="flex-1">
