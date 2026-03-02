@@ -88,10 +88,9 @@ const priorityColors = {
   low: "bg-muted text-muted-foreground",
 };
 
-function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit, onDelete }: { 
+function DraggableDeal({ deal, onOpenNotes, onNavigate, onEdit, onDelete }: { 
   deal: Deal; 
   onOpenNotes: (deal: Deal) => void;
-  onPriorityChange: (dealId: string, priority: "high" | "medium" | "low") => void;
   onNavigate: (leadId: string) => void;
   onEdit: (leadId?: string) => void;
   onDelete: (dealId: string, leadId?: string) => void;
@@ -117,14 +116,6 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit
     if (deal.leadId) {
       onNavigate(deal.leadId);
     }
-  };
-
-  const handlePriorityChange = (newPriority: "high" | "medium" | "low") => {
-    onPriorityChange(deal.id, newPriority);
-    toast({
-      title: "Priority Updated",
-      description: `Deal priority changed to ${newPriority}`,
-    });
   };
 
   return (
@@ -171,30 +162,12 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit
               )}
             </div>
             <div className="flex items-center gap-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <Badge 
-                    className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5 cursor-pointer hover:opacity-80 transition-opacity`} 
-                    variant="secondary"
-                  >
-                    {deal.priority}
-                  </Badge>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="z-50 bg-popover">
-                  <DropdownMenuItem onClick={() => handlePriorityChange("high")}>
-                    <Badge className={`${priorityColors.high} mr-2`} variant="secondary">high</Badge>
-                    High Priority
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handlePriorityChange("medium")}>
-                    <Badge className={`${priorityColors.medium} mr-2`} variant="secondary">medium</Badge>
-                    Medium Priority
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handlePriorityChange("low")}>
-                    <Badge className={`${priorityColors.low} mr-2`} variant="secondary">low</Badge>
-                    Low Priority
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Badge 
+                className={`${priorityColors[deal.priority]} text-[10px] h-4 px-1.5`} 
+                variant="secondary"
+              >
+                {deal.priority}
+              </Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <button
@@ -337,6 +310,18 @@ const Pipelines = () => {
       leadDealsByLeadAndPipeline.get(key)!.add(ld.pipeline_id);
     });
 
+    // Helper to calculate priority from stage position
+    const calculatePriority = (pipelineId: string, stage: string): "high" | "medium" | "low" => {
+      const stages = pipelineStageNames.get(pipelineId);
+      if (!stages || stages.length <= 1) return "low";
+      const idx = stages.indexOf(stage);
+      if (idx === -1) return "low";
+      const progress = idx / (stages.length - 1); // 0 to 1
+      if (progress >= 0.7) return "high";
+      if (progress >= 0.35) return "medium";
+      return "low";
+    };
+
     // Helper to add a deal to pipeline map
     const addDealToPipeline = (pipelineId: string, stage: string, deal: Deal) => {
       const validStages = pipelineStageNames.get(pipelineId);
@@ -351,6 +336,9 @@ const Pipelines = () => {
         );
         stage = fuzzyMatch || validStages[0] || stage;
       }
+
+      // Auto-set priority based on resolved stage position
+      deal.priority = calculatePriority(pipelineId, stage);
 
       if (!pipelineMap.has(pipelineId)) {
         pipelineMap.set(pipelineId, new Map());
@@ -377,24 +365,13 @@ const Pipelines = () => {
 
       if (!pipelineId) return;
 
-      const tempLower = (lead.lead_temperature || "").toLowerCase();
-      let priority: "high" | "medium" | "low" = "medium";
-      if (tempLower === "hot" || tempLower.includes("investor")) {
-        priority = "high";
-      } else if (tempLower === "cold" || tempLower === "" || !lead.lead_temperature) {
-        priority = "low";
-      }
-
-      // If lead has additional deals in this same pipeline, show property to distinguish
-      const hasMultipleDeals = leadDealsByLeadAndPipeline.has(lead.id);
-
       const deal: Deal = {
         id: lead.id,
         client: lead.name,
         agent: lead.assigned_to || "Not assigned",
         commission: parseFloat(lead.sales_price || lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
         closeDate: lead.timeframe || "TBD",
-        priority,
+        priority: "low", // will be auto-set by addDealToPipeline
         leadId: lead.id,
         propertyAddress: lead.property_of_interest || lead.property_address || undefined,
       };
@@ -408,21 +385,13 @@ const Pipelines = () => {
       const lead = leadsById.get(ld.lead_id);
       if (!lead) return;
 
-      const tempLower = (lead.lead_temperature || "").toLowerCase();
-      let priority: "high" | "medium" | "low" = "medium";
-      if (tempLower === "hot" || tempLower.includes("investor")) {
-        priority = "high";
-      } else if (tempLower === "cold" || tempLower === "" || !lead.lead_temperature) {
-        priority = "low";
-      }
-
       const deal: Deal = {
         id: `deal-record-${ld.id}`,
         client: lead.name,
         agent: lead.assigned_to || "Not assigned",
         commission: parseFloat(ld.sales_price || "0"),
         closeDate: ld.close_date ? new Date(ld.close_date).toLocaleDateString() : "TBD",
-        priority,
+        priority: "low", // will be auto-set by addDealToPipeline
         leadId: lead.id,
         propertyAddress: ld.property_of_interest || undefined,
         dealRecordId: ld.id,
@@ -889,40 +858,6 @@ const Pipelines = () => {
     navigate(`/leads/${leadId}`);
   };
 
-  const handlePriorityChange = async (dealId: string, newPriority: "high" | "medium" | "low") => {
-    // Find the deal and update in database
-    const deal = currentPipeline?.stages
-      .flatMap(stage => stage.deals)
-      .find(d => d.id === dealId);
-
-    if (deal?.leadId) {
-      // Map priority to lead_temperature
-      const temperatureMap = {
-        high: "hot",
-        medium: "warm",
-        low: "cold"
-      };
-
-      await supabase
-        .from("leads")
-        .update({ lead_temperature: temperatureMap[newPriority] })
-        .eq("id", deal.leadId);
-    }
-
-    // Update local state
-    setPipelines((prevPipelines) =>
-      prevPipelines.map((pipeline) => ({
-        ...pipeline,
-        stages: pipeline.stages.map((stage) => ({
-          ...stage,
-          deals: stage.deals.map((d) =>
-            d.id === dealId ? { ...d, priority: newPriority } : d
-          ),
-        })),
-      }))
-    );
-  };
-
   const handleDeleteDeal = async (dealId: string, leadId?: string) => {
     try {
       const idToDelete = leadId || dealId;
@@ -1110,7 +1045,6 @@ const Pipelines = () => {
                             key={deal.id} 
                             deal={deal} 
                             onOpenNotes={handleOpenNotes}
-                            onPriorityChange={handlePriorityChange}
                             onNavigate={handleNavigateToLead}
                             onEdit={(leadId) => {
                               setSelectedDealLeadId(leadId);
