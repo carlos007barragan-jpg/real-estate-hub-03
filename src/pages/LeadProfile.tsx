@@ -796,32 +796,47 @@ const LeadProfile = () => {
           </>
         )}
 
-        {/* Properties of Interest Summary */}
+        {/* Properties of Interest - Separate boxes per transaction */}
         {(() => {
-          const properties: { label: string; address: string }[] = [];
-          if (leadData.propertyOfInterest) {
-            properties.push({ label: pipelineName || "Primary", address: leadData.propertyOfInterest });
+          const transactions: { number: number; label: string; address: string | null; stage: string }[] = [];
+          // Primary transaction
+          if (leadData.leadLifecycle === "Moved to Pipeline" && (currentPipeline || leadData?.pipeline)) {
+            transactions.push({
+              number: 1,
+              label: pipelineName || "Primary",
+              address: leadData.propertyOfInterest || null,
+              stage: currentStage,
+            });
           }
-          leadDeals.forEach((deal: any) => {
-            if (deal.property_of_interest) {
-              properties.push({ label: deal.deal_label || deal.transaction_type || "Deal", address: deal.property_of_interest });
-            }
+          // Additional deals
+          leadDeals.forEach((deal: any, i: number) => {
+            transactions.push({
+              number: transactions.length + 1,
+              label: deal.deal_label || deal.transaction_type || "Deal",
+              address: deal.property_of_interest || null,
+              stage: deal.pipeline_stage,
+            });
           });
-          if (properties.length < 2) return null;
+          if (transactions.length < 2) return null;
           return (
-            <div className="flex flex-wrap gap-3 p-3 bg-card border rounded-lg">
-              <Building2 className="h-4 w-4 text-primary mt-0.5" />
-              <div className="flex-1 space-y-1">
-                <span className="text-xs font-medium text-muted-foreground">Properties of Interest</span>
-                <div className="flex flex-wrap gap-2">
-                  {properties.map((p, i) => (
-                    <Badge key={i} variant="outline" className="gap-1.5 text-xs font-normal py-1 px-2.5">
-                      <MapPin className="h-3 w-3 text-primary flex-shrink-0" />
-                      <span className="font-medium">{p.label}:</span> {p.address}
-                    </Badge>
-                  ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {transactions.map((t, i) => (
+                <div key={i} className="p-3 bg-card border rounded-lg space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Transaction {t.number}
+                    </span>
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{t.stage}</Badge>
+                  </div>
+                  <p className="text-xs font-medium text-muted-foreground">{t.label}</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <MapPin className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                    <span className="text-sm font-semibold text-foreground truncate">
+                      {t.address || "No property assigned"}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           );
         })()}

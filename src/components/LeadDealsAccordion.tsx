@@ -44,6 +44,13 @@ interface LeadDealsAccordionProps {
 
 const wonStageNames = ["closed", "sold", "funded", "closed won", "deal won", "won", "done", "completed"];
 
+// Stages at which the deal label switches to show the property address
+const advancedStageNames = [
+  "terms negotiation", "contract signed", "under contract", "in process", 
+  "closing", "closed", "sold", "funded", "closed won", "deal won", "won", 
+  "done", "completed", "offer accepted", "pending"
+];
+
 export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: LeadDealsAccordionProps) {
   const { toast } = useToast();
   const [pipelineCache, setPipelineCache] = useState<Record<string, PipelineInfo>>({});
@@ -179,7 +186,12 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
               <AccordionTrigger className="py-3 hover:no-underline">
                 <div className="flex items-center gap-2 flex-1 min-w-0 text-left">
                   <Building2 className="h-4 w-4 text-primary shrink-0" />
-                  <span className="font-medium text-sm truncate">{deal.deal_label || "Deal"}</span>
+                  <span className="font-medium text-sm truncate">
+                    {/* Show property address once deal reaches an advanced stage */}
+                    {advancedStageNames.includes(deal.pipeline_stage.toLowerCase().trim()) && deal.property_of_interest
+                      ? deal.property_of_interest
+                      : deal.deal_label || "Deal"}
+                  </span>
                   {pipeline && (
                     <Badge variant="outline" className="text-xs shrink-0">{pipeline.name}</Badge>
                   )}
