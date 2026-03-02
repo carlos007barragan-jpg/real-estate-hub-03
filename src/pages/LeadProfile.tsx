@@ -796,6 +796,36 @@ const LeadProfile = () => {
           </>
         )}
 
+        {/* Properties of Interest Summary */}
+        {(() => {
+          const properties: { label: string; address: string }[] = [];
+          if (leadData.propertyOfInterest) {
+            properties.push({ label: pipelineName || "Primary", address: leadData.propertyOfInterest });
+          }
+          leadDeals.forEach((deal: any) => {
+            if (deal.property_of_interest) {
+              properties.push({ label: deal.deal_label || deal.transaction_type || "Deal", address: deal.property_of_interest });
+            }
+          });
+          if (properties.length < 2) return null;
+          return (
+            <div className="flex flex-wrap gap-3 p-3 bg-card border rounded-lg">
+              <Building2 className="h-4 w-4 text-primary mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <span className="text-xs font-medium text-muted-foreground">Properties of Interest</span>
+                <div className="flex flex-wrap gap-2">
+                  {properties.map((p, i) => (
+                    <Badge key={i} variant="outline" className="gap-1.5 text-xs font-normal py-1 px-2.5">
+                      <MapPin className="h-3 w-3 text-primary flex-shrink-0" />
+                      <span className="font-medium">{p.label}:</span> {p.address}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Additional Deals Accordion */}
         {leadDeals.length > 0 && (
           <LeadDealsAccordion
