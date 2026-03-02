@@ -121,22 +121,26 @@ const InvestorDealsCard = ({ leadId, deals, onUpdate }: { leadId: string; deals:
 // Deal property entry with full edit dialog
 const DealPropertyEntry = ({ deal, index, onUpdated }: { deal: any; index: number; onUpdated: () => void }) => {
   const [editOpen, setEditOpen] = useState(false);
+  const label = deal.deal_label || deal.transaction_type || "Deal";
 
   return (
     <div className="space-y-1">
       {index > 0 && <Separator className="my-1.5" />}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-          Transaction {index + 2} — {deal.deal_label || deal.transaction_type || "Deal"}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Property of Interest {index + 2}
+          </span>
+          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">{label}</Badge>
+        </div>
         <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditOpen(true)}>
           <Edit className="h-3 w-3" />
         </Button>
       </div>
-      <div className="flex items-center gap-1.5">
-        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+      <div className="flex items-start gap-1.5">
+        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5" />
         <span className="text-xs leading-tight">
-          {deal.property_of_interest || "No property assigned"}
+          {deal.property_address || deal.property_of_interest || "No property assigned"}
         </span>
       </div>
       <EditDealPropertyDialog
@@ -660,7 +664,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                 </div>
               </>
             )}
-            {/* Deal Properties from additional transactions */}
+            {/* Additional deal properties */}
             {leadDeals && leadDeals.length > 0 && (
               <>
                 <Separator className="my-2" />
