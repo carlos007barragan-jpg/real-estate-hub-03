@@ -148,6 +148,7 @@ const DealPropertyEntry = ({ deal, index, onUpdated }: { deal: any; index: numbe
         onOpenChange={setEditOpen}
         deal={deal}
         onSaved={onUpdated}
+        propertyIndex={index + 2}
       />
     </div>
   );
