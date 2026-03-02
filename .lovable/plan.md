@@ -1,49 +1,53 @@
 
 
-# Clean Up Property Display on Lead Profile
+# Fix Deal Closing Workflow and Add Agent Payout Visibility
 
-## Problem
-Right now, there are "Transaction 1 / Transaction 2" cards sitting between the pipeline progress bar and the deals accordion. They look messy, show "No property assigned" even when a property exists, and duplicate information. The user wants a cleaner approach.
+## Problems Identified
 
-## What Changes
+1. **Commission task not routing correctly**: When a deal is closed (moved to a "won" stage), the `DealClosedDialog` creates commission entry tasks for ALL supreme admins. You want this task assigned specifically to Carlos only.
 
-### 1. Remove the Transaction Cards from the Main Content Area
-Delete the "Properties of Interest - Separate boxes per transaction" block in `LeadProfile.tsx` (lines 799-842). Those cards will no longer appear between the pipeline bar and the accordion.
+2. **Agents and Admins can't see their payouts**: The "Team Payouts" section on the Dashboard is restricted to `supreme_admin` role only. Agents and admins have no way to see their individual payout information (their name, deals they closed, total payout amount).
 
-### 2. Update the Sidebar Property Card to Show Multiple Properties
-In `TwoColumnLayout.tsx`, the existing "Property" card on the left sidebar will be enhanced to list properties from all active transactions:
+---
 
-- **Primary transaction property** -- labeled with the pipeline name (e.g., "Owner Finance Sales")
-- **Each additional deal's property** -- labeled with the deal label or transaction type (e.g., "Wholesale Deal")
+## Plan
 
-Each property entry will show:
-- A small label like "Transaction 1" or "Transaction 2"
-- The property address (or "No property assigned" if empty)
-- A separator between multiple properties
+### 1. Route commission tasks to Carlos specifically
 
-This keeps everything in one clean card on the left side rather than scattered boxes in the main content area.
+In `DealClosedDialog.tsx`, change the commission task creation logic:
+- Instead of assigning the "Enter commission & payout" task to ALL supreme admins, query for Carlos's profile specifically (by name or user ID) and assign the task only to him.
+- Keep notifications going to all supreme admins for visibility, but the actionable task goes to Carlos alone.
+- Carlos's user ID: `fe50d35a-9f1b-4388-a039-913df7394556`
 
-### 3. Pass Deal Data to TwoColumnLayout
-`TwoColumnLayout` currently doesn't receive deal data. We'll pass `leadDeals` as a new prop so it can render the additional property addresses in the sidebar Property card.
+### 2. Add "My Payouts" section for Agents and Admins
+
+On the Dashboard, add a new card visible to agents and admins (non-supreme-admin roles) that shows their individual payout data:
+- **Agent Name** (their own name)
+- **Deals Closed** (count of unique leads with commission entries for them)
+- **Total Payout** (sum of their payout amounts)
+- Period filtering (Weekly / Monthly / Yearly) matching the existing pattern
+- This queries `commission_entries` filtered by `agent_user_id` matching the current user's ID
+
+### 3. Verify deal closing flow end-to-end
+
+Ensure the full pipeline works:
+- Drag deal to won stage -> DealClosedDialog appears -> User enters details -> Task created for Carlos -> Commission section appears on lead profile
 
 ---
 
 ## Technical Details
 
-**Files to modify:**
+### File Changes
 
-1. **`src/pages/LeadProfile.tsx`**
-   - Remove lines 799-842 (the transaction cards block)
-   - Pass `leadDeals` as a prop to `TwoColumnLayout`
+**`src/components/DealClosedDialog.tsx`**
+- In the `handleSave` function, replace the loop over all `supremeAdmins` for task creation with a lookup for Carlos specifically (hardcode his user ID or look up by name "Carlos Barragan" within the org)
+- Keep notification inserts for all supreme admins unchanged (they still get notified)
+- Only the task + task_assignees creation targets Carlos
 
-2. **`src/components/layouts/TwoColumnLayout.tsx`**
-   - Add `leadDeals` to the component props interface
-   - In the Property card section (~line 474), add a section that iterates over `leadDeals` and renders each deal's `property_of_interest` with a label (transaction type or deal label)
-   - Use a `Separator` between the primary property info and each additional deal's property
-   - Each deal property entry: small "Transaction N" label + MapPin icon + address
-
-## What Stays the Same
-- The deals accordion below still shows full deal details (stage selector, financials, etc.)
-- The pipeline progress bar at the top is unchanged
-- The pipeline board cards continue showing property addresses as before
+**`src/pages/Dashboard.tsx`**
+- Add a new "My Payouts" card visible to `admin` and `agent` roles
+- Query `commission_entries` where `agent_user_id = current_user_id`
+- Display: agent's name, number of deals closed, total payout amount
+- Include the same Weekly/Monthly/Yearly period tabs
+- Position it near the existing "Deals Closed" chart section
 
