@@ -117,6 +117,68 @@ const InvestorDealsCard = ({ leadId, deals, onUpdate }: { leadId: string; deals:
     </Card>
   );
 };
+// Inline editable deal property entry
+const DealPropertyEntry = ({ deal, index, onUpdated }: { deal: any; index: number; onUpdated: () => void }) => {
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(deal.property_of_interest || "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setValue(deal.property_of_interest || ""); }, [deal.property_of_interest]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("lead_deals")
+        .update({ property_of_interest: value || null })
+        .eq("id", deal.id);
+      if (error) throw error;
+      toast({ title: "Updated", description: "Property address saved" });
+      setEditing(false);
+      onUpdated();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      {index > 0 && <Separator className="my-1.5" />}
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+          Transaction {index + 2} — {deal.deal_label || deal.transaction_type || "Deal"}
+        </span>
+        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditing(!editing)}>
+          <Edit className="h-3 w-3" />
+        </Button>
+      </div>
+      {editing ? (
+        <div className="flex gap-1.5">
+          <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Enter property address"
+            className="h-7 text-xs"
+            onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+          />
+          <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSave} disabled={saving}>
+            {saving ? "..." : "Save"}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+          <span className="text-xs leading-tight">
+            {deal.property_of_interest || "No property assigned"}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, handleUpdateNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate, leadDeals = [] }: any) => {
   const { toast } = useToast();
@@ -169,6 +231,7 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
 
     fetchCreatorAndAssignments();
   }, [leadData.user_id, id]);
+
 
 
   // Sync transaction type when leadData changes
@@ -634,18 +697,12 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                 <Separator className="my-2" />
                 <div className="space-y-2">
                   {leadDeals.map((deal: any, idx: number) => (
-                    <div key={deal.id || idx} className="space-y-1">
-                      {idx > 0 && <Separator className="my-1.5" />}
-                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        Transaction {idx + 2} — {deal.deal_label || deal.transaction_type || "Deal"}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="text-xs leading-tight">
-                          {deal.property_of_interest || "No property assigned"}
-                        </span>
-                      </div>
-                    </div>
+                    <DealPropertyEntry
+                      key={deal.id || idx}
+                      deal={deal}
+                      index={idx}
+                      onUpdated={onLeadUpdate}
+                    />
                   ))}
                 </div>
               </>
