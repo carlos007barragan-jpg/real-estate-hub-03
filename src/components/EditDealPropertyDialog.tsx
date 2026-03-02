@@ -39,6 +39,7 @@ interface EditDealPropertyDialogProps {
   onOpenChange: (open: boolean) => void;
   deal: any;
   onSaved: () => void;
+  propertyIndex?: number;
 }
 
 export const EditDealPropertyDialog = ({
@@ -46,6 +47,7 @@ export const EditDealPropertyDialog = ({
   onOpenChange,
   deal,
   onSaved,
+  propertyIndex,
 }: EditDealPropertyDialogProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -136,7 +138,7 @@ export const EditDealPropertyDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Property of Interest — {deal?.deal_label || deal?.transaction_type || "Deal"}</DialogTitle>
+          <DialogTitle>Edit Property of Interest{propertyIndex !== undefined ? ` ${propertyIndex}` : ""}</DialogTitle>
           <DialogDescription>Update the property address and details for this transaction</DialogDescription>
         </DialogHeader>
 
