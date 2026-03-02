@@ -135,8 +135,11 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
 
             await supabase.from("notifications").insert(notifications);
 
-            const supremeAdmins = adminRoles.filter(r => r.role === "supreme_admin");
-            if (supremeAdmins.length > 0) {
+            // Assign commission task specifically to Carlos
+            const CARLOS_USER_ID = "fe50d35a-9f1b-4388-a039-913df7394556";
+            const carlosInOrg = adminRoles.find(r => r.user_id === CARLOS_USER_ID) || 
+                                orgProfiles?.find(p => p.user_id === CARLOS_USER_ID);
+            if (carlosInOrg) {
               const priceFieldLabel = isFunding ? "Total financed" : "Sale price";
               const nextDay = new Date(closeDate);
               nextDay.setDate(nextDay.getDate() + 1);
@@ -144,7 +147,7 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
 
               const { data: taskData } = await supabase.from("tasks").insert({
                 lead_id: leadId,
-                user_id: supremeAdmins[0].user_id,
+                user_id: CARLOS_USER_ID,
                 title: `Enter commission & payout: ${leadName}`,
                 description: `${closerName} closed a deal with ${leadName}. ${priceFieldLabel}: ${priceDisplay}.${fundingDetails} Property: ${property || "Not entered"}. Close date: ${closeDate}. Please enter the total commission and agent payouts.`,
                 due_date: dueDateStr,
@@ -152,8 +155,7 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
               }).select("id").single();
 
               if (taskData) {
-                const assigneeRows = supremeAdmins.map(sa => ({ task_id: taskData.id, user_id: sa.user_id }));
-                await supabase.from("task_assignees").insert(assigneeRows);
+                await supabase.from("task_assignees").insert({ task_id: taskData.id, user_id: CARLOS_USER_ID });
               }
             }
           }

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power, DollarSign } from "lucide-react";
 import { AgentMetricDetailDialog, MetricType } from "@/components/AgentMetricDetailDialog";
+import { MyPayoutsCard } from "@/components/MyPayoutsCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import {
@@ -1309,6 +1310,9 @@ const Dashboard = () => {
           </div>
         </Card>
       </div>
+
+      {/* My Payouts - Agents and Admins (non-supreme-admin) */}
+      {(role === 'admin' || role === 'agent') && <MyPayoutsCard userId={currentUserId} />}
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
