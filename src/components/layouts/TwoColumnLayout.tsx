@@ -118,7 +118,7 @@ const InvestorDealsCard = ({ leadId, deals, onUpdate }: { leadId: string; deals:
   );
 };
 
-export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, handleUpdateNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate }: any) => {
+export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, handleUpdateNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate, leadDeals = [] }: any) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { role } = useAuth();
@@ -625,6 +625,28 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div><span className="text-muted-foreground">Beds:</span> {leadData.propertyInterest.bedrooms} / {leadData.propertyInterest.bathrooms}</div>
                   <div><span className="text-muted-foreground">Sqft:</span> {leadData.propertyInterest.sqft}</div>
+                </div>
+              </>
+            )}
+            {/* Deal Properties from additional transactions */}
+            {leadDeals && leadDeals.length > 0 && (
+              <>
+                <Separator className="my-2" />
+                <div className="space-y-2">
+                  {leadDeals.map((deal: any, idx: number) => (
+                    <div key={deal.id || idx} className="space-y-1">
+                      {idx > 0 && <Separator className="my-1.5" />}
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Transaction {idx + 2} — {deal.deal_label || deal.transaction_type || "Deal"}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-xs leading-tight">
+                          {deal.property_of_interest || "No property assigned"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
