@@ -804,12 +804,32 @@ const LeadProfile = () => {
           </>
         )}
 
-        {/* Additional Deals Accordion */}
+        {/* All Deals Accordion — includes primary pipeline as Transaction 1 when deals exist */}
         {leadDeals.length > 0 && (
           <LeadDealsAccordion
             leadId={leadData.id}
             leadName={leadData.name}
-            deals={leadDeals}
+            deals={[
+              // Include primary lead pipeline as Transaction 1
+              ...(currentPipeline ? [{
+                id: `primary-${leadData.id}`,
+                lead_id: leadData.id,
+                pipeline_id: currentPipeline,
+                pipeline_stage: currentStage,
+                transaction_type: null,
+                deal_label: leadData.propertyOfInterest || "Primary Transaction",
+                status: "active",
+                display_order: 0,
+                sales_price: leadData.value || null,
+                commission: leadData.commission || null,
+                agent_payout: null,
+                property_of_interest: leadData.propertyOfInterest || null,
+                title_office: leadData.titleOffice || null,
+                close_date: leadData.closeDate || null,
+                _isPrimary: true,
+              }] : []),
+              ...leadDeals,
+            ]}
             onDealsChange={() => { fetchLeadDeals(); fetchLead(); }}
           />
         )}

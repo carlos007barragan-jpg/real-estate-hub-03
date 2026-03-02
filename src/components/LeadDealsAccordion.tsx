@@ -85,12 +85,23 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
 
   const handleStageChange = async (deal: LeadDeal, newStage: string) => {
     try {
-      const { error } = await supabase
-        .from("lead_deals")
-        .update({ pipeline_stage: newStage } as any)
-        .eq("id", deal.id);
-
-      if (error) throw error;
+      const isPrimary = (deal as any)._isPrimary;
+      
+      if (isPrimary) {
+        // Update the leads table for the primary transaction
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error } = await supabase
+          .from("leads")
+          .update({ pipeline_stage: newStage, last_modified_by: user?.id } as any)
+          .eq("id", deal.lead_id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("lead_deals")
+          .update({ pipeline_stage: newStage } as any)
+          .eq("id", deal.id);
+        if (error) throw error;
+      }
 
       // Check for won stage
       const isWon = wonStageNames.includes(newStage.toLowerCase().trim());
@@ -111,14 +122,19 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
     }
   };
 
-  const handleRemoveDeal = async (dealId: string) => {
+  const handleRemoveDeal = async (deal: LeadDeal) => {
+    const isPrimary = (deal as any)._isPrimary;
+    if (isPrimary) {
+      toast({ title: "Cannot remove", description: "Primary transaction cannot be removed from here.", variant: "destructive" });
+      return;
+    }
     if (!confirm("Remove this transaction? This cannot be undone.")) return;
 
     try {
       const { error } = await supabase
         .from("lead_deals")
         .delete()
-        .eq("id", dealId);
+        .eq("id", deal.id);
 
       if (error) throw error;
 
@@ -176,18 +192,21 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
   return (
     <>
       <Accordion type="multiple" className="space-y-2">
-        {deals.map((deal) => {
+        {deals.map((deal, dealIndex) => {
           const pipeline = pipelineCache[deal.pipeline_id];
           const stages = pipeline?.stages || [];
           const isEditing = editingDealId === deal.id;
+          const isPrimary = (deal as any)._isPrimary;
 
           return (
             <AccordionItem key={deal.id} value={deal.id} className="border rounded-lg bg-card px-3">
               <AccordionTrigger className="py-3 hover:no-underline">
                 <div className="flex items-center gap-2 flex-1 min-w-0 text-left">
                   <Building2 className="h-4 w-4 text-primary shrink-0" />
+                  <Badge variant="outline" className="text-[10px] shrink-0 px-1.5">
+                    {dealIndex + 1}
+                  </Badge>
                   <span className="font-medium text-sm truncate">
-                    {/* Show property address once deal reaches an advanced stage */}
                     {advancedStageNames.includes(deal.pipeline_stage.toLowerCase().trim()) && deal.property_of_interest
                       ? deal.property_of_interest
                       : deal.deal_label || "Deal"}
@@ -341,7 +360,7 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
                       <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => startEdit(deal)}>
                         <Edit2 className="h-3 w-3" /> Edit
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={() => handleRemoveDeal(deal.id)}>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive hover:text-destructive" onClick={() => handleRemoveDeal(deal)}>
                         <Trash2 className="h-3 w-3" /> Remove
                       </Button>
                     </>
