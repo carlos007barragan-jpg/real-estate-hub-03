@@ -51,6 +51,9 @@ interface Deal {
   closeDate: string;
   priority: "high" | "medium" | "low";
   leadId?: string;
+  propertyAddress?: string;
+  dealRecordId?: string; // If from lead_deals table
+  dealLabel?: string;
 }
 
 interface Stage {
@@ -153,9 +156,14 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit
       >
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
-            <h4 className="font-semibold text-sm text-foreground leading-tight">
-              {deal.client || 'Unknown Client'}
-            </h4>
+            <div className="min-w-0">
+              <h4 className="font-semibold text-sm text-foreground leading-tight">
+                {deal.client || 'Unknown Client'}
+              </h4>
+              {deal.dealLabel && (
+                <span className="text-[10px] text-muted-foreground">{deal.dealLabel}</span>
+              )}
+            </div>
             <div className="flex items-center gap-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -208,6 +216,12 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit
           </div>
 
           <div className="space-y-1.5 text-xs">
+            {deal.propertyAddress && (
+              <div className="flex items-center gap-1.5 text-primary font-medium">
+                <Building2 className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{deal.propertyAddress}</span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Building2 className="h-3 w-3 flex-shrink-0" />
               <span className="truncate">Agent: {deal.agent || 'Not assigned'}</span>
@@ -303,7 +317,7 @@ const Pipelines = () => {
   };
 
   // Helper: populate pipeline stages with leads from DB
-  const populatePipelinesWithLeads = (rawPipelines: Pipeline[], leads: any[]): Pipeline[] => {
+  const populatePipelinesWithLeads = (rawPipelines: Pipeline[], leads: any[], leadDeals: any[] = []): Pipeline[] => {
     const pipelineStageNames = new Map<string, string[]>();
     const pipelineNameToId = new Map<string, string>();
     rawPipelines.forEach(p => {
@@ -313,25 +327,21 @@ const Pipelines = () => {
 
     const pipelineMap = new Map<string, Map<string, Deal[]>>();
 
-    leads.forEach((lead) => {
-      let pipelineId = lead.pipeline;
-      let stage = lead.pipeline_stage;
-
-      // If lead has no pipeline assigned, auto-map based on lead_temperature
-      if (!pipelineId && lead.lead_temperature) {
-        const tempKey = lead.lead_temperature.toLowerCase().trim();
-        const targetPipelineName = temperatureToPipelineMap[tempKey];
-        if (targetPipelineName) {
-          pipelineId = pipelineNameToId.get(targetPipelineName.toLowerCase().trim());
-        }
+    // Build a set of lead IDs that have deals in lead_deals, keyed by pipeline
+    const leadDealsByLeadAndPipeline = new Map<string, Set<string>>();
+    leadDeals.forEach(ld => {
+      const key = ld.lead_id;
+      if (!leadDealsByLeadAndPipeline.has(key)) {
+        leadDealsByLeadAndPipeline.set(key, new Set());
       }
+      leadDealsByLeadAndPipeline.get(key)!.add(ld.pipeline_id);
+    });
 
-      if (!pipelineId) return;
-
+    // Helper to add a deal to pipeline map
+    const addDealToPipeline = (pipelineId: string, stage: string, deal: Deal) => {
       const validStages = pipelineStageNames.get(pipelineId);
       if (!validStages) return;
 
-      // Try exact match first, then case-insensitive partial match for mismatched stages
       if (!validStages.includes(stage)) {
         const normalizedStage = stage?.toLowerCase().trim();
         const fuzzyMatch = validStages.find(s => 
@@ -345,13 +355,28 @@ const Pipelines = () => {
       if (!pipelineMap.has(pipelineId)) {
         pipelineMap.set(pipelineId, new Map());
       }
-
       const stageMap = pipelineMap.get(pipelineId)!;
       if (!stageMap.has(stage)) {
         stageMap.set(stage, []);
       }
+      stageMap.get(stage)!.push(deal);
+    };
 
-      // Map lead_temperature to priority - handle custom values
+    // Process leads (primary deal)
+    leads.forEach((lead) => {
+      let pipelineId = lead.pipeline;
+      let stage = lead.pipeline_stage;
+
+      if (!pipelineId && lead.lead_temperature) {
+        const tempKey = lead.lead_temperature.toLowerCase().trim();
+        const targetPipelineName = temperatureToPipelineMap[tempKey];
+        if (targetPipelineName) {
+          pipelineId = pipelineNameToId.get(targetPipelineName.toLowerCase().trim());
+        }
+      }
+
+      if (!pipelineId) return;
+
       const tempLower = (lead.lead_temperature || "").toLowerCase();
       let priority: "high" | "medium" | "low" = "medium";
       if (tempLower === "hot" || tempLower.includes("investor")) {
@@ -359,6 +384,9 @@ const Pipelines = () => {
       } else if (tempLower === "cold" || tempLower === "" || !lead.lead_temperature) {
         priority = "low";
       }
+
+      // If lead has additional deals in this same pipeline, show property to distinguish
+      const hasMultipleDeals = leadDealsByLeadAndPipeline.has(lead.id);
 
       const deal: Deal = {
         id: lead.id,
@@ -368,9 +396,40 @@ const Pipelines = () => {
         closeDate: lead.timeframe || "TBD",
         priority,
         leadId: lead.id,
+        propertyAddress: lead.property_of_interest || lead.property_address || undefined,
       };
 
-      stageMap.get(stage)!.push(deal);
+      addDealToPipeline(pipelineId, stage, deal);
+    });
+
+    // Process lead_deals (additional deals) — each appears as its own card
+    const leadsById = new Map(leads.map((l: any) => [l.id, l]));
+    leadDeals.forEach((ld) => {
+      const lead = leadsById.get(ld.lead_id);
+      if (!lead) return;
+
+      const tempLower = (lead.lead_temperature || "").toLowerCase();
+      let priority: "high" | "medium" | "low" = "medium";
+      if (tempLower === "hot" || tempLower.includes("investor")) {
+        priority = "high";
+      } else if (tempLower === "cold" || tempLower === "" || !lead.lead_temperature) {
+        priority = "low";
+      }
+
+      const deal: Deal = {
+        id: `deal-record-${ld.id}`,
+        client: lead.name,
+        agent: lead.assigned_to || "Not assigned",
+        commission: parseFloat(ld.sales_price || "0"),
+        closeDate: ld.close_date ? new Date(ld.close_date).toLocaleDateString() : "TBD",
+        priority,
+        leadId: lead.id,
+        propertyAddress: ld.property_of_interest || undefined,
+        dealRecordId: ld.id,
+        dealLabel: ld.deal_label || ld.transaction_type || undefined,
+      };
+
+      addDealToPipeline(ld.pipeline_id, ld.pipeline_stage, deal);
     });
 
     return rawPipelines.map((pipeline) => {
@@ -399,8 +458,8 @@ const Pipelines = () => {
 
       if (!userProfile?.organization_id) return;
 
-      // Fetch pipelines and leads in parallel
-      const [pipelinesResult, leadsResult] = await Promise.all([
+      // Fetch pipelines, leads, and lead_deals in parallel
+      const [pipelinesResult, leadsResult, leadDealsResult] = await Promise.all([
         supabase
           .from("pipelines")
           .select("*")
@@ -410,6 +469,11 @@ const Pipelines = () => {
           .from("leads")
           .select("*")
           .eq("is_demo_data", false),
+        supabase
+          .from("lead_deals")
+          .select("*")
+          .eq("organization_id", userProfile.organization_id)
+          .eq("status", "active"),
       ]);
 
       if (pipelinesResult.error) throw pipelinesResult.error;
@@ -447,7 +511,7 @@ const Pipelines = () => {
       }
 
       // Populate with leads in one shot — no flash
-      const populatedPipelines = populatePipelinesWithLeads(rawPipelines, leadsResult.data || []);
+      const populatedPipelines = populatePipelinesWithLeads(rawPipelines, leadsResult.data || [], leadDealsResult.data || []);
       setPipelines(populatedPipelines);
 
       // Ensure selected pipeline is valid
@@ -606,15 +670,16 @@ const Pipelines = () => {
       .channel("leads_pipeline_changes")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "leads",
-        },
+        { event: "*", schema: "public", table: "leads" },
         () => {
-          if (!stageChangeGuardRef.current) {
-            fetchPipelinesAndLeads();
-          }
+          if (!stageChangeGuardRef.current) fetchPipelinesAndLeads();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lead_deals" },
+        () => {
+          if (!stageChangeGuardRef.current) fetchPipelinesAndLeads();
         }
       )
       .subscribe();
@@ -720,9 +785,15 @@ const Pipelines = () => {
     const isLastStage = currentPipeline.stages[currentPipeline.stages.length - 1]?.id === overStage.id;
     const isWonStage = wonStageNames.includes(newStageName.toLowerCase().trim());
 
-    // Update the database
+    // Update the database — route to lead_deals or leads table
     const activeDeal = activeStage.deals.find((deal) => deal.id === dealId);
-    if (activeDeal?.leadId) {
+    if (activeDeal?.dealRecordId) {
+      // This card came from lead_deals table
+      await supabase
+        .from("lead_deals")
+        .update({ pipeline_stage: overStage.name } as any)
+        .eq("id", activeDeal.dealRecordId);
+    } else if (activeDeal?.leadId) {
       await supabase
         .from("leads")
         .update({ pipeline_stage: overStage.name })
@@ -900,7 +971,8 @@ const Pipelines = () => {
           deals: stage.deals.filter(
             (deal) =>
               deal.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              deal.agent.toLowerCase().includes(searchQuery.toLowerCase())
+              deal.agent.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (deal.propertyAddress || "").toLowerCase().includes(searchQuery.toLowerCase())
           ),
         })),
       }
