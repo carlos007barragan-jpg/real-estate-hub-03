@@ -160,6 +160,12 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit
               <h4 className="font-semibold text-sm text-foreground leading-tight">
                 {deal.client || 'Unknown Client'}
               </h4>
+              {deal.propertyAddress && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Building2 className="h-2.5 w-2.5 text-primary flex-shrink-0" />
+                  <span className="text-[10px] text-primary font-medium truncate">{deal.propertyAddress}</span>
+                </div>
+              )}
               {deal.dealLabel && (
                 <span className="text-[10px] text-muted-foreground">{deal.dealLabel}</span>
               )}
@@ -216,12 +222,6 @@ function DraggableDeal({ deal, onOpenNotes, onPriorityChange, onNavigate, onEdit
           </div>
 
           <div className="space-y-1.5 text-xs">
-            {deal.propertyAddress && (
-              <div className="flex items-center gap-1.5 text-primary font-medium">
-                <Building2 className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate">{deal.propertyAddress}</span>
-              </div>
-            )}
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Building2 className="h-3 w-3 flex-shrink-0" />
               <span className="truncate">Agent: {deal.agent || 'Not assigned'}</span>
