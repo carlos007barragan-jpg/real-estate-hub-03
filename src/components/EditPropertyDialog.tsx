@@ -243,10 +243,9 @@ export const EditPropertyDialog = ({
 
       // Type-specific saves
       if (isDefault) {
-        updateData.budget = formData.budget || null;
+        updateData.sales_price = formData.salesPrice || formData.budget || null;
         updateData.area = formData.area || null;
         updateData.down_payment = formData.downPayment || null;
-        updateData.financing_type = formData.financingType || null;
       } else if (type === "Funding") {
         updateData.purchase_price = formData.purchasePrice || null;
         updateData.rehab_amount = formData.rehabAmount || null;
@@ -424,42 +423,27 @@ export const EditPropertyDialog = ({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Budget</Label>
-                  <Input value={formData.budget} onChange={(e) => setFormData({ ...formData, budget: e.target.value })} placeholder="$450,000" disabled={inventoryLinked} />
+                  <Label>Sales Price</Label>
+                  <Input value={formData.salesPrice || formData.budget} onChange={(e) => setFormData({ ...formData, salesPrice: e.target.value, budget: e.target.value })} placeholder="$450,000" disabled={inventoryLinked} />
                 </div>
                 <div className="space-y-2">
                   <Label>Down Payment</Label>
                   <Input value={formData.downPayment} onChange={(e) => setFormData({ ...formData, downPayment: e.target.value })} placeholder="$50,000" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Property Type</Label>
-                  <Select value={formData.propertyType} onValueChange={(v) => setFormData({ ...formData, propertyType: v })} disabled={inventoryLinked}>
-                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Single Family">Single Family</SelectItem>
-                      <SelectItem value="Condo">Condo</SelectItem>
-                      <SelectItem value="Townhouse">Townhouse</SelectItem>
-                      <SelectItem value="Multi-Family">Multi-Family</SelectItem>
-                      <SelectItem value="Land">Land</SelectItem>
-                      <SelectItem value="Commercial">Commercial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Financing Type</Label>
-                  <Select value={formData.financingType} onValueChange={(v) => setFormData({ ...formData, financingType: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select financing" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="conventional">Conventional</SelectItem>
-                      <SelectItem value="fha">FHA</SelectItem>
-                      <SelectItem value="va">VA</SelectItem>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label>Property Type</Label>
+                <Select value={formData.propertyType} onValueChange={(v) => setFormData({ ...formData, propertyType: v })} disabled={inventoryLinked}>
+                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Single Family">Single Family</SelectItem>
+                    <SelectItem value="Condo">Condo</SelectItem>
+                    <SelectItem value="Townhouse">Townhouse</SelectItem>
+                    <SelectItem value="Multi-Family">Multi-Family</SelectItem>
+                    <SelectItem value="Land">Land</SelectItem>
+                    <SelectItem value="Commercial">Commercial</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </>
           )}

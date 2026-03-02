@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { EditDealPropertyDialog } from "@/components/EditDealPropertyDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,32 +118,9 @@ const InvestorDealsCard = ({ leadId, deals, onUpdate }: { leadId: string; deals:
     </Card>
   );
 };
-// Inline editable deal property entry
+// Deal property entry with full edit dialog
 const DealPropertyEntry = ({ deal, index, onUpdated }: { deal: any; index: number; onUpdated: () => void }) => {
-  const { toast } = useToast();
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(deal.property_of_interest || "");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => { setValue(deal.property_of_interest || ""); }, [deal.property_of_interest]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("lead_deals")
-        .update({ property_of_interest: value || null })
-        .eq("id", deal.id);
-      if (error) throw error;
-      toast({ title: "Updated", description: "Property address saved" });
-      setEditing(false);
-      onUpdated();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
     <div className="space-y-1">
@@ -151,31 +129,22 @@ const DealPropertyEntry = ({ deal, index, onUpdated }: { deal: any; index: numbe
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
           Transaction {index + 2} — {deal.deal_label || deal.transaction_type || "Deal"}
         </span>
-        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditing(!editing)}>
+        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditOpen(true)}>
           <Edit className="h-3 w-3" />
         </Button>
       </div>
-      {editing ? (
-        <div className="flex gap-1.5">
-          <Input
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="Enter property address"
-            className="h-7 text-xs"
-            onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-          />
-          <Button size="sm" className="h-7 px-2 text-xs" onClick={handleSave} disabled={saving}>
-            {saving ? "..." : "Save"}
-          </Button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1.5">
-          <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-          <span className="text-xs leading-tight">
-            {deal.property_of_interest || "No property assigned"}
-          </span>
-        </div>
-      )}
+      <div className="flex items-center gap-1.5">
+        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+        <span className="text-xs leading-tight">
+          {deal.property_of_interest || "No property assigned"}
+        </span>
+      </div>
+      <EditDealPropertyDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        deal={deal}
+        onSaved={onUpdated}
+      />
     </div>
   );
 };

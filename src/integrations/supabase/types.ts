@@ -874,20 +874,26 @@ export type Database = {
       lead_deals: {
         Row: {
           agent_payout: string | null
+          bathrooms: number | null
+          bedrooms: number | null
           close_date: string | null
           commission: string | null
           created_at: string
           created_by: string
           deal_label: string | null
           display_order: number
+          down_payment: string | null
           id: string
           lead_id: string
           organization_id: string
           pipeline_id: string
           pipeline_stage: string
           points_charged: string | null
+          property_address: string | null
           property_of_interest: string | null
+          property_type: string | null
           sales_price: string | null
+          sqft: string | null
           status: string
           title_office: string | null
           total_fee: string | null
@@ -896,20 +902,26 @@ export type Database = {
         }
         Insert: {
           agent_payout?: string | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           close_date?: string | null
           commission?: string | null
           created_at?: string
           created_by: string
           deal_label?: string | null
           display_order?: number
+          down_payment?: string | null
           id?: string
           lead_id: string
           organization_id: string
           pipeline_id: string
           pipeline_stage: string
           points_charged?: string | null
+          property_address?: string | null
           property_of_interest?: string | null
+          property_type?: string | null
           sales_price?: string | null
+          sqft?: string | null
           status?: string
           title_office?: string | null
           total_fee?: string | null
@@ -918,20 +930,26 @@ export type Database = {
         }
         Update: {
           agent_payout?: string | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           close_date?: string | null
           commission?: string | null
           created_at?: string
           created_by?: string
           deal_label?: string | null
           display_order?: number
+          down_payment?: string | null
           id?: string
           lead_id?: string
           organization_id?: string
           pipeline_id?: string
           pipeline_stage?: string
           points_charged?: string | null
+          property_address?: string | null
           property_of_interest?: string | null
+          property_type?: string | null
           sales_price?: string | null
+          sqft?: string | null
           status?: string
           title_office?: string | null
           total_fee?: string | null
