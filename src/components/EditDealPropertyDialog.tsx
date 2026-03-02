@@ -136,8 +136,8 @@ export const EditDealPropertyDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Deal Property — {deal?.deal_label || deal?.transaction_type || "Deal"}</DialogTitle>
-          <DialogDescription>Update the property details for this transaction</DialogDescription>
+          <DialogTitle>Edit Property of Interest — {deal?.deal_label || deal?.transaction_type || "Deal"}</DialogTitle>
+          <DialogDescription>Update the property address and details for this transaction</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -173,20 +173,11 @@ export const EditDealPropertyDialog = ({
           )}
 
           <div className="space-y-2">
-            <Label>Property of Interest</Label>
-            <Input
-              value={formData.propertyOfInterest}
-              onChange={(e) => setFormData({ ...formData, propertyOfInterest: e.target.value })}
-              placeholder="e.g., 123 Main St"
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label>Property Address</Label>
             <Input
               value={formData.propertyAddress}
-              onChange={(e) => setFormData({ ...formData, propertyAddress: e.target.value })}
-              placeholder="Full address"
+              onChange={(e) => setFormData({ ...formData, propertyAddress: e.target.value, propertyOfInterest: e.target.value })}
+              placeholder="Full property address"
             />
           </div>
 
