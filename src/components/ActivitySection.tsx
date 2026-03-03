@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Phone, PlusCircle, History, ChevronDown, ChevronRight, StickyNote, Clock, Send, Pencil, Check, X } from "lucide-react";
+import { Phone, PlusCircle, History, ChevronDown, ChevronRight, StickyNote, Clock, Send, Pencil, Check, X, Trophy } from "lucide-react";
 import { CallHistory } from "@/components/CallHistory";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -140,10 +140,12 @@ export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddN
                 {notes.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-3 text-center">No notes yet</p>
                 ) : (
-                  notes.map((note) => (
+                  notes.map((note) => {
+                    const isDealClosed = note.content?.startsWith("🏆 Transaction Closed");
+                    return (
                     <div
                       key={note.id}
-                      className="group relative pl-4 pr-3 py-3 rounded-lg border bg-card transition-all hover:shadow-sm border-l-[3px] border-l-primary"
+                      className={`group relative pl-4 pr-3 py-3 rounded-lg border bg-card transition-all hover:shadow-sm border-l-[3px] ${isDealClosed ? 'border-l-green-500 bg-green-500/5' : 'border-l-primary'}`}
                     >
                       {editingNoteId === note.id ? (
                         <div className="space-y-2">
@@ -177,15 +179,21 @@ export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddN
                         </div>
                       ) : (
                         <>
+                          {isDealClosed && (
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <Trophy className="h-3.5 w-3.5 text-green-600" />
+                              <span className="text-xs font-semibold text-green-700 dark:text-green-400">Transaction Closed</span>
+                            </div>
+                          )}
                           <p
-                            className="text-sm text-foreground leading-snug cursor-pointer hover:text-primary transition-colors"
+                            className={`text-sm leading-snug cursor-pointer hover:text-primary transition-colors whitespace-pre-line ${isDealClosed ? 'text-foreground' : 'text-foreground'}`}
                             onClick={() => {
                               setEditingNoteId(note.id);
                               setEditingContent(note.content);
                             }}
                             title="Click to edit"
                           >
-                            {note.content}
+                            {isDealClosed ? note.content.replace(/^🏆 Transaction Closed — /, '') : note.content}
                           </p>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
                             <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
@@ -210,7 +218,8 @@ export const ActivitySection = ({ leadId, notes, newNote, setNewNote, handleAddN
                         </>
                       )}
                     </div>
-                  ))
+                  );})
+
                 )}
               </div>
             </CollapsibleContent>
