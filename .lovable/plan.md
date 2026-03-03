@@ -1,41 +1,50 @@
 
 
-# Add "Net Total Earnings" Summary to Team Payouts
+## Plan: Collapsible Pipeline Stages + Filters + Card Data Fix
 
-## What This Does
-Adds a summary row at the bottom of the Team Payouts card (Supreme Admin view) showing the **all-time net total earnings** across all agents. This gives a cumulative view since the current period filter only shows weekly/monthly/yearly slices.
+### Problem Summary
+1. Pipeline stages can't be collapsed — "Sold" and other won stages clutter the view
+2. No way to filter deals by status (active/closed) or time period (this month, this year)
+3. Deal cards in "Sold" stages don't show accurate dollar amounts and close dates
+4. Too much horizontal scrolling needed with many stages open
 
-## Changes
+### Changes
 
-### 1. Dashboard.tsx - Fetch All-Time Total
-- Add a new state variable `allTimeTotalPayout` (number)
-- In the existing `fetchPayoutsData` function, after the filtered calculation, also compute the **unfiltered** total from all `commission_entries` (sum of all `payout_amount` values, no date filter)
-- Store this in `allTimeTotalPayout`
+#### 1. Collapsible Stage Columns
+- Add a collapse/expand arrow button to each stage header (ChevronDown/ChevronRight toggle)
+- Store collapsed state per stage in component state
+- **Won/Sold stages auto-collapse by default** using the existing `wonStageNames` list
+- When collapsed, the stage column shrinks to just the header (name + deal count + value) with no cards visible
+- Collapsed columns become narrow (~80px width) to save horizontal space
+- Clicking the arrow or header expands them back
 
-### 2. Dashboard.tsx - Render Net Total Row
-- Below the agent payout list (after the `.map()` block), add a styled summary row:
-  - A horizontal separator
-  - A row showing "Net Total Earnings" on the left and the all-time total amount on the right in bold green
-  - Also show total deal count (unique lead_ids across all entries)
+#### 2. Pipeline Filters
+- Add a filter dropdown next to the search bar with options:
+  - **All Deals** (default)
+  - **Active Only** — excludes deals in won/sold stages
+  - **Closed/Won Only** — only deals in won/sold stages
+  - **This Month** — deals with close_date in current month
+  - **This Year** — deals with close_date in current year
+- Filter is applied client-side on top of the existing search filter
+- Uses the existing `wonStageNames` array for active/closed classification
 
-## Technical Details
-- The `fetchPayoutsData` function already fetches all entries without a date filter (`supabase.from("commission_entries").select(...)`) and then filters client-side. The unfiltered `entries` array is already available -- we just need to sum it separately before the period filter is applied.
-- New state: `const [allTimeTotalPayout, setAllTimeTotalPayout] = useState({ amount: 0, deals: 0 })`
-- In `fetchPayoutsData`, before the `filtered` variable, compute:
-  ```
-  const allLeadIds = new Set(entries.map(e => e.lead_id));
-  const allTotal = entries.reduce((sum, e) => sum + Number(e.payout_amount || 0), 0);
-  setAllTimeTotalPayout({ amount: allTotal, deals: allLeadIds.size });
-  ```
-- In the JSX, after the payouts list `div`, add:
-  ```
-  <Separator className="my-3" />
-  <div className="flex items-center justify-between py-3 px-3 bg-muted/30 rounded-md">
-    <span className="font-semibold text-foreground">Net Total Earnings</span>
-    <div className="flex items-center gap-6">
-      <span className="text-sm text-muted-foreground">{deals} total deals</span>
-      <span className="font-bold text-success min-w-[90px] text-right">${amount}</span>
-    </div>
-  </div>
-  ```
+#### 3. Fix Dollar Amount & Close Date on Sold Cards
+- In `populatePipelinesWithLeads`, the primary lead card currently pulls `commission` from `sales_price || value` and `closeDate` from `timeframe`
+- For leads with `status === "won"` or in a won stage, update the mapping to also use `lead.close_date` (the actual close date field) formatted as a date, and `lead.sales_price` properly
+- For `lead_deals` cards, `close_date` is already used — just ensure it formats correctly
+- The `closeDate` field on the Deal interface will prefer `close_date` (actual date) over `timeframe` (text like "30 days")
+
+### Technical Details
+
+**File: `src/pages/Pipelines.tsx`**
+
+- Add state: `collapsedStages` as `Set<string>` initialized with won stage IDs
+- Add state: `dealFilter` as string (`"all" | "active" | "closed" | "this-month" | "this-year"`)
+- After pipelines load, auto-collapse stages whose names match `wonStageNames`
+- In the stage rendering loop, conditionally render cards or a compact collapsed view
+- Add filter Select component in the header bar
+- Apply filter logic in `filteredPipeline` computation
+- Fix the `Deal` mapping: use `lead.close_date` when available, format as locale date string; use `lead.sales_price` as the commission value consistently
+
+No database changes needed — this is purely a UI enhancement.
 
