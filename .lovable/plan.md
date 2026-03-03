@@ -1,39 +1,41 @@
 
 
-## Plan: Separate Transaction Cards for Secondary Deals
+## Problem
 
-### Problem
-Secondary deals (from `lead_deals` table) are currently squeezed into the bottom of the primary Property card as small entries labeled "Property of Interest 2/3." They show only an address and a tiny edit button, making it hard to view or manage deal-specific data like sales price, commission, close date, and transaction type.
+Two issues with how transactions display on the Lead Profile:
 
-### Solution
-Remove the `DealPropertyEntry` items from inside the primary Property card and instead render each secondary deal as its own full standalone card in the sidebar. Each card will display all relevant deal information and provide inline editing.
+1. **Phantom transactions**: The system shows the primary pipeline progress bar (from the `leads` table) AND any `lead_deals` records simultaneously, making it look like there are two transactions when there's really only one. For example, Luis Rojo shows a primary pipeline bar at the top plus a deal in the accordion below — but the user only created one transaction.
 
-### Changes
+2. **Post-close lifecycle**: Once a deal is sold/closed, the transaction should be cleared from the active pipeline view entirely. The lead should transition into a "client" state (book of business). To start a new deal, the user should explicitly click "Begin New Transaction."
 
-**1. `src/components/layouts/TwoColumnLayout.tsx`**
-- Remove the `DealPropertyEntry` component and the section that renders `leadDeals` inside the Property card (lines 668-683).
-- After the Property card (and before or after the second card), render a new `DealTransactionCard` for each item in `leadDeals`.
-- Each card will show:
-  - Header: "Transaction {N}" with a badge for transaction type (e.g., "Funding", "Buyer's")
-  - Property of interest address
-  - Property specs (beds, baths, sqft, type) if available
-  - Financial fields: sales price, commission, agent payout, points charged, total fee
-  - Close date and title office
-  - Edit button that opens the existing `EditDealPropertyDialog` (already built with full fields)
+## Plan
 
-**2. New component: `DealTransactionCard` (inline in TwoColumnLayout or extracted)**
-- A self-contained card component receiving a `deal` record from `lead_deals`.
-- Displays all fields from the deal record in a clean layout matching the primary Property card's style.
-- Edit button opens `EditDealPropertyDialog` with the deal's data.
-- Transaction type is shown as an editable badge or displayed prominently.
+### 1. Hide the primary pipeline bar when a `lead_deals` record exists for that same pipeline
 
-### What stays the same
-- The primary Property card continues to show Transaction 1 data from the `leads` table.
-- The `LeadDealsAccordion` above the two-column layout continues to show pipeline progress for secondary deals.
-- The `EditDealPropertyDialog` remains the editing mechanism -- it already supports all the fields needed.
+In `src/pages/LeadProfile.tsx`, modify the pipeline progress bar rendering (around line 740) to also hide when there is a matching `lead_deals` entry for the same pipeline. This prevents the duplicate display — the `LeadDealsAccordion` already handles showing that deal.
+
+### 2. Won/closed deals: hide from accordion, show summary instead
+
+In `src/components/LeadDealsAccordion.tsx`, the compact "won" card (lines 184-227) currently still shows the deal with a stage selector. Change this so closed deals are either fully hidden from the accordion or shown as a minimal one-line historical entry (no stage selector, no pipeline controls). The deal data remains in the database for reporting.
+
+### 3. Post-close state: show "Begin New Transaction" button
+
+In `src/pages/LeadProfile.tsx`, when the lead status is "won" and there are no active deals:
+- Hide the pipeline bar entirely (already done).
+- Show a clean "closed" state with a prominent "Begin New Transaction" button that opens the existing `AddDealDialog`.
+- Optionally display a note like "This client's previous deal has been closed."
+
+### 4. Primary pipeline bar: only show when no `lead_deals` exist
+
+The primary pipeline bar uses `leads.pipeline` and `leads.pipeline_stage`. When the user creates a deal via `AddDealDialog`, that deal goes into the `lead_deals` table. The primary bar should only render if there are zero `lead_deals` records — since the accordion handles all deals from that table. This eliminates the double-display issue.
 
 ### Technical Details
-- Data source: `leadDeals` array already passed into `TwoColumnLayout` from `LeadProfile.tsx`.
-- Each card reads from the `lead_deals` table columns: `property_of_interest`, `property_address`, `property_type`, `bedrooms`, `bathrooms`, `sqft`, `sales_price`, `commission`, `agent_payout`, `points_charged`, `total_fee`, `title_office`, `close_date`, `transaction_type`, `down_payment`.
-- On save from `EditDealPropertyDialog`, the existing `onLeadUpdate` callback refreshes both `leads` and `lead_deals` data.
+
+**`src/pages/LeadProfile.tsx`**:
+- Line ~740: Add condition `&& leadDeals.length === 0` to the primary pipeline bar render check, so when deals exist in `lead_deals`, only the accordion shows.
+- When `leadData.status === "won"` and all deals are closed: render a "Client — Deal Closed" summary card with a "Begin New Transaction" button.
+
+**`src/components/LeadDealsAccordion.tsx`**:
+- Lines 184-227 (won card): Remove the stage `<Select>` dropdown. Make the closed card a simple historical summary — pipeline name, property, close date, sale price. No reopening from here.
+- Add a small "Reopen" button (distinct from the stage selector) if users truly need to undo a close, which would reset the deal status back to active and move it to the previous stage.
 
