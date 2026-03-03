@@ -118,4 +118,12 @@ All colors MUST be HSL.
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  .pipeline-scroll-top {
+    transform: rotateX(180deg);
+  }
+
+  .pipeline-scroll-top > * {
+    transform: rotateX(180deg);
+  }
 }

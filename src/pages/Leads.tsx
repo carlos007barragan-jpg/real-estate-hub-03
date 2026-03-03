@@ -574,7 +574,7 @@ const Leads = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex w-full mb-6 overflow-x-auto justify-start">
+        <TabsList className="grid w-full mb-6" style={{ gridTemplateColumns: `repeat(${transactionTypes.length + 1}, minmax(0, 1fr))` }}>
         <TabsTrigger value="all" className="relative gap-2">
           All
           <Badge variant="secondary" className="h-5 min-w-5 px-1.5">
