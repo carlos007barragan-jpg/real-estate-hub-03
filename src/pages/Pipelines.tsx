@@ -372,9 +372,8 @@ const Pipelines = () => {
 
       if (!pipelineId) return;
 
-      // Skip primary card if a lead_deal exists for this lead+pipeline (avoid duplicates)
-      const dealsForLead = leadDealsByLeadAndPipeline.get(lead.id);
-      if (dealsForLead && dealsForLead.has(pipelineId)) return;
+      // Skip primary card if any lead_deal exists for this lead (avoid duplicates with wrong data)
+      if (leadDealsByLeadAndPipeline.has(lead.id)) return;
 
       const isWon = lead.status === "won" || isWonStageName(stage || "");
       
@@ -467,8 +466,7 @@ const Pipelines = () => {
         supabase
           .from("lead_deals")
           .select("*")
-          .eq("organization_id", userProfile.organization_id)
-          .eq("status", "active"),
+          .eq("organization_id", userProfile.organization_id),
       ]);
 
       if (pipelinesResult.error) throw pipelinesResult.error;
