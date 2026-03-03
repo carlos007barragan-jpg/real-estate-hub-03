@@ -853,7 +853,7 @@ const LeadProfile = () => {
           newNote={newNote}
           setNewNote={setNewNote}
           id={id}
-          onLeadUpdate={fetchLead}
+          onLeadUpdate={() => { fetchLead(); fetchLeadDeals(); }}
           leadDeals={leadDeals}
         />
 
