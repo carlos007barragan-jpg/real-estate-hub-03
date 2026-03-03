@@ -134,6 +134,7 @@ const Dashboard = () => {
   const [showingsData, setShowingsData] = useState<ShowingsData[]>([]);
   const [totalAppointments, setTotalAppointments] = useState(0);
   const [payoutsData, setPayoutsData] = useState<PayoutData[]>([]);
+  const [allTimeTotalPayout, setAllTimeTotalPayout] = useState({ amount: 0, deals: 0 });
   const [totalSalesVolume, setTotalSalesVolume] = useState(0);
   const [salesVolumeData, setSalesVolumeData] = useState<SalesVolumeData[]>([]);
   const [payoutsPeriod, setPayoutsPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
@@ -490,8 +491,14 @@ const Dashboard = () => {
 
       if (error) throw error;
 
+      // Compute all-time totals before filtering
+      const allEntries = entries || [];
+      const allLeadIds = new Set(allEntries.map(e => e.lead_id));
+      const allTotal = allEntries.reduce((sum, e) => sum + Number(e.payout_amount || 0), 0);
+      setAllTimeTotalPayout({ amount: allTotal, deals: allLeadIds.size });
+
       // Filter entries by period using created_at
-      const filtered = (entries || []).filter(e => new Date(e.created_at) >= new Date(dateFrom));
+      const filtered = allEntries.filter(e => new Date(e.created_at) >= new Date(dateFrom));
 
       // Group payouts by agent name
       const payoutMap = new Map<string, { amount: number; leadIds: Set<string> }>();
@@ -1387,19 +1394,27 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-1">
               {payoutsData.map((agent) => (
-                <div key={agent.name} className="flex items-center justify-between py-3 px-3 rounded-md border border-border">
-                  <span className="font-medium text-foreground">{agent.name}</span>
-                  <div className="flex items-center gap-6">
-                    <span className="text-sm text-muted-foreground">
-                      {agent.deals} {agent.deals === 1 ? 'deal' : 'deals'} closed
-                    </span>
-                    <span className="font-bold text-success min-w-[90px] text-right">
-                      ${agent.amount.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                 <div key={agent.name} className="flex items-center justify-between py-3 px-3 rounded-md border border-border">
+                   <span className="font-medium text-foreground">{agent.name}</span>
+                   <div className="flex items-center gap-6">
+                     <span className="text-sm text-muted-foreground">
+                       {agent.deals} {agent.deals === 1 ? 'deal' : 'deals'} closed
+                     </span>
+                     <span className="font-bold text-success min-w-[90px] text-right">
+                       ${agent.amount.toLocaleString()}
+                     </span>
+                   </div>
+                 </div>
+               ))}
+               <div className="border-t border-border my-3" />
+               <div className="flex items-center justify-between py-3 px-3 bg-muted/30 rounded-md">
+                 <span className="font-semibold text-foreground">Net Total Earnings</span>
+                 <div className="flex items-center gap-6">
+                   <span className="text-sm text-muted-foreground">{allTimeTotalPayout.deals} total deals</span>
+                   <span className="font-bold text-success min-w-[90px] text-right">${allTimeTotalPayout.amount.toLocaleString()}</span>
+                 </div>
+               </div>
+             </div>
           )}
         </Card>
         )}
