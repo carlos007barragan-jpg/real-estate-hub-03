@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical, Trash2, Edit, User } from "lucide-react";
+import { Building2, DollarSign, Calendar, TrendingUp, Layers, Plus, Filter, Search, MessageSquare, GripVertical, MoreVertical, Trash2, Edit, User, ChevronDown, ChevronRight } from "lucide-react";
 import { EditDealDialog } from "@/components/EditDealDialog";
 import { OfferMadeValidationDialog } from "@/components/OfferMadeValidationDialog";
 import { DealClosedDialog } from "@/components/DealClosedDialog";
@@ -52,8 +52,9 @@ interface Deal {
   priority: "high" | "medium" | "low";
   leadId?: string;
   propertyAddress?: string;
-  dealRecordId?: string; // If from lead_deals table
+  dealRecordId?: string;
   dealLabel?: string;
+  rawCloseDate?: string; // ISO date for filtering
 }
 
 interface Stage {
@@ -124,7 +125,6 @@ function DraggableDeal({ deal, onOpenNotes, onNavigate, onEdit, onDelete }: {
       style={style}
       className="bg-background rounded-lg border hover:border-primary/50 hover:shadow-md transition-all flex gap-2"
     >
-      {/* Drag Handle */}
       <div
         {...attributes}
         {...listeners}
@@ -140,7 +140,6 @@ function DraggableDeal({ deal, onOpenNotes, onNavigate, onEdit, onDelete }: {
         <GripVertical className="h-4 w-4 text-white pointer-events-none" />
       </div>
 
-      {/* Clickable Card Content */}
       <div
         onClick={handleCardClick}
         className="flex-1 p-3 cursor-pointer"
@@ -230,7 +229,7 @@ function DroppableStage({
   return (
     <div
       ref={setNodeRef}
-      className={`space-y-2 min-h-[500px] rounded-lg transition-colors ${
+      className={`space-y-2 min-h-[60px] rounded-lg transition-colors ${
         isOver ? 'bg-primary/5 border-2 border-primary border-dashed' : ''
       }`}
     >
@@ -243,12 +242,10 @@ function DroppableStage({
 const Pipelines = () => {
   const navigate = useNavigate();
   const [selectedPipeline, setSelectedPipeline] = useState<string>(() => {
-    // Restore selected pipeline from localStorage
     return localStorage.getItem("selectedPipelineId") || "";
   });
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   
-  // Persist selected pipeline to localStorage
   const handleSelectPipeline = (pipelineId: string) => {
     setSelectedPipeline(pipelineId);
     localStorage.setItem("selectedPipelineId", pipelineId);
@@ -256,6 +253,8 @@ const Pipelines = () => {
   const [pipelinesLoaded, setPipelinesLoaded] = useState(false);
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [dealFilter, setDealFilter] = useState<string>("all");
+  const [collapsedStages, setCollapsedStages] = useState<Set<string>>(new Set());
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -270,13 +269,26 @@ const Pipelines = () => {
   const [commissionPipelineName, setCommissionPipelineName] = useState("");
   const [isPerformingStageChange, setIsPerformingStageChange] = useState(false);
   const stageChangeGuardRef = useRef(false);
+  const [wonStageIdsInitialized, setWonStageIdsInitialized] = useState(false);
   const { toast } = useToast();
   const { role } = useAuth();
 
-  // Final/won stage names that trigger confetti
   const wonStageNames = ["closed", "sold", "funded", "closed won", "deal won", "won", "done", "completed", "complete"];
 
-  // Map lead_temperature values to pipeline names for auto-assignment
+  const isWonStageName = (name: string) => wonStageNames.includes(name.toLowerCase().trim());
+
+  const toggleStageCollapse = (stageId: string) => {
+    setCollapsedStages(prev => {
+      const next = new Set(prev);
+      if (next.has(stageId)) {
+        next.delete(stageId);
+      } else {
+        next.add(stageId);
+      }
+      return next;
+    });
+  };
+
   const temperatureToPipelineMap: Record<string, string> = {
     "buyer's": "Real Estate Sales",
     "listing": "Seller Listings",
@@ -289,7 +301,6 @@ const Pipelines = () => {
     "rental": "Real Estate Sales",
   };
 
-  // Helper: populate pipeline stages with leads from DB
   const populatePipelinesWithLeads = (rawPipelines: Pipeline[], leads: any[], leadDeals: any[] = []): Pipeline[] => {
     const pipelineStageNames = new Map<string, string[]>();
     const pipelineNameToId = new Map<string, string>();
@@ -300,7 +311,6 @@ const Pipelines = () => {
 
     const pipelineMap = new Map<string, Map<string, Deal[]>>();
 
-    // Build a set of lead IDs that have deals in lead_deals, keyed by pipeline
     const leadDealsByLeadAndPipeline = new Map<string, Set<string>>();
     leadDeals.forEach(ld => {
       const key = ld.lead_id;
@@ -310,19 +320,17 @@ const Pipelines = () => {
       leadDealsByLeadAndPipeline.get(key)!.add(ld.pipeline_id);
     });
 
-    // Helper to calculate priority from stage position
     const calculatePriority = (pipelineId: string, stage: string): "high" | "medium" | "low" => {
       const stages = pipelineStageNames.get(pipelineId);
       if (!stages || stages.length <= 1) return "low";
       const idx = stages.indexOf(stage);
       if (idx === -1) return "low";
-      const progress = idx / (stages.length - 1); // 0 to 1
+      const progress = idx / (stages.length - 1);
       if (progress >= 0.7) return "high";
       if (progress >= 0.35) return "medium";
       return "low";
     };
 
-    // Helper to add a deal to pipeline map
     const addDealToPipeline = (pipelineId: string, stage: string, deal: Deal) => {
       const validStages = pipelineStageNames.get(pipelineId);
       if (!validStages) return;
@@ -337,7 +345,6 @@ const Pipelines = () => {
         stage = fuzzyMatch || validStages[0] || stage;
       }
 
-      // Auto-set priority based on resolved stage position
       deal.priority = calculatePriority(pipelineId, stage);
 
       if (!pipelineMap.has(pipelineId)) {
@@ -350,7 +357,7 @@ const Pipelines = () => {
       stageMap.get(stage)!.push(deal);
     };
 
-    // Process leads (primary deal)
+    // Process leads (primary deal) — fix close date and sales price for won leads
     leads.forEach((lead) => {
       let pipelineId = lead.pipeline;
       let stage = lead.pipeline_stage;
@@ -365,13 +372,29 @@ const Pipelines = () => {
 
       if (!pipelineId) return;
 
+      const isWon = lead.status === "won" || isWonStageName(stage || "");
+      
+      // For close date: prefer close_date (actual date) over timeframe (text like "30 days")
+      let closeDate = "TBD";
+      let rawCloseDate: string | undefined;
+      if (lead.close_date) {
+        closeDate = new Date(lead.close_date).toLocaleDateString();
+        rawCloseDate = lead.close_date;
+      } else if (lead.timeframe && !isWon) {
+        closeDate = lead.timeframe;
+      }
+
+      // For commission/value: prefer sales_price for won deals
+      const commissionValue = parseFloat(lead.sales_price || lead.value?.replace(/[^0-9.-]+/g, "") || "0");
+
       const deal: Deal = {
         id: lead.id,
         client: lead.name,
         agent: lead.assigned_to || "Not assigned",
-        commission: parseFloat(lead.sales_price || lead.value?.replace(/[^0-9.-]+/g, "") || "0"),
-        closeDate: lead.timeframe || "TBD",
-        priority: "low", // will be auto-set by addDealToPipeline
+        commission: commissionValue,
+        closeDate,
+        rawCloseDate,
+        priority: "low",
         leadId: lead.id,
         propertyAddress: lead.property_of_interest || lead.property_address || undefined,
       };
@@ -379,7 +402,7 @@ const Pipelines = () => {
       addDealToPipeline(pipelineId, stage, deal);
     });
 
-    // Process lead_deals (additional deals) — each appears as its own card
+    // Process lead_deals (additional deals)
     const leadsById = new Map(leads.map((l: any) => [l.id, l]));
     leadDeals.forEach((ld) => {
       const lead = leadsById.get(ld.lead_id);
@@ -391,7 +414,8 @@ const Pipelines = () => {
         agent: lead.assigned_to || "Not assigned",
         commission: parseFloat(ld.sales_price || "0"),
         closeDate: ld.close_date ? new Date(ld.close_date).toLocaleDateString() : "TBD",
-        priority: "low", // will be auto-set by addDealToPipeline
+        rawCloseDate: ld.close_date || undefined,
+        priority: "low",
         leadId: lead.id,
         propertyAddress: ld.property_of_interest || undefined,
         dealRecordId: ld.id,
@@ -413,7 +437,6 @@ const Pipelines = () => {
     });
   };
 
-  // Fetch pipelines AND leads together in one atomic operation
   const fetchPipelinesAndLeads = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -427,7 +450,6 @@ const Pipelines = () => {
 
       if (!userProfile?.organization_id) return;
 
-      // Fetch pipelines, leads, and lead_deals in parallel
       const [pipelinesResult, leadsResult, leadDealsResult] = await Promise.all([
         supabase
           .from("pipelines")
@@ -450,7 +472,6 @@ const Pipelines = () => {
       let rawPipelines: Pipeline[];
 
       if (!pipelinesResult.data || pipelinesResult.data.length === 0) {
-        // Create default pipelines if none exist
         const defaultPipelines = defaultPipelineTemplate.map((mp, index) => ({
           user_id: user.id,
           organization_id: userProfile.organization_id,
@@ -479,11 +500,23 @@ const Pipelines = () => {
         }));
       }
 
-      // Populate with leads in one shot — no flash
       const populatedPipelines = populatePipelinesWithLeads(rawPipelines, leadsResult.data || [], leadDealsResult.data || []);
       setPipelines(populatedPipelines);
 
-      // Ensure selected pipeline is valid
+      // Auto-collapse won stages on first load
+      if (!wonStageIdsInitialized) {
+        const wonIds = new Set<string>();
+        populatedPipelines.forEach(p => {
+          p.stages.forEach(s => {
+            if (isWonStageName(s.name)) {
+              wonIds.add(s.id);
+            }
+          });
+        });
+        setCollapsedStages(wonIds);
+        setWonStageIdsInitialized(true);
+      }
+
       const pipelineIds = populatedPipelines.map(p => p.id);
       if (!selectedPipeline || !pipelineIds.includes(selectedPipeline)) {
         handleSelectPipeline(populatedPipelines[0]?.id || "");
@@ -668,14 +701,19 @@ const Pipelines = () => {
   const currentPipeline = pipelines.find((p) => p.id === selectedPipeline);
 
   const analytics = useMemo(() => {
-    if (!currentPipeline) return { totalValue: 0, totalDeals: 0, avgDealSize: 0 };
+    if (!currentPipeline) return { totalValue: 0, totalDeals: 0, avgDealSize: 0, activeDeals: 0, closedDeals: 0 };
 
     const allDeals = currentPipeline.stages.flatMap((stage) => stage.deals);
     const totalValue = allDeals.reduce((sum, deal) => sum + deal.commission, 0);
     const totalDeals = allDeals.length;
     const avgDealSize = totalDeals > 0 ? totalValue / totalDeals : 0;
+    
+    const closedDeals = currentPipeline.stages
+      .filter(s => isWonStageName(s.name))
+      .flatMap(s => s.deals).length;
+    const activeDeals = totalDeals - closedDeals;
 
-    return { totalValue, totalDeals, avgDealSize };
+    return { totalValue, totalDeals, avgDealSize, activeDeals, closedDeals };
   }, [currentPipeline]);
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -689,7 +727,6 @@ const Pipelines = () => {
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    // Just for visual feedback during drag
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -704,12 +741,10 @@ const Pipelines = () => {
 
     const overIdStr = String(over.id);
 
-    // Find which stage contains the active deal
     const activeStage = currentPipeline.stages.find((stage) =>
       stage.deals.some((deal) => deal.id === draggedDealId)
     );
 
-    // Find which stage the deal is being dragged over
     let overStage: Stage | undefined;
     if (overIdStr.startsWith('stage-')) {
       const targetStageId = overIdStr.slice(6);
@@ -722,9 +757,8 @@ const Pipelines = () => {
     }
 
     if (!activeStage || !overStage) return;
-    if (activeStage.id === overStage.id) return; // Same stage, no need to move
+    if (activeStage.id === overStage.id) return;
 
-    // If moving to "Offer Made", validate required fields
     if (overStage.name === "Offer Made") {
       const activeDeal = activeStage.deals.find((deal) => deal.id === draggedDealId);
       setPendingStageChange({ dealId: draggedDealId, stage: overStage.name });
@@ -740,24 +774,19 @@ const Pipelines = () => {
     if (!currentPipeline) return;
     stageChangeGuardRef.current = true;
 
-    // Find which stage contains the deal
     const activeStage = currentPipeline.stages.find((stage) =>
       stage.deals.some((deal) => deal.id === dealId)
     );
 
-    // Find the target stage
     const overStage = currentPipeline.stages.find((stage) => stage.name === newStageName);
 
     if (!activeStage || !overStage) return;
 
-    // Check if this is the last stage (deal won)
     const isLastStage = currentPipeline.stages[currentPipeline.stages.length - 1]?.id === overStage.id;
     const isWonStage = wonStageNames.includes(newStageName.toLowerCase().trim());
 
-    // Update the database — route to lead_deals or leads table
     const activeDeal = activeStage.deals.find((deal) => deal.id === dealId);
     if (activeDeal?.dealRecordId) {
-      // This card came from lead_deals table
       await supabase
         .from("lead_deals")
         .update({ pipeline_stage: overStage.name } as any)
@@ -769,7 +798,6 @@ const Pipelines = () => {
         .eq("id", activeDeal.leadId);
     }
 
-    // Move the deal to the new stage
     setPipelines((prevPipelines) =>
       prevPipelines.map((pipeline) => {
         if (pipeline.id !== selectedPipeline) return pipeline;
@@ -797,13 +825,11 @@ const Pipelines = () => {
       })
     );
 
-    // Detect deal revert: moving FROM a won stage TO a non-won stage
     const wasWonStage = wonStageNames.includes(activeStage.name.toLowerCase().trim()) ||
       currentPipeline.stages[currentPipeline.stages.length - 1]?.id === activeStage.id;
     const isNowWon = isLastStage || isWonStage;
 
     if (wasWonStage && !isNowWon && activeDeal?.leadId) {
-      // Revert: clean up commission data, reset lead fields, delete tasks
       await Promise.all([
         supabase.from("commission_entries").delete().eq("lead_id", activeDeal.leadId),
         supabase.from("leads").update({
@@ -821,23 +847,19 @@ const Pipelines = () => {
       });
     }
 
-    // Fire confetti and prompt commission for won deals
     if (isNowWon) {
       fireDealWonConfetti();
       
-      // Show deal closed dialog for all roles
       if (activeDeal?.leadId) {
         setCommissionLeadId(activeDeal.leadId);
         setCommissionLeadName(activeDeal.client);
         setCommissionStageName(newStageName);
         setCommissionPipelineName(currentPipeline.name);
         setCommissionDialogOpen(true);
-        // Guard will be released when dialog closes
       } else {
         stageChangeGuardRef.current = false;
       }
     } else {
-      // Release guard after non-won stage changes, with a small delay for realtime
       setTimeout(() => {
         stageChangeGuardRef.current = false;
         fetchPipelinesAndLeads();
@@ -862,7 +884,6 @@ const Pipelines = () => {
     try {
       const idToDelete = leadId || dealId;
 
-      // UUID => attempt DB deletion (these are real leads moved into pipeline)
       const { error } = await supabase
         .from("leads")
         .delete()
@@ -873,7 +894,6 @@ const Pipelines = () => {
         throw error;
       }
 
-      // Remove from local state immediately
       setPipelines((prevPipelines) =>
         prevPipelines.map((pipeline) => ({
           ...pipeline,
@@ -898,22 +918,56 @@ const Pipelines = () => {
     }
   };
 
-  const filteredPipeline = searchQuery && currentPipeline
-    ? {
-        ...currentPipeline,
-        stages: currentPipeline.stages.map((stage) => ({
-          ...stage,
-          deals: stage.deals.filter(
-            (deal) =>
-              deal.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              deal.agent.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              (deal.propertyAddress || "").toLowerCase().includes(searchQuery.toLowerCase())
-          ),
-        })),
-      }
-    : currentPipeline;
+  // Apply filters: search + deal filter
+  const filteredPipeline = useMemo(() => {
+    if (!currentPipeline) return currentPipeline;
 
-  // Use empty pipeline shell while loading
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return {
+      ...currentPipeline,
+      stages: currentPipeline.stages.map((stage) => {
+        const isWon = isWonStageName(stage.name);
+
+        let deals = stage.deals;
+
+        // Apply deal filter
+        if (dealFilter === "active" && isWon) {
+          deals = [];
+        } else if (dealFilter === "closed" && !isWon) {
+          deals = [];
+        } else if (dealFilter === "this-month") {
+          deals = deals.filter(d => {
+            if (!d.rawCloseDate) return false;
+            const cd = new Date(d.rawCloseDate);
+            return cd.getMonth() === currentMonth && cd.getFullYear() === currentYear;
+          });
+        } else if (dealFilter === "this-year") {
+          deals = deals.filter(d => {
+            if (!d.rawCloseDate) return false;
+            const cd = new Date(d.rawCloseDate);
+            return cd.getFullYear() === currentYear;
+          });
+        }
+
+        // Apply search
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          deals = deals.filter(
+            (deal) =>
+              deal.client.toLowerCase().includes(q) ||
+              deal.agent.toLowerCase().includes(q) ||
+              (deal.propertyAddress || "").toLowerCase().includes(q)
+          );
+        }
+
+        return { ...stage, deals };
+      }),
+    };
+  }, [currentPipeline, searchQuery, dealFilter]);
+
   const displayPipeline = filteredPipeline || currentPipeline || {
     id: "",
     name: "Loading...",
@@ -932,7 +986,7 @@ const Pipelines = () => {
             </p>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -942,6 +996,19 @@ const Pipelines = () => {
                 className="pl-9 w-[200px]"
               />
             </div>
+            <Select value={dealFilter} onValueChange={setDealFilter}>
+              <SelectTrigger className="w-[160px]">
+                <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Deals</SelectItem>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="closed">Closed/Won Only</SelectItem>
+                <SelectItem value="this-month">This Month</SelectItem>
+                <SelectItem value="this-year">This Year</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={selectedPipeline} onValueChange={handleSelectPipeline}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
@@ -984,8 +1051,18 @@ const Pipelines = () => {
               <TrendingUp className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Total Deals</p>
-              <p className="text-lg font-bold">{analytics.totalDeals}</p>
+              <p className="text-xs text-muted-foreground">Active</p>
+              <p className="text-lg font-bold">{analytics.activeDeals}</p>
+            </div>
+          </div>
+          <Separator orientation="vertical" className="h-12" />
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <Layers className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Closed</p>
+              <p className="text-lg font-bold">{analytics.closedDeals}</p>
             </div>
           </div>
           {role === 'supreme_admin' && (
@@ -1015,7 +1092,34 @@ const Pipelines = () => {
         <div className="flex gap-4 overflow-x-auto pb-4">
           {displayPipeline.stages.map((stage) => {
             const stageValue = stage.deals.reduce((sum, deal) => sum + deal.commission, 0);
+            const isCollapsed = collapsedStages.has(stage.id);
             
+            if (isCollapsed) {
+              return (
+                <div key={stage.id} className="flex-shrink-0 w-[80px]">
+                  <DroppableStage stage={stage}>
+                    <div 
+                      className="bg-muted/40 rounded-lg p-3 cursor-pointer hover:bg-muted/60 transition-colors h-full"
+                      onClick={() => toggleStageCollapse(stage.id)}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="font-semibold text-xs text-foreground [writing-mode:vertical-lr] rotate-180 whitespace-nowrap">
+                          {stage.name}
+                        </h3>
+                        <Badge variant="outline" className="h-5 px-1.5 text-xs">
+                          {stage.deals.length}
+                        </Badge>
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          ${(stageValue / 1000).toFixed(0)}k
+                        </span>
+                      </div>
+                    </div>
+                  </DroppableStage>
+                </div>
+              );
+            }
+
             return (
               <div key={stage.id} className="flex-shrink-0 w-[320px]">
                 <DroppableStage stage={stage}>
@@ -1023,6 +1127,12 @@ const Pipelines = () => {
                     {/* Stage Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleStageCollapse(stage.id)}
+                          className="p-0.5 rounded hover:bg-muted transition-colors"
+                        >
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        </button>
                         <h3 className="font-semibold text-sm text-foreground">{stage.name}</h3>
                         <Badge variant="outline" className="h-5 px-1.5 text-xs">
                           {stage.deals.length}
@@ -1133,7 +1243,6 @@ const Pipelines = () => {
           onOpenChange={(open) => {
             setCommissionDialogOpen(open);
             if (!open) {
-              // Release the guard and refetch when dialog closes
               stageChangeGuardRef.current = false;
               fetchPipelinesAndLeads();
             }
