@@ -734,8 +734,8 @@ const LeadProfile = () => {
           </div>
         )}
 
-        {/* Show Pipeline Progress only when lead is in pipeline AND has no deals (deals have their own progress) */}
-        {leadData?.leadLifecycle === "Moved to Pipeline" && leadDeals.length === 0 && (
+        {/* Show Pipeline Progress when lead is in pipeline */}
+        {leadData?.leadLifecycle === "Moved to Pipeline" && (
           <>
             {(currentPipeline || leadData?.pipeline) ? (
               <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
@@ -804,32 +804,12 @@ const LeadProfile = () => {
           </>
         )}
 
-        {/* All Deals Accordion — includes primary pipeline as Transaction 1 when deals exist */}
+        {/* Additional Deals Accordion — only shows deals from lead_deals table */}
         {leadDeals.length > 0 && (
           <LeadDealsAccordion
             leadId={leadData.id}
             leadName={leadData.name}
-            deals={[
-              // Include primary lead pipeline as Transaction 1
-              ...(currentPipeline ? [{
-                id: `primary-${leadData.id}`,
-                lead_id: leadData.id,
-                pipeline_id: currentPipeline,
-                pipeline_stage: currentStage,
-                transaction_type: null,
-                deal_label: leadData.propertyOfInterest || "Primary Transaction",
-                status: "active",
-                display_order: 0,
-                sales_price: leadData.value || null,
-                commission: leadData.commission || null,
-                agent_payout: null,
-                property_of_interest: leadData.propertyOfInterest || null,
-                title_office: leadData.titleOffice || null,
-                close_date: leadData.closeDate || null,
-                _isPrimary: true,
-              }] : []),
-              ...leadDeals,
-            ]}
+            deals={leadDeals}
             onDealsChange={() => { fetchLeadDeals(); fetchLead(); }}
           />
         )}
