@@ -1,34 +1,23 @@
 
 
-## Problem: White Page Due to Build/Cache Issue
+## Fix: Root Route and Preview White Page
 
-The white page is **not a routing logic issue** — the routing code is correct. The browser console shows 404 errors trying to load development-mode files (`/src/App.tsx`, `/node_modules/.vite/deps/chunk-*.js`), which means the production build either hasn't completed yet or the PWA service worker is serving a stale/broken cached version.
+### Problem
+1. The preview shows a white page because the latest build hasn't fully deployed yet (404 errors on source files).
+2. The root path (`/`) currently redirects to `/dashboard`, which then bounces unauthenticated users to `/login` -- causing an unnecessary redirect chain and confusion.
 
-### Root Cause
+### Changes
 
-This project uses `vite-plugin-pwa` with aggressive service worker caching. After recent code changes, the service worker may be serving an outdated build while the new build is still deploying.
+**File: `src/App.tsx`**
+- Change the root route from `<Navigate to="/dashboard" replace />` to `<Navigate to="/login" replace />`
+- This ensures unauthenticated users land directly on the login page without an extra redirect hop
+- Authenticated users on `/login` are already redirected to `/dashboard` by the Login page's `useEffect`
 
-### Fix Plan
+### After the fix
+- Unauthenticated user visits `/` -> immediately sees `/login`
+- Authenticated user visits `/` -> goes to `/login` -> auto-redirected to `/dashboard`
+- All other routes remain unchanged
 
-1. **Wait for the current build to finish** -- The preview may still be deploying the latest changes.
-
-2. **Hard refresh the preview** -- Press `Ctrl+Shift+R` (or `Cmd+Shift+R` on Mac) in the preview panel to bypass the service worker cache and load the latest build.
-
-3. **If the issue persists**, I will add a small safeguard to the PWA config to ensure smoother cache updates:
-   - Add `skipWaiting: true` and `clientsClaim: true` to the workbox config in `vite.config.ts` so the new service worker activates immediately without waiting for all tabs to close.
-
-### Technical Details
-
-In `vite.config.ts`, the PWA workbox configuration will be updated:
-
-```text
-workbox: {
-  skipWaiting: true,        // <-- new
-  clientsClaim: true,       // <-- new
-  navigateFallbackDenylist: [/^\/~oauth/],
-  ...existing config...
-}
-```
-
-This ensures that when a new build deploys, users immediately get the updated version instead of being stuck on a cached old build.
+### Preview white page
+The white page is a build deployment timing issue. The PWA `skipWaiting` fix from the previous edit will resolve future cache staleness. A hard refresh (`Ctrl+Shift+R`) of the preview should load the app once the build completes.
 
