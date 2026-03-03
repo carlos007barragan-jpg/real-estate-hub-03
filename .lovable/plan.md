@@ -1,53 +1,34 @@
 
 
-# Fix Deal Closing Workflow and Add Agent Payout Visibility
+## Problem: White Page Due to Build/Cache Issue
 
-## Problems Identified
+The white page is **not a routing logic issue** — the routing code is correct. The browser console shows 404 errors trying to load development-mode files (`/src/App.tsx`, `/node_modules/.vite/deps/chunk-*.js`), which means the production build either hasn't completed yet or the PWA service worker is serving a stale/broken cached version.
 
-1. **Commission task not routing correctly**: When a deal is closed (moved to a "won" stage), the `DealClosedDialog` creates commission entry tasks for ALL supreme admins. You want this task assigned specifically to Carlos only.
+### Root Cause
 
-2. **Agents and Admins can't see their payouts**: The "Team Payouts" section on the Dashboard is restricted to `supreme_admin` role only. Agents and admins have no way to see their individual payout information (their name, deals they closed, total payout amount).
+This project uses `vite-plugin-pwa` with aggressive service worker caching. After recent code changes, the service worker may be serving an outdated build while the new build is still deploying.
 
----
+### Fix Plan
 
-## Plan
+1. **Wait for the current build to finish** -- The preview may still be deploying the latest changes.
 
-### 1. Route commission tasks to Carlos specifically
+2. **Hard refresh the preview** -- Press `Ctrl+Shift+R` (or `Cmd+Shift+R` on Mac) in the preview panel to bypass the service worker cache and load the latest build.
 
-In `DealClosedDialog.tsx`, change the commission task creation logic:
-- Instead of assigning the "Enter commission & payout" task to ALL supreme admins, query for Carlos's profile specifically (by name or user ID) and assign the task only to him.
-- Keep notifications going to all supreme admins for visibility, but the actionable task goes to Carlos alone.
-- Carlos's user ID: `fe50d35a-9f1b-4388-a039-913df7394556`
+3. **If the issue persists**, I will add a small safeguard to the PWA config to ensure smoother cache updates:
+   - Add `skipWaiting: true` and `clientsClaim: true` to the workbox config in `vite.config.ts` so the new service worker activates immediately without waiting for all tabs to close.
 
-### 2. Add "My Payouts" section for Agents and Admins
+### Technical Details
 
-On the Dashboard, add a new card visible to agents and admins (non-supreme-admin roles) that shows their individual payout data:
-- **Agent Name** (their own name)
-- **Deals Closed** (count of unique leads with commission entries for them)
-- **Total Payout** (sum of their payout amounts)
-- Period filtering (Weekly / Monthly / Yearly) matching the existing pattern
-- This queries `commission_entries` filtered by `agent_user_id` matching the current user's ID
+In `vite.config.ts`, the PWA workbox configuration will be updated:
 
-### 3. Verify deal closing flow end-to-end
+```text
+workbox: {
+  skipWaiting: true,        // <-- new
+  clientsClaim: true,       // <-- new
+  navigateFallbackDenylist: [/^\/~oauth/],
+  ...existing config...
+}
+```
 
-Ensure the full pipeline works:
-- Drag deal to won stage -> DealClosedDialog appears -> User enters details -> Task created for Carlos -> Commission section appears on lead profile
-
----
-
-## Technical Details
-
-### File Changes
-
-**`src/components/DealClosedDialog.tsx`**
-- In the `handleSave` function, replace the loop over all `supremeAdmins` for task creation with a lookup for Carlos specifically (hardcode his user ID or look up by name "Carlos Barragan" within the org)
-- Keep notification inserts for all supreme admins unchanged (they still get notified)
-- Only the task + task_assignees creation targets Carlos
-
-**`src/pages/Dashboard.tsx`**
-- Add a new "My Payouts" card visible to `admin` and `agent` roles
-- Query `commission_entries` where `agent_user_id = current_user_id`
-- Display: agent's name, number of deals closed, total payout amount
-- Include the same Weekly/Monthly/Yearly period tabs
-- Position it near the existing "Deals Closed" chart section
+This ensures that when a new build deploys, users immediately get the updated version instead of being stuck on a cached old build.
 
