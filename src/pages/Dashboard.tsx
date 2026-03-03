@@ -486,23 +486,42 @@ const Dashboard = () => {
     }
 
     try {
-      // Query commission_entries joined with leads to filter by close_date period
-      const { data: entries, error } = await supabase
-        .from("commission_entries")
-        .select("agent_name, payout_amount, lead_id, created_at");
+      // Query commission_entries AND closed leads with commission
+      const [entriesRes, leadsRes] = await Promise.all([
+        supabase
+          .from("commission_entries")
+          .select("agent_name, payout_amount, lead_id, created_at"),
+        supabase
+          .from("leads")
+          .select("id, name, commission, close_date")
+          .not("close_date", "is", null)
+          .not("commission", "is", null),
+      ]);
 
-      if (error) throw error;
+      if (entriesRes.error) throw entriesRes.error;
 
-      // Compute all-time totals before filtering
-      const allEntries = entries || [];
-      const allLeadIds = new Set(allEntries.map(e => e.lead_id));
-      const allTotal = allEntries.reduce((sum, e) => sum + Number(e.payout_amount || 0), 0);
-      setAllTimeTotalPayout({ amount: allTotal, deals: allLeadIds.size });
+      const allEntries = entriesRes.data || [];
+      const closedLeads = leadsRes.data || [];
 
-      // Filter entries by period using created_at
+      // Build a map of total agent payouts per lead
+      const agentPayoutsByLead = new Map<string, number>();
+      allEntries.forEach((e: any) => {
+        const current = agentPayoutsByLead.get(e.lead_id) || 0;
+        agentPayoutsByLead.set(e.lead_id, current + Number(e.payout_amount || 0));
+      });
+
+      // Calculate all-time totals (all commissions, not just agent payouts)
+      const allTimeCommission = closedLeads.reduce((sum, l) => sum + parseFloat(l.commission || '0'), 0);
+      const allTimeLeadIds = new Set(closedLeads.filter(l => parseFloat(l.commission || '0') > 0).map(l => l.id));
+      setAllTimeTotalPayout({ amount: allTimeCommission, deals: allTimeLeadIds.size });
+
+      // Filter entries by period
       const filtered = allEntries.filter(e => new Date(e.created_at) >= new Date(dateFrom));
 
-      // Group payouts by agent name
+      // Filter leads by close_date in period
+      const filteredLeads = closedLeads.filter(l => l.close_date && new Date(l.close_date) >= new Date(dateFrom));
+
+      // Group agent payouts by agent name
       const payoutMap = new Map<string, { amount: number; leadIds: Set<string> }>();
       filtered.forEach((entry: any) => {
         const agentName = entry.agent_name || "Unassigned";
@@ -515,9 +534,29 @@ const Dashboard = () => {
         }
       });
 
+      // Calculate company/office earnings for the period
+      let companyAmount = 0;
+      const companyLeadIds = new Set<string>();
+      filteredLeads.forEach(lead => {
+        const commission = parseFloat(lead.commission || '0');
+        if (commission > 0) {
+          const agentPayout = agentPayoutsByLead.get(lead.id) || 0;
+          const officeFee = commission - agentPayout;
+          if (officeFee > 0) {
+            companyAmount += officeFee;
+            companyLeadIds.add(lead.id);
+          }
+        }
+      });
+
       const data: PayoutData[] = Array.from(payoutMap.entries())
         .map(([name, { amount, leadIds }]) => ({ name, amount, deals: leadIds.size }))
         .sort((a, b) => b.amount - a.amount);
+
+      // Add company row if there are office earnings
+      if (companyAmount > 0) {
+        data.push({ name: "🏢 Company (Office Fee)", amount: companyAmount, deals: companyLeadIds.size });
+      }
 
       setPayoutsData(data);
     } catch (error) {
@@ -1414,7 +1453,7 @@ const Dashboard = () => {
                ))}
                <div className="border-t border-border my-3" />
                <div className="flex items-center justify-between py-3 px-3 bg-muted/30 rounded-md">
-                 <span className="font-semibold text-foreground">Net Total Earnings</span>
+                 <span className="font-semibold text-foreground">Total Commission (All Time)</span>
                  <div className="flex items-center gap-6">
                    <span className="text-sm text-muted-foreground">{allTimeTotalPayout.deals} total deals</span>
                    <span className="font-bold text-success min-w-[90px] text-right">${allTimeTotalPayout.amount.toLocaleString()}</span>
