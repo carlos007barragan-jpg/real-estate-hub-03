@@ -162,6 +162,32 @@ export const DealClosedDialog = ({ open, onOpenChange, leadId, leadName, stageNa
         }
       }
 
+      // Record a note in the activity timeline for this closed transaction
+      const priceLabel = isFunding ? "Total Financed" : "Sale Price";
+      const priceVal = salesPrice ? `$${Number(salesPrice).toLocaleString()}` : "Not entered";
+      const fundingExtra = isFunding 
+        ? `\nPoints Charged: ${pointsCharged || "N/A"}\nTotal Fee: ${totalFee ? `$${Number(totalFee).toLocaleString()}` : "N/A"}`
+        : "";
+      const noteContent = [
+        `🏆 Transaction Closed — ${pipelineName || "Deal"}${transactionType ? ` (${transactionType})` : ""}`,
+        `${priceLabel}: ${priceVal}`,
+        `Property: ${property || "Not entered"}`,
+        `Close Date: ${closeDate}`,
+        fundingExtra,
+      ].filter(Boolean).join("\n");
+
+      const closerName = profile 
+        ? [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "System"
+        : "System";
+
+      await supabase.from("notes").insert({
+        lead_id: leadId,
+        user_id: user.id,
+        content: noteContent,
+        author: closerName,
+        note_type: "deal_closed",
+      });
+
       toast({ title: "🎉 Deal Won!", description: `Sale details recorded for ${leadName}` });
       onOpenChange(false);
       setSalesPrice("");
