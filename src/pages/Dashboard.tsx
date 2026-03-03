@@ -1412,8 +1412,8 @@ const Dashboard = () => {
         </Card>
         )}
 
-        {/* Team Payouts Chart - Supreme Admin only */}
-        {role === 'supreme_admin' && (
+        {/* Team Payouts Chart - Carlos only for now */}
+        {role === 'supreme_admin' && currentUserId === 'fe50d35a-9f1b-4388-a039-913df7394556' && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
