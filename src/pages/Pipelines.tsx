@@ -93,7 +93,7 @@ function DraggableDeal({ deal, onOpenNotes, onNavigate, onEdit, onDelete }: {
   deal: Deal; 
   onOpenNotes: (deal: Deal) => void;
   onNavigate: (leadId: string) => void;
-  onEdit: (leadId?: string) => void;
+  onEdit: (leadId?: string, dealRecordId?: string) => void;
   onDelete: (dealId: string, leadId?: string) => void;
 }) {
   const { toast } = useToast();
@@ -177,7 +177,7 @@ function DraggableDeal({ deal, onOpenNotes, onNavigate, onEdit, onDelete }: {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="z-50 bg-popover">
-                  <DropdownMenuItem onClick={() => onEdit(deal.leadId)}>
+                  <DropdownMenuItem onClick={() => onEdit(deal.leadId, deal.dealRecordId)}>
                     <Edit className="h-3 w-3 mr-2" />
                     Edit
                   </DropdownMenuItem>
@@ -260,6 +260,7 @@ const Pipelines = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [validationDialogOpen, setValidationDialogOpen] = useState(false);
   const [selectedDealLeadId, setSelectedDealLeadId] = useState<string | undefined>();
+  const [selectedDealRecordId, setSelectedDealRecordId] = useState<string | undefined>();
   const [pendingStageChange, setPendingStageChange] = useState<{ dealId: string; stage: string } | null>(null);
   const [pipelineManagerOpen, setPipelineManagerOpen] = useState(false);
   const [commissionDialogOpen, setCommissionDialogOpen] = useState(false);
@@ -1156,8 +1157,9 @@ const Pipelines = () => {
                             deal={deal} 
                             onOpenNotes={handleOpenNotes}
                             onNavigate={handleNavigateToLead}
-                            onEdit={(leadId) => {
+                            onEdit={(leadId, dealRecordId) => {
                               setSelectedDealLeadId(leadId);
+                              setSelectedDealRecordId(dealRecordId);
                               setEditDialogOpen(true);
                             }}
                             onDelete={handleDeleteDeal}
@@ -1223,7 +1225,8 @@ const Pipelines = () => {
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
           leadId={selectedDealLeadId}
-          onSave={fetchDeals}
+          dealRecordId={selectedDealRecordId}
+          onSave={fetchPipelinesAndLeads}
         />
 
         <OfferMadeValidationDialog

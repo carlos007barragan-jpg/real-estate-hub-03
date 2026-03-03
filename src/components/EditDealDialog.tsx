@@ -21,10 +21,11 @@ interface EditDealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   leadId: string | undefined;
+  dealRecordId?: string; // If set, we're editing a lead_deals record instead of leads
   onSave: () => void;
 }
 
-export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealDialogProps) {
+export function EditDealDialog({ open, onOpenChange, leadId, dealRecordId, onSave }: EditDealDialogProps) {
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState("");
   const [spouseName, setSpouseName] = useState("");
@@ -37,18 +38,21 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
   const [titleOffice, setTitleOffice] = useState("");
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
+  const isDealRecord = !!dealRecordId;
+
   useEffect(() => {
     if (open) {
       fetchTeamMembers();
-      if (leadId) {
+      if (isDealRecord) {
+        fetchDealRecordData();
+      } else if (leadId) {
         fetchLeadData();
       }
     }
-  }, [open, leadId]);
+  }, [open, leadId, dealRecordId]);
 
   const fetchTeamMembers = async () => {
     try {
-      // Get current user's organization
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -60,7 +64,6 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
 
       if (!profile?.organization_id) return;
 
-      // Fetch all profiles in the organization
       const { data: profiles, error } = await supabase
         .from("profiles")
         .select("user_id, first_name, last_name")
@@ -76,6 +79,43 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
       setTeamMembers(members);
     } catch (error) {
       console.error("Error fetching team members:", error);
+    }
+  };
+
+  const fetchDealRecordData = async () => {
+    if (!dealRecordId) return;
+
+    setLoading(true);
+    try {
+      const { data: dealData, error: dealError } = await supabase
+        .from("lead_deals")
+        .select("*")
+        .eq("id", dealRecordId)
+        .single();
+
+      if (dealError) throw dealError;
+
+      // Also fetch lead name and agent info
+      const { data: leadData } = await supabase
+        .from("leads")
+        .select("name, spouse_name, assigned_to")
+        .eq("id", dealData.lead_id)
+        .single();
+
+      setName(leadData?.name || "");
+      setSpouseName(leadData?.spouse_name || "");
+      setAgent(leadData?.assigned_to || "");
+      setCloseDate(dealData.close_date ? new Date(dealData.close_date) : undefined);
+      setCommission(dealData.commission || "");
+      setSalesPrice(dealData.sales_price || "");
+      setAgentPayout(dealData.agent_payout || "");
+      setPropertyOfInterest(dealData.property_of_interest || "");
+      setTitleOffice(dealData.title_office || "");
+    } catch (error) {
+      console.error("Error fetching deal record data:", error);
+      toast.error("Failed to load deal data");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -112,35 +152,64 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
   };
 
   const handleSave = async () => {
-    if (!leadId) return;
-
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error } = await supabase
-        .from("leads")
-        .update({
-          name,
-          spouse_name: spouseName,
-          close_date: closeDate ? format(closeDate, "yyyy-MM-dd") : null,
-          assigned_to: agent,
-          commission,
-          sales_price: salesPrice || null,
-          agent_payout: agentPayout || null,
-          property_of_interest: propertyOfInterest,
-          title_office: titleOffice,
-          last_modified_by: user?.id,
-        } as any)
-        .eq("id", leadId);
 
-      if (error) throw error;
+      if (isDealRecord) {
+        // Save to lead_deals table
+        const { error } = await supabase
+          .from("lead_deals")
+          .update({
+            close_date: closeDate ? format(closeDate, "yyyy-MM-dd") : null,
+            commission,
+            sales_price: salesPrice || null,
+            agent_payout: agentPayout || null,
+            property_of_interest: propertyOfInterest || null,
+            title_office: titleOffice || null,
+          } as any)
+          .eq("id", dealRecordId);
+
+        if (error) throw error;
+
+        // Also update lead name/agent if changed
+        if (leadId) {
+          await supabase
+            .from("leads")
+            .update({
+              name,
+              spouse_name: spouseName,
+              assigned_to: agent,
+              last_modified_by: user?.id,
+            } as any)
+            .eq("id", leadId);
+        }
+      } else if (leadId) {
+        // Save to leads table (primary deal)
+        const { error } = await supabase
+          .from("leads")
+          .update({
+            name,
+            spouse_name: spouseName,
+            close_date: closeDate ? format(closeDate, "yyyy-MM-dd") : null,
+            assigned_to: agent,
+            commission,
+            sales_price: salesPrice || null,
+            agent_payout: agentPayout || null,
+            property_of_interest: propertyOfInterest,
+            title_office: titleOffice,
+            last_modified_by: user?.id,
+          } as any)
+          .eq("id", leadId);
+
+        if (error) throw error;
+      }
 
       toast.success("Deal updated successfully");
       onSave();
       onOpenChange(false);
     } catch (error) {
-      console.error("Error updating lead:", error);
+      console.error("Error updating deal:", error);
       toast.error("Failed to update deal");
     } finally {
       setLoading(false);
@@ -151,7 +220,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, onSave }: EditDealD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Deal</DialogTitle>
+          <DialogTitle>{isDealRecord ? "Edit Deal (Transaction)" : "Edit Deal"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
