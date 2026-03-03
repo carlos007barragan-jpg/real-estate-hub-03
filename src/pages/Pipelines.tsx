@@ -123,7 +123,7 @@ function DraggableDeal({ deal, onOpenNotes, onNavigate, onEdit, onDelete }: {
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-background rounded-lg border hover:border-primary/50 hover:shadow-md transition-all flex gap-2"
+      className="bg-background rounded-lg border hover:border-primary/50 hover:shadow-md transition-all flex gap-2 overflow-hidden"
     >
       <div
         {...attributes}
@@ -142,7 +142,7 @@ function DraggableDeal({ deal, onOpenNotes, onNavigate, onEdit, onDelete }: {
 
       <div
         onClick={handleCardClick}
-        className="flex-1 p-3 cursor-pointer"
+        className="flex-1 min-w-0 p-3 cursor-pointer"
       >
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
