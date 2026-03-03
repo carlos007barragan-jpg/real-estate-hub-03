@@ -36,6 +36,8 @@ export function EditDealDialog({ open, onOpenChange, leadId, dealRecordId, onSav
   const [agentPayout, setAgentPayout] = useState("");
   const [propertyOfInterest, setPropertyOfInterest] = useState("");
   const [titleOffice, setTitleOffice] = useState("");
+  const [transactionType, setTransactionType] = useState("");
+  const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   const isDealRecord = !!dealRecordId;
@@ -43,6 +45,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, dealRecordId, onSav
   useEffect(() => {
     if (open) {
       fetchTeamMembers();
+      fetchTransactionTypes();
       if (isDealRecord) {
         fetchDealRecordData();
       } else if (leadId) {
@@ -82,6 +85,22 @@ export function EditDealDialog({ open, onOpenChange, leadId, dealRecordId, onSav
     }
   };
 
+  const fetchTransactionTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("transaction_types")
+        .select("name")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      setTransactionTypes((data || []).map(t => t.name));
+    } catch (error) {
+      console.error("Error fetching transaction types:", error);
+      // Fallback defaults
+      setTransactionTypes(["Buyer's", "Funding", "Listing", "Wholesale", "Rental", "Multifamily", "Commercial", "Investor's"]);
+    }
+  };
+
   const fetchDealRecordData = async () => {
     if (!dealRecordId) return;
 
@@ -111,6 +130,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, dealRecordId, onSav
       setAgentPayout(dealData.agent_payout || "");
       setPropertyOfInterest(dealData.property_of_interest || "");
       setTitleOffice(dealData.title_office || "");
+      setTransactionType(dealData.transaction_type || "");
     } catch (error) {
       console.error("Error fetching deal record data:", error);
       toast.error("Failed to load deal data");
@@ -167,6 +187,7 @@ export function EditDealDialog({ open, onOpenChange, leadId, dealRecordId, onSav
             agent_payout: agentPayout || null,
             property_of_interest: propertyOfInterest || null,
             title_office: titleOffice || null,
+            transaction_type: transactionType || null,
           } as any)
           .eq("id", dealRecordId);
 
@@ -242,6 +263,32 @@ export function EditDealDialog({ open, onOpenChange, leadId, dealRecordId, onSav
               placeholder="Spouse name"
             />
           </div>
+
+          {isDealRecord && (
+            <div>
+              <Label htmlFor="transactionType">Transaction Type</Label>
+              <Select value={transactionType} onValueChange={setTransactionType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select transaction type" />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-popover">
+                  {transactionTypes.length > 0 ? (
+                    transactionTypes.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))
+                  ) : (
+                    <>
+                      <SelectItem value="Buyer's">Buyer's</SelectItem>
+                      <SelectItem value="Funding">Funding</SelectItem>
+                      <SelectItem value="Listing">Listing</SelectItem>
+                      <SelectItem value="Wholesale">Wholesale</SelectItem>
+                      <SelectItem value="Rental">Rental</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="closeDate">Close Date</Label>
