@@ -85,23 +85,11 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
 
   const handleStageChange = async (deal: LeadDeal, newStage: string) => {
     try {
-      const isPrimary = (deal as any)._isPrimary;
-      
-      if (isPrimary) {
-        // Update the leads table for the primary transaction
-        const { data: { user } } = await supabase.auth.getUser();
-        const { error } = await supabase
-          .from("leads")
-          .update({ pipeline_stage: newStage, last_modified_by: user?.id } as any)
-          .eq("id", deal.lead_id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("lead_deals")
-          .update({ pipeline_stage: newStage } as any)
-          .eq("id", deal.id);
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from("lead_deals")
+        .update({ pipeline_stage: newStage } as any)
+        .eq("id", deal.id);
+      if (error) throw error;
 
       // Check for won stage
       const isWon = wonStageNames.includes(newStage.toLowerCase().trim());
@@ -123,11 +111,6 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
   };
 
   const handleRemoveDeal = async (deal: LeadDeal) => {
-    const isPrimary = (deal as any)._isPrimary;
-    if (isPrimary) {
-      toast({ title: "Cannot remove", description: "Primary transaction cannot be removed from here.", variant: "destructive" });
-      return;
-    }
     if (!confirm("Remove this transaction? This cannot be undone.")) return;
 
     try {
@@ -196,7 +179,6 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
           const pipeline = pipelineCache[deal.pipeline_id];
           const stages = pipeline?.stages || [];
           const isEditing = editingDealId === deal.id;
-          const isPrimary = (deal as any)._isPrimary;
 
           return (
             <AccordionItem key={deal.id} value={deal.id} className="border rounded-lg bg-card px-3">
