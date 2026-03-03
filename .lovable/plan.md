@@ -1,50 +1,39 @@
 
 
-## Plan: Collapsible Pipeline Stages + Filters + Card Data Fix
+## Plan: Separate Transaction Cards for Secondary Deals
 
-### Problem Summary
-1. Pipeline stages can't be collapsed — "Sold" and other won stages clutter the view
-2. No way to filter deals by status (active/closed) or time period (this month, this year)
-3. Deal cards in "Sold" stages don't show accurate dollar amounts and close dates
-4. Too much horizontal scrolling needed with many stages open
+### Problem
+Secondary deals (from `lead_deals` table) are currently squeezed into the bottom of the primary Property card as small entries labeled "Property of Interest 2/3." They show only an address and a tiny edit button, making it hard to view or manage deal-specific data like sales price, commission, close date, and transaction type.
+
+### Solution
+Remove the `DealPropertyEntry` items from inside the primary Property card and instead render each secondary deal as its own full standalone card in the sidebar. Each card will display all relevant deal information and provide inline editing.
 
 ### Changes
 
-#### 1. Collapsible Stage Columns
-- Add a collapse/expand arrow button to each stage header (ChevronDown/ChevronRight toggle)
-- Store collapsed state per stage in component state
-- **Won/Sold stages auto-collapse by default** using the existing `wonStageNames` list
-- When collapsed, the stage column shrinks to just the header (name + deal count + value) with no cards visible
-- Collapsed columns become narrow (~80px width) to save horizontal space
-- Clicking the arrow or header expands them back
+**1. `src/components/layouts/TwoColumnLayout.tsx`**
+- Remove the `DealPropertyEntry` component and the section that renders `leadDeals` inside the Property card (lines 668-683).
+- After the Property card (and before or after the second card), render a new `DealTransactionCard` for each item in `leadDeals`.
+- Each card will show:
+  - Header: "Transaction {N}" with a badge for transaction type (e.g., "Funding", "Buyer's")
+  - Property of interest address
+  - Property specs (beds, baths, sqft, type) if available
+  - Financial fields: sales price, commission, agent payout, points charged, total fee
+  - Close date and title office
+  - Edit button that opens the existing `EditDealPropertyDialog` (already built with full fields)
 
-#### 2. Pipeline Filters
-- Add a filter dropdown next to the search bar with options:
-  - **All Deals** (default)
-  - **Active Only** — excludes deals in won/sold stages
-  - **Closed/Won Only** — only deals in won/sold stages
-  - **This Month** — deals with close_date in current month
-  - **This Year** — deals with close_date in current year
-- Filter is applied client-side on top of the existing search filter
-- Uses the existing `wonStageNames` array for active/closed classification
+**2. New component: `DealTransactionCard` (inline in TwoColumnLayout or extracted)**
+- A self-contained card component receiving a `deal` record from `lead_deals`.
+- Displays all fields from the deal record in a clean layout matching the primary Property card's style.
+- Edit button opens `EditDealPropertyDialog` with the deal's data.
+- Transaction type is shown as an editable badge or displayed prominently.
 
-#### 3. Fix Dollar Amount & Close Date on Sold Cards
-- In `populatePipelinesWithLeads`, the primary lead card currently pulls `commission` from `sales_price || value` and `closeDate` from `timeframe`
-- For leads with `status === "won"` or in a won stage, update the mapping to also use `lead.close_date` (the actual close date field) formatted as a date, and `lead.sales_price` properly
-- For `lead_deals` cards, `close_date` is already used — just ensure it formats correctly
-- The `closeDate` field on the Deal interface will prefer `close_date` (actual date) over `timeframe` (text like "30 days")
+### What stays the same
+- The primary Property card continues to show Transaction 1 data from the `leads` table.
+- The `LeadDealsAccordion` above the two-column layout continues to show pipeline progress for secondary deals.
+- The `EditDealPropertyDialog` remains the editing mechanism -- it already supports all the fields needed.
 
 ### Technical Details
-
-**File: `src/pages/Pipelines.tsx`**
-
-- Add state: `collapsedStages` as `Set<string>` initialized with won stage IDs
-- Add state: `dealFilter` as string (`"all" | "active" | "closed" | "this-month" | "this-year"`)
-- After pipelines load, auto-collapse stages whose names match `wonStageNames`
-- In the stage rendering loop, conditionally render cards or a compact collapsed view
-- Add filter Select component in the header bar
-- Apply filter logic in `filteredPipeline` computation
-- Fix the `Deal` mapping: use `lead.close_date` when available, format as locale date string; use `lead.sales_price` as the commission value consistently
-
-No database changes needed — this is purely a UI enhancement.
+- Data source: `leadDeals` array already passed into `TwoColumnLayout` from `LeadProfile.tsx`.
+- Each card reads from the `lead_deals` table columns: `property_of_interest`, `property_address`, `property_type`, `bedrooms`, `bathrooms`, `sqft`, `sales_price`, `commission`, `agent_payout`, `points_charged`, `total_fee`, `title_office`, `close_date`, `transaction_type`, `down_payment`.
+- On save from `EditDealPropertyDialog`, the existing `onLeadUpdate` callback refreshes both `leads` and `lead_deals` data.
 
