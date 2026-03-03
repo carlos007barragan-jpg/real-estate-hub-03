@@ -387,18 +387,6 @@ const Pipelines = () => {
       // For commission/value: prefer sales_price for won deals
       const commissionValue = parseFloat(lead.sales_price || lead.value?.replace(/[^0-9.-]+/g, "") || "0");
 
-      // For property address: if the primary deal is won/closed, check if there's
-      // an active secondary deal with a property — use that instead of the primary lead's property
-      let primaryPropertyAddress = lead.property_of_interest || lead.property_address || undefined;
-      if (isWon) {
-        const activeSecondaryDeal = leadDeals.find(
-          (ld) => ld.lead_id === lead.id && ld.status === 'active' && ld.property_of_interest
-        );
-        if (activeSecondaryDeal) {
-          primaryPropertyAddress = activeSecondaryDeal.property_of_interest || primaryPropertyAddress;
-        }
-      }
-
       const deal: Deal = {
         id: lead.id,
         client: lead.name,
@@ -408,7 +396,7 @@ const Pipelines = () => {
         rawCloseDate,
         priority: "low",
         leadId: lead.id,
-        propertyAddress: primaryPropertyAddress,
+        propertyAddress: lead.property_of_interest || lead.property_address || undefined,
       };
 
       addDealToPipeline(pipelineId, stage, deal);
