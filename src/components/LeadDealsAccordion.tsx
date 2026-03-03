@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Trash2, Edit2, Save, X, DollarSign, MapPin } from "lucide-react";
+import { Building2, Trash2, Edit2, Save, X, DollarSign, MapPin, Trophy } from "lucide-react";
 import { DealClosedDialog } from "@/components/DealClosedDialog";
 import { fireDealWonConfetti } from "@/lib/confetti";
 
@@ -91,7 +91,6 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
         .eq("id", deal.id);
       if (error) throw error;
 
-      // Check for won stage
       const isWon = wonStageNames.includes(newStage.toLowerCase().trim());
       const pipeline = pipelineCache[deal.pipeline_id];
       const isLastStage = pipeline && pipeline.stages.length > 0 && pipeline.stages[pipeline.stages.length - 1]?.name === newStage;
@@ -179,7 +178,55 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
           const pipeline = pipelineCache[deal.pipeline_id];
           const stages = pipeline?.stages || [];
           const isEditing = editingDealId === deal.id;
+          const isWon = deal.status === "won" || wonStageNames.includes(deal.pipeline_stage.toLowerCase().trim());
 
+          // Closed/Won deals render as a compact non-accordion card
+          if (isWon) {
+            return (
+              <div key={deal.id} className="border rounded-lg bg-card px-3 py-3 border-green-500/30">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+                    <Trophy className="h-3.5 w-3.5 text-green-600" />
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0 px-1.5">
+                    {dealIndex + 1}
+                  </Badge>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="font-semibold text-sm truncate text-green-700 dark:text-green-400">
+                      {pipeline?.name || "Pipeline"} — Closed
+                    </span>
+                    {deal.property_of_interest && (
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                        <MapPin className="h-2.5 w-2.5 shrink-0" />
+                        {deal.property_of_interest}
+                      </span>
+                    )}
+                    {deal.close_date && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Closed: {new Date(deal.close_date).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  {deal.transaction_type && (
+                    <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 text-[10px] shrink-0 border-green-500/30">{deal.transaction_type}</Badge>
+                  )}
+                  {/* Allow reopening via stage selector */}
+                  <Select value={deal.pipeline_stage} onValueChange={(v) => handleStageChange(deal, v)}>
+                    <SelectTrigger className="w-[120px] h-6 text-[10px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-50 bg-popover">
+                      {stages.map((s) => (
+                        <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            );
+          }
+
+          // Active deals render as expandable accordion items
           return (
             <AccordionItem key={deal.id} value={deal.id} className="border rounded-lg bg-card px-3">
               <AccordionTrigger className="py-3 hover:no-underline">
@@ -202,8 +249,8 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
                   {deal.transaction_type && (
                     <Badge className="bg-primary/10 text-primary text-xs shrink-0">{deal.transaction_type}</Badge>
                   )}
-                  <Badge variant={deal.status === "won" ? "default" : "secondary"} className={`text-xs shrink-0 ml-auto mr-2 ${deal.status === "won" ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30" : ""}`}>
-                    {deal.status === "won" ? "✓ Closed" : deal.pipeline_stage}
+                  <Badge variant="secondary" className="text-xs shrink-0 ml-auto mr-2">
+                    {deal.pipeline_stage}
                   </Badge>
                 </div>
               </AccordionTrigger>
