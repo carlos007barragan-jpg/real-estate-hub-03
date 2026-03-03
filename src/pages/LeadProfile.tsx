@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, Layers, Archive, ArchiveRestore, Trophy } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, Layers, Archive, ArchiveRestore, Trophy, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -734,10 +734,26 @@ const LeadProfile = () => {
           </div>
         )}
 
-        {/* Show Pipeline Progress when lead is in pipeline */}
+        {/* Show Pipeline Progress when lead is in pipeline — hide when lead_deals exist (accordion handles those) */}
         {leadData?.leadLifecycle === "Moved to Pipeline" && (
           <>
-            {(leadData?.status === "won" || ["sold", "funded", "closed", "closed won", "deal won", "won", "done", "completed"].includes(currentStage.toLowerCase().trim())) ? null : (currentPipeline || leadData?.pipeline) ? (
+            {/* Post-close state: show "Begin New Transaction" */}
+            {(leadData?.status === "won" || ["sold", "funded", "closed", "closed won", "deal won", "won", "done", "completed"].includes(currentStage.toLowerCase().trim())) ? (
+              <div className="flex items-center gap-3 p-3 bg-card border rounded-lg border-green-500/20">
+                <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+                  <Trophy className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm font-semibold text-green-700 dark:text-green-400">Client — Deal Closed</span>
+                  <p className="text-xs text-muted-foreground">This client's previous deal has been closed. Start a new transaction when ready.</p>
+                </div>
+                {leadDeals.length < 3 && (
+                  <Button size="sm" onClick={() => setAddDealOpen(true)} className="gap-1">
+                    <Plus className="h-3.5 w-3.5" /> Begin New Transaction
+                  </Button>
+                )}
+              </div>
+            ) : leadDeals.length > 0 ? null : (currentPipeline || leadData?.pipeline) ? (
               <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
                 <Building2 className="h-4 w-4 text-primary" />
                 <div className="flex-1">
