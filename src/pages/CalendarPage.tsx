@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Calendar as BigCalendar, dateFnsLocalizer, View } from "react-big-calendar";
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay, startOfDay } from "date-fns";
@@ -58,6 +59,7 @@ interface Task {
 }
 
 const CalendarPage = () => {
+  const navigate = useNavigate();
   const { session, isAdmin } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -247,7 +249,14 @@ const CalendarPage = () => {
   }, [tasks]);
 
   const handleEventClick = (event: CalendarEvent) => {
-    window.location.href = `/leads/${event.resource.leadId}`;
+    try {
+      if (event.resource.leadId) {
+        navigate(`/leads/${event.resource.leadId}`);
+      }
+    } catch (error) {
+      console.error("Error navigating to lead:", error);
+      toast.error("Failed to open lead profile");
+    }
   };
 
   const handleNavigate = (action: 'PREV' | 'NEXT' | 'TODAY') => {
