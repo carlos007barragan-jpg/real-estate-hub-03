@@ -27,6 +27,7 @@ import { TwilioCallInterface } from "@/components/TwilioCallInterface";
 import { EditContactInfoDialog } from "@/components/EditContactInfoDialog";
 import { EditPropertyDialog } from "@/components/EditPropertyDialog";
 import { EditAreasInterestDialog } from "@/components/EditAreasInterestDialog";
+import { DealTransactionCard } from "@/components/DealTransactionCard";
 import { TasksSection } from "@/components/TasksSection";
 import { AppointmentsSection } from "@/components/AppointmentsSection";
 import { DocumentsSection } from "@/components/DocumentsSection";
@@ -118,42 +119,6 @@ const InvestorDealsCard = ({ leadId, deals, onUpdate }: { leadId: string; deals:
     </Card>
   );
 };
-// Deal property entry with full edit dialog
-const DealPropertyEntry = ({ deal, index, onUpdated }: { deal: any; index: number; onUpdated: () => void }) => {
-  const [editOpen, setEditOpen] = useState(false);
-  const label = deal.deal_label || deal.transaction_type || "Deal";
-
-  return (
-    <div className="space-y-1">
-      {index > 0 && <Separator className="my-1.5" />}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Property of Interest {index + 2}
-          </span>
-          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">{label}</Badge>
-        </div>
-        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setEditOpen(true)}>
-          <Edit className="h-3 w-3" />
-        </Button>
-      </div>
-      <div className="flex items-start gap-1.5">
-        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0 mt-0.5" />
-        <span className="text-xs leading-tight">
-          {deal.property_address || deal.property_of_interest || "No property assigned"}
-        </span>
-      </div>
-      <EditDealPropertyDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        deal={deal}
-        onSaved={onUpdated}
-        propertyIndex={index + 2}
-      />
-    </div>
-  );
-};
-
 export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handleSendMessage, handleAddNote, handleUpdateNote, messages, notes, newMessage, setNewMessage, newNote, setNewNote, id, onLeadUpdate, leadDeals = [] }: any) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -665,24 +630,18 @@ export const TwoColumnLayout = ({ leadData, customFields = [], handleCall, handl
                 </div>
               </>
             )}
-            {/* Additional deal properties */}
-            {leadDeals && leadDeals.length > 0 && (
-              <>
-                <Separator className="my-2" />
-                <div className="space-y-2">
-                  {leadDeals.map((deal: any, idx: number) => (
-                    <DealPropertyEntry
-                      key={deal.id || idx}
-                      deal={deal}
-                      index={idx}
-                      onUpdated={onLeadUpdate}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
           </CardContent>
         </Card>
+
+        {/* Standalone Transaction Cards for Secondary Deals */}
+        {leadDeals && leadDeals.length > 0 && leadDeals.map((deal: any, idx: number) => (
+          <DealTransactionCard
+            key={deal.id || idx}
+            deal={deal}
+            index={idx}
+            onUpdated={onLeadUpdate}
+          />
+        ))}
 
         {/* Second Card - Dynamic by Transaction Type */}
         {transactionType === "Investor's" ? (
