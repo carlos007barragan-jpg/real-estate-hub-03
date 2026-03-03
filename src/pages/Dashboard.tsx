@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power, DollarSign } from "lucide-react";
 import { AgentMetricDetailDialog, MetricType } from "@/components/AgentMetricDetailDialog";
 import { MyPayoutsCard } from "@/components/MyPayoutsCard";
+import { PayoutDetailDialog } from "@/components/PayoutDetailDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import {
@@ -138,6 +139,7 @@ const Dashboard = () => {
   const [totalSalesVolume, setTotalSalesVolume] = useState(0);
   const [salesVolumeData, setSalesVolumeData] = useState<SalesVolumeData[]>([]);
   const [payoutsPeriod, setPayoutsPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [payoutDetailAgent, setPayoutDetailAgent] = useState<string | null>(null);
   const [currentUserPhone, setCurrentUserPhone] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [performancePeriod, setPerformancePeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
@@ -1394,7 +1396,11 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-1">
               {payoutsData.map((agent) => (
-                 <div key={agent.name} className="flex items-center justify-between py-3 px-3 rounded-md border border-border">
+                 <div
+                   key={agent.name}
+                   className="flex items-center justify-between py-3 px-3 rounded-md border border-border cursor-pointer hover:bg-muted/50 transition-colors"
+                   onClick={() => setPayoutDetailAgent(agent.name)}
+                 >
                    <span className="font-medium text-foreground">{agent.name}</span>
                    <div className="flex items-center gap-6">
                      <span className="text-sm text-muted-foreground">
@@ -1418,6 +1424,12 @@ const Dashboard = () => {
           )}
         </Card>
         )}
+        <PayoutDetailDialog
+          open={!!payoutDetailAgent}
+          onOpenChange={(open) => { if (!open) setPayoutDetailAgent(null); }}
+          agentName={payoutDetailAgent || ""}
+          period={payoutsPeriod}
+        />
 
 
         <Card className="p-6">

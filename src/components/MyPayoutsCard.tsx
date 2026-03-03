@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfWeek, startOfMonth } from "date-fns";
+import { PayoutDetailDialog } from "@/components/PayoutDetailDialog";
 
 interface MyPayoutsCardProps {
   userId: string | null;
@@ -15,6 +16,7 @@ export const MyPayoutsCard = ({ userId }: MyPayoutsCardProps) => {
   const [dealsCount, setDealsCount] = useState(0);
   const [totalPayout, setTotalPayout] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showDetail, setShowDetail] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -74,17 +76,28 @@ export const MyPayoutsCard = ({ userId }: MyPayoutsCardProps) => {
         {loading ? (
           <div className="h-[80px] bg-muted animate-pulse rounded" />
         ) : (
-          <div className="flex items-center justify-between py-3 px-3 rounded-md border border-border">
-            <span className="font-medium text-foreground">{agentName || "You"}</span>
-            <div className="flex items-center gap-6">
-              <span className="text-sm text-muted-foreground">
-                {dealsCount} {dealsCount === 1 ? 'deal' : 'deals'} closed
-              </span>
-              <span className="font-bold text-success min-w-[90px] text-right">
-                ${totalPayout.toLocaleString()}
-              </span>
+          <>
+            <div
+              className="flex items-center justify-between py-3 px-3 rounded-md border border-border cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => setShowDetail(true)}
+            >
+              <span className="font-medium text-foreground">{agentName || "You"}</span>
+              <div className="flex items-center gap-6">
+                <span className="text-sm text-muted-foreground">
+                  {dealsCount} {dealsCount === 1 ? 'deal' : 'deals'} closed
+                </span>
+                <span className="font-bold text-success min-w-[90px] text-right">
+                  ${totalPayout.toLocaleString()}
+                </span>
+              </div>
             </div>
-          </div>
+            <PayoutDetailDialog
+              open={showDetail}
+              onOpenChange={setShowDetail}
+              agentName={agentName}
+              period={period}
+            />
+          </>
         )}
       </Card>
     </div>
