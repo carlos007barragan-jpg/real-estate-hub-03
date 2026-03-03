@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { DollarSign } from "lucide-react";
+import { DollarSign, Building2 } from "lucide-react";
 import { startOfWeek, startOfMonth } from "date-fns";
 
 interface PayoutDetailDialogProps {
@@ -21,6 +21,8 @@ interface DealEntry {
   created_at: string;
 }
 
+const isCompanyRow = (name: string) => name.includes("Company") || name.includes("Office Fee");
+
 export const PayoutDetailDialog = ({ open, onOpenChange, agentName, period }: PayoutDetailDialogProps) => {
   const navigate = useNavigate();
   const [deals, setDeals] = useState<DealEntry[]>([]);
@@ -28,21 +30,24 @@ export const PayoutDetailDialog = ({ open, onOpenChange, agentName, period }: Pa
 
   useEffect(() => {
     if (!open) return;
-    fetchDealDetails();
+    if (isCompanyRow(agentName)) {
+      fetchCompanyDeals();
+    } else {
+      fetchAgentDeals();
+    }
   }, [open, agentName, period]);
 
-  const fetchDealDetails = async () => {
+  const getDateFrom = () => {
+    const today = new Date();
+    if (period === "weekly") return startOfWeek(today).toISOString();
+    if (period === "monthly") return startOfMonth(today).toISOString();
+    return new Date(today.getFullYear(), 0, 1).toISOString();
+  };
+
+  const fetchAgentDeals = async () => {
     setLoading(true);
     try {
-      const today = new Date();
-      let dateFrom: string;
-      if (period === "weekly") {
-        dateFrom = startOfWeek(today).toISOString();
-      } else if (period === "monthly") {
-        dateFrom = startOfMonth(today).toISOString();
-      } else {
-        dateFrom = new Date(today.getFullYear(), 0, 1).toISOString();
-      }
+      const dateFrom = getDateFrom();
 
       const { data: entries } = await supabase
         .from("commission_entries")
@@ -53,11 +58,9 @@ export const PayoutDetailDialog = ({ open, onOpenChange, agentName, period }: Pa
 
       if (filtered.length === 0) {
         setDeals([]);
-        setLoading(false);
         return;
       }
 
-      // Get unique lead IDs and fetch lead names
       const leadIds = [...new Set(filtered.map(e => e.lead_id))];
       const { data: leads } = await supabase
         .from("leads")
@@ -66,7 +69,6 @@ export const PayoutDetailDialog = ({ open, onOpenChange, agentName, period }: Pa
 
       const leadMap = new Map((leads || []).map(l => [l.id, l]));
 
-      // Group by lead_id to combine multiple entries per deal
       const dealMap = new Map<string, DealEntry>();
       filtered.forEach(entry => {
         const lead = leadMap.get(entry.lead_id);
@@ -92,15 +94,78 @@ export const PayoutDetailDialog = ({ open, onOpenChange, agentName, period }: Pa
     }
   };
 
+  const fetchCompanyDeals = async () => {
+    setLoading(true);
+    try {
+      const dateFrom = getDateFrom();
+
+      // Fetch closed leads with commission in the period
+      const { data: closedLeads } = await supabase
+        .from("leads")
+        .select("id, name, property_of_interest, commission, close_date")
+        .not("close_date", "is", null)
+        .not("commission", "is", null);
+
+      const filteredLeads = (closedLeads || []).filter(
+        l => l.close_date && new Date(l.close_date) >= new Date(dateFrom) && parseFloat(l.commission || "0") > 0
+      );
+
+      if (filteredLeads.length === 0) {
+        setDeals([]);
+        return;
+      }
+
+      // Fetch all commission entries for these leads to calculate office fee
+      const leadIds = filteredLeads.map(l => l.id);
+      const { data: entries } = await supabase
+        .from("commission_entries")
+        .select("lead_id, payout_amount")
+        .in("lead_id", leadIds);
+
+      const agentPayoutsByLead = new Map<string, number>();
+      (entries || []).forEach(e => {
+        const current = agentPayoutsByLead.get(e.lead_id) || 0;
+        agentPayoutsByLead.set(e.lead_id, current + Number(e.payout_amount || 0));
+      });
+
+      const companyDeals: DealEntry[] = [];
+      filteredLeads.forEach(lead => {
+        const commission = parseFloat(lead.commission || "0");
+        const agentPayout = agentPayoutsByLead.get(lead.id) || 0;
+        const officeFee = commission - agentPayout;
+        if (officeFee > 0) {
+          companyDeals.push({
+            lead_id: lead.id,
+            lead_name: lead.name,
+            property: lead.property_of_interest || "N/A",
+            payout_amount: officeFee,
+            created_at: lead.close_date!,
+          });
+        }
+      });
+
+      setDeals(companyDeals.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    } catch (error) {
+      console.error("Error fetching company deal details:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const totalPayout = deals.reduce((sum, d) => sum + d.payout_amount, 0);
+  const isCompany = isCompanyRow(agentName);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-success" />
-            {agentName} — Payout Details
+            {isCompany ? (
+              <Building2 className="h-5 w-5 text-primary" />
+            ) : (
+              <DollarSign className="h-5 w-5 text-success" />
+            )}
+            {isCompany ? "Company (Office Fee) — Details" : `${agentName} — Payout Details`}
           </DialogTitle>
         </DialogHeader>
 
@@ -115,7 +180,7 @@ export const PayoutDetailDialog = ({ open, onOpenChange, agentName, period }: Pa
                 <TableRow>
                   <TableHead>Lead / Deal</TableHead>
                   <TableHead>Property</TableHead>
-                  <TableHead className="text-right">Payout</TableHead>
+                  <TableHead className="text-right">{isCompany ? "Office Fee" : "Payout"}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
