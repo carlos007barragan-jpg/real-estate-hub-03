@@ -737,7 +737,7 @@ const LeadProfile = () => {
         {/* Show Pipeline Progress when lead is in pipeline */}
         {leadData?.leadLifecycle === "Moved to Pipeline" && (
           <>
-            {leadData?.status === "won" ? null : (currentPipeline || leadData?.pipeline) ? (
+            {(leadData?.status === "won" || ["sold", "funded", "closed", "closed won", "deal won", "won", "done", "completed"].includes(currentStage.toLowerCase().trim())) ? null : (currentPipeline || leadData?.pipeline) ? (
               <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
                 <Building2 className="h-4 w-4 text-primary" />
                 <div className="flex-1">
