@@ -1,0 +1,1 @@
+UPDATE lead_deals SET deal_label = NULL WHERE id = '78912587-7201-43d3-9c24-32dc725583d5';
