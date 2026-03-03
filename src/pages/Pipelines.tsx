@@ -372,8 +372,9 @@ const Pipelines = () => {
 
       if (!pipelineId) return;
 
-      // Skip primary card if any lead_deal exists for this lead (avoid duplicates with wrong data)
-      if (leadDealsByLeadAndPipeline.has(lead.id)) return;
+      // Skip primary card only if a lead_deal exists for this exact pipeline (avoid duplicate)
+      const dealsForLead = leadDealsByLeadAndPipeline.get(lead.id);
+      if (dealsForLead && dealsForLead.has(pipelineId)) return;
 
       const isWon = lead.status === "won" || isWonStageName(stage || "");
       
