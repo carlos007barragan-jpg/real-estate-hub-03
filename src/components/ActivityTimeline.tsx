@@ -4,12 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Phone, StickyNote, MessageSquare, CheckCircle2, Calendar, Clock, PhoneIncoming, PhoneOutgoing, Filter, Activity, DollarSign } from "lucide-react";
+import { Phone, StickyNote, MessageSquare, CheckCircle2, Calendar, Clock, PhoneIncoming, PhoneOutgoing, Filter, Activity, DollarSign, Trophy } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface TimelineEvent {
   id: string;
-  type: "note" | "call" | "sms" | "task" | "appointment" | "commission";
+  type: "note" | "call" | "sms" | "task" | "appointment" | "commission" | "deal_closed";
   title: string;
   description?: string;
   timestamp: string;
@@ -77,8 +77,10 @@ export const ActivityTimeline = ({ leadId, notes, userRole }: ActivityTimelinePr
     const all: TimelineEvent[] = [];
 
     notes.forEach(n => {
+      const isDealClosed = n.content?.startsWith("🏆 Transaction Closed");
       all.push({
-        id: `note-${n.id}`, type: "note", title: "Note added",
+        id: `note-${n.id}`, type: isDealClosed ? "deal_closed" : "note",
+        title: isDealClosed ? "Transaction Closed" : "Note added",
         description: n.content, timestamp: n.timestamp, metadata: { author: n.author },
       });
     });
@@ -155,6 +157,7 @@ export const ActivityTimeline = ({ leadId, notes, userRole }: ActivityTimelinePr
     task: { icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "bg-warning/10 text-warning" },
     appointment: { icon: <Calendar className="h-3.5 w-3.5" />, color: "bg-accent text-accent-foreground" },
     commission: { icon: <DollarSign className="h-3.5 w-3.5" />, color: "bg-success/10 text-success" },
+    deal_closed: { icon: <Trophy className="h-3.5 w-3.5" />, color: "bg-green-500/10 text-green-600" },
   };
 
   const filters = [
