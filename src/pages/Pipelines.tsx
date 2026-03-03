@@ -1090,7 +1090,7 @@ const Pipelines = () => {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex gap-4 overflow-x-auto pb-4 pipeline-scroll-top">
           {displayPipeline.stages.map((stage) => {
             const stageValue = stage.deals.reduce((sum, deal) => sum + deal.commission, 0);
             const isCollapsed = collapsedStages.has(stage.id);
