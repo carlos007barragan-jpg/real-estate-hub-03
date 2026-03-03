@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, Layers, Archive, ArchiveRestore } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, DollarSign, Calendar, User, Building2, Send, PlusCircle, MoveRight, Layers, Archive, ArchiveRestore, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -737,7 +737,32 @@ const LeadProfile = () => {
         {/* Show Pipeline Progress when lead is in pipeline */}
         {leadData?.leadLifecycle === "Moved to Pipeline" && (
           <>
-            {(currentPipeline || leadData?.pipeline) ? (
+            {leadData?.status === "won" ? (
+              <div className="flex items-center gap-3 p-3 bg-card border rounded-lg border-green-500/30">
+                <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <Trophy className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-green-700 dark:text-green-400">Deal Closed</span>
+                    <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600">{pipelineName || "Pipeline"}</Badge>
+                    <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 text-[10px]">{currentStage}</Badge>
+                  </div>
+                  {leadData.propertyOfInterest && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-2.5 w-2.5" />
+                      {leadData.propertyOfInterest}
+                    </span>
+                  )}
+                  {leadData.closeDate && (
+                    <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                      Closed: {new Date(leadData.closeDate).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <Progress value={100} className="h-1.5 w-24" />
+              </div>
+            ) : (currentPipeline || leadData?.pipeline) ? (
               <div className="flex items-center gap-3 p-3 bg-card border rounded-lg">
                 <Building2 className="h-4 w-4 text-primary" />
                 <div className="flex-1">

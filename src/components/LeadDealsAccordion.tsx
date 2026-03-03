@@ -199,8 +199,8 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
                   {deal.transaction_type && (
                     <Badge className="bg-primary/10 text-primary text-xs shrink-0">{deal.transaction_type}</Badge>
                   )}
-                  <Badge variant={deal.status === "won" ? "default" : "secondary"} className="text-xs shrink-0 ml-auto mr-2">
-                    {deal.pipeline_stage}
+                  <Badge variant={deal.status === "won" ? "default" : "secondary"} className={`text-xs shrink-0 ml-auto mr-2 ${deal.status === "won" ? "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30" : ""}`}>
+                    {deal.status === "won" ? "✓ Closed" : deal.pipeline_stage}
                   </Badge>
                 </div>
               </AccordionTrigger>
