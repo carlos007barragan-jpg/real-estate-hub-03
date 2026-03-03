@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Trash2, Edit2, Save, X, DollarSign } from "lucide-react";
+import { Building2, Trash2, Edit2, Save, X, DollarSign, MapPin } from "lucide-react";
 import { DealClosedDialog } from "@/components/DealClosedDialog";
 import { fireDealWonConfetti } from "@/lib/confetti";
 
@@ -188,14 +188,17 @@ export function LeadDealsAccordion({ leadId, leadName, deals, onDealsChange }: L
                   <Badge variant="outline" className="text-[10px] shrink-0 px-1.5">
                     {dealIndex + 1}
                   </Badge>
-                  <span className="font-medium text-sm truncate">
-                    {advancedStageNames.includes(deal.pipeline_stage.toLowerCase().trim()) && deal.property_of_interest
-                      ? deal.property_of_interest
-                      : deal.deal_label || "Deal"}
-                  </span>
-                  {pipeline && (
-                    <Badge variant="outline" className="text-xs shrink-0">{pipeline.name}</Badge>
-                  )}
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-medium text-sm truncate">
+                      {pipeline?.name || "Pipeline"}
+                    </span>
+                    {deal.property_of_interest && (
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                        <MapPin className="h-2.5 w-2.5 shrink-0" />
+                        {deal.property_of_interest}
+                      </span>
+                    )}
+                  </div>
                   {deal.transaction_type && (
                     <Badge className="bg-primary/10 text-primary text-xs shrink-0">{deal.transaction_type}</Badge>
                   )}
