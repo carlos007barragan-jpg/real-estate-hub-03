@@ -388,10 +388,29 @@ const Leads = () => {
           if (downPaymentFilter === "100k-plus" && dpNum < 100000) return false;
         }
 
-        // Contact Status filter
+        // Client Status filter
         if (contactStatusFilter !== "all") {
-          if (contactStatusFilter === "uncontacted" && !lead.isUncontacted) return false;
-          if (contactStatusFilter === "contacted" && lead.isUncontacted) return false;
+          if (contactStatusFilter === "uncontacted") {
+            if (!lead.isUncontacted) return false;
+          } else if (contactStatusFilter === "contacted") {
+            if (lead.isUncontacted) return false;
+          } else if (contactStatusFilter === "contact-made") {
+            const stage = (lead.pipelineStage || "").toLowerCase();
+            if (!stage.includes("contact made")) return false;
+          } else if (contactStatusFilter === "consulted") {
+            const stage = (lead.pipelineStage || "").toLowerCase();
+            if (!stage.includes("consult") && !stage.includes("consultation")) return false;
+          } else if (contactStatusFilter === "contract-executed") {
+            const stage = (lead.pipelineStage || "").toLowerCase();
+            if (!stage.includes("contract")) return false;
+          } else if (contactStatusFilter === "sold") {
+            const stage = (lead.pipelineStage || "").toLowerCase();
+            if (!stage.includes("sold") && !stage.includes("closed")) return false;
+          } else if (contactStatusFilter === "won") {
+            if ((lead.status as string) !== "won") return false;
+          } else if (contactStatusFilter === "lost") {
+            if ((lead.status as string) !== "lost") return false;
+          }
         }
 
         // Tab filter

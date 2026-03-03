@@ -311,9 +311,9 @@ export const LeadFilters = ({
               </Select>
             </div>
 
-            {/* Contact Status */}
+            {/* Client Status */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Contact Status</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Client Status</label>
               <Select value={contactStatusFilter} onValueChange={onContactStatusFilterChange}>
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="All" />
@@ -322,6 +322,12 @@ export const LeadFilters = ({
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="uncontacted">Uncontacted</SelectItem>
                   <SelectItem value="contacted">Contacted</SelectItem>
+                  <SelectItem value="contact-made">Contact Made</SelectItem>
+                  <SelectItem value="consulted">Consulted</SelectItem>
+                  <SelectItem value="contract-executed">Contract Executed</SelectItem>
+                  <SelectItem value="sold">Sold</SelectItem>
+                  <SelectItem value="won">Won</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -371,8 +377,8 @@ export const LeadFilters = ({
         </Badge>
       )}
       {contactStatusFilter !== "all" && (
-        <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => onContactStatusFilterChange("all")}>
-          {contactStatusFilter === "uncontacted" ? "Uncontacted" : "Contacted"} <X className="h-3 w-3" />
+        <Badge variant="secondary" className="gap-1 cursor-pointer capitalize" onClick={() => onContactStatusFilterChange("all")}>
+          Status: {contactStatusFilter.replace("-", " ")} <X className="h-3 w-3" />
         </Badge>
       )}
     </div>
