@@ -372,10 +372,6 @@ const Pipelines = () => {
 
       if (!pipelineId) return;
 
-      // Skip primary card only if a lead_deal exists for this exact pipeline (avoid duplicate)
-      const dealsForLead = leadDealsByLeadAndPipeline.get(lead.id);
-      if (dealsForLead && dealsForLead.has(pipelineId)) return;
-
       const isWon = lead.status === "won" || isWonStageName(stage || "");
       
       // For close date: prefer close_date (actual date) over timeframe (text like "30 days")
@@ -467,7 +463,8 @@ const Pipelines = () => {
         supabase
           .from("lead_deals")
           .select("*")
-          .eq("organization_id", userProfile.organization_id),
+          .eq("organization_id", userProfile.organization_id)
+          .eq("status", "active"),
       ]);
 
       if (pipelinesResult.error) throw pipelinesResult.error;
@@ -1092,8 +1089,7 @@ const Pipelines = () => {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-        <div className="overflow-x-auto [transform:rotateX(180deg)]">
-        <div className="flex gap-4 pb-4 [transform:rotateX(180deg)]">
+        <div className="flex gap-4 overflow-x-auto pb-4">
           {displayPipeline.stages.map((stage) => {
             const stageValue = stage.deals.reduce((sum, deal) => sum + deal.commission, 0);
             const isCollapsed = collapsedStages.has(stage.id);
@@ -1180,7 +1176,6 @@ const Pipelines = () => {
               </div>
             );
             })}
-          </div>
           </div>
 
           <DragOverlay>
