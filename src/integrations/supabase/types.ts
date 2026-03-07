@@ -1444,6 +1444,53 @@ export type Database = {
         }
         Relationships: []
       }
+      performance_standards: {
+        Row: {
+          category: string
+          created_at: string | null
+          display_order: number | null
+          id: string
+          label: string
+          metric_key: string
+          organization_id: string
+          period: string
+          target_value: number
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          label: string
+          metric_key: string
+          organization_id: string
+          period: string
+          target_value: number
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          label?: string
+          metric_key?: string
+          organization_id?: string
+          period?: string
+          target_value?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_standards_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipelines: {
         Row: {
           created_at: string
