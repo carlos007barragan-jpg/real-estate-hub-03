@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power, DollarSign } from "lucide-react";
 import { AgentMetricDetailDialog, MetricType } from "@/components/AgentMetricDetailDialog";
 import { MyPayoutsCard } from "@/components/MyPayoutsCard";
+import { AgentKPIPanel } from "@/components/AgentKPIPanel";
+import { AgentLeaderboard } from "@/components/AgentLeaderboard";
 import { PayoutDetailDialog } from "@/components/PayoutDetailDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
