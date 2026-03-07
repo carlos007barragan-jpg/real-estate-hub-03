@@ -5,17 +5,18 @@ import { CompleteProfileModal } from "./CompleteProfileModal";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  loginPath?: string;
 }
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+export const ProtectedRoute = ({ children, loginPath = "/login" }: ProtectedRouteProps) => {
   const navigate = useNavigate();
   const { session, loading, profileComplete, profileChecking, refreshProfile } = useAuth();
 
   useEffect(() => {
     if (!loading && !session) {
-      navigate("/login");
+      navigate(loginPath);
     }
-  }, [session, loading, navigate]);
+  }, [session, loading, navigate, loginPath]);
 
   const handleProfileComplete = async () => {
     await refreshProfile();

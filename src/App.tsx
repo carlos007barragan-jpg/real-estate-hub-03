@@ -94,7 +94,7 @@ const App = () => {
               {/* Owner Portal Routes */}
               <Route path="/owner-login" element={<OwnerLogin />} />
               <Route path="/owner-signup" element={<OwnerSignup />} />
-              <Route path="/owner-portal" element={<ProtectedRoute><OwnerPortalDashboard /></ProtectedRoute>} />
+              <Route path="/owner-portal" element={<ProtectedRoute loginPath="/owner-login"><OwnerPortalDashboard /></ProtectedRoute>} />
               <Route path="/dispo-sheet" element={<DispoSheet />} />
               
               {/* CRM Routes */}
