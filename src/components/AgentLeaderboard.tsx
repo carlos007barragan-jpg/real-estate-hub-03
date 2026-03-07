@@ -29,7 +29,7 @@ const getScoreBadge = (score: number) => {
 const getRankIcon = (rank: number) => {
   if (rank === 1) return <Trophy className="h-5 w-5 text-warning" />;
   if (rank === 2) return <Medal className="h-5 w-5 text-muted-foreground" />;
-  if (rank === 3) return <Award className="h-5 w-5 text-amber-600" />;
+  if (rank === 3) return <Award className="h-5 w-5 text-warning/70" />;
   return <span className="text-sm font-bold text-muted-foreground w-5 text-center">{rank}</span>;
 };
 
