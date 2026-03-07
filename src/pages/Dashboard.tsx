@@ -1176,6 +1176,11 @@ const Dashboard = () => {
         </Card>
       </div>
 
+      {/* Agent KPI Panel - visible to all, after stats grid */}
+      <AgentKPIPanel />
+
+      {/* Agent Leaderboard - Admin/Supreme Admin only */}
+      {(role === 'supreme_admin' || role === 'admin') && <AgentLeaderboard />}
 
       {/* Past Due Tasks - Only current user's own */}
       {pastDueTasks.length > 0 && (
