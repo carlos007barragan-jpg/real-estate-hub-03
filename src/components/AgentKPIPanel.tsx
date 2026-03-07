@@ -96,8 +96,8 @@ export const AgentKPIPanel = () => {
         supabase.from("tasks").select("id").eq("user_id", userId).eq("status", "completed").gte("completed_at", dayStart).lte("completed_at", dayEnd),
         // Upcoming appointments today
         supabase.from("appointments").select("id").eq("user_id", userId).gte("appointment_date", dayStart).lte("appointment_date", dayEnd),
-        // Daily appointments set (created today)
-        supabase.from("appointments").select("id").eq("user_id", userId).gte("created_at", dayStart).lte("created_at", dayEnd),
+        // Daily appointments completed today
+        supabase.from("appointments").select("id").eq("user_id", userId).eq("status", "completed").gte("updated_at", dayStart).lte("updated_at", dayEnd),
         // Weekly new leads
         supabase.from("leads").select("id, pipeline_stage").eq("user_id", userId).gte("created_at", weekStart).lte("created_at", weekEnd),
         // Weekly appointments (all)
