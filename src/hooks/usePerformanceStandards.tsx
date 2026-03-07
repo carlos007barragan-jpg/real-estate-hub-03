@@ -16,8 +16,8 @@ export interface PerformanceStandard {
 const DEFAULT_STANDARDS: Omit<PerformanceStandard, "id" | "organization_id">[] = [
   // Daily Activity
   { metric_key: "daily_calls", category: "activity", period: "daily", target_value: 35, label: "Outbound Calls", display_order: 1 },
-  { metric_key: "daily_conversations", category: "activity", period: "daily", target_value: 10, label: "Conversations", display_order: 2 },
-  { metric_key: "daily_follow_ups", category: "activity", period: "daily", target_value: 20, label: "Follow-ups", display_order: 3 },
+  { metric_key: "daily_tasks", category: "activity", period: "daily", target_value: 20, label: "Daily Tasks", display_order: 2 },
+  { metric_key: "daily_upcoming_appointments", category: "activity", period: "daily", target_value: 2, label: "Upcoming Appointments", display_order: 3 },
   { metric_key: "daily_appointments", category: "activity", period: "daily", target_value: 2, label: "Appointments Set", display_order: 4 },
   // Weekly Pipeline
   { metric_key: "weekly_new_leads", category: "pipeline", period: "weekly", target_value: 25, label: "New Leads Entered", display_order: 5 },
