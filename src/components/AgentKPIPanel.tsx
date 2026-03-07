@@ -147,8 +147,8 @@ export const AgentKPIPanel = () => {
 
   const dailyMetrics: KPIMetric[] = [
     { key: "daily_calls", label: "Outbound Calls", actual: metrics.dailyCalls, target: getTarget("daily_calls"), icon: <Phone className="h-4 w-4 text-primary" /> },
-    { key: "daily_conversations", label: "Conversations", actual: metrics.dailyConversations, target: getTarget("daily_conversations"), icon: <MessageSquare className="h-4 w-4 text-info" /> },
-    { key: "daily_follow_ups", label: "Follow-ups", actual: metrics.dailyFollowUps, target: getTarget("daily_follow_ups"), icon: <Target className="h-4 w-4 text-warning" /> },
+    { key: "daily_tasks", label: "Daily Tasks", actual: metrics.dailyTasks, target: getTarget("daily_follow_ups"), icon: <Target className="h-4 w-4 text-warning" /> },
+    { key: "daily_upcoming_appointments", label: "Upcoming Appointments", actual: metrics.dailyUpcomingAppointments, target: getTarget("daily_appointments"), icon: <Calendar className="h-4 w-4 text-info" /> },
     { key: "daily_appointments", label: "Appointments Set", actual: metrics.dailyAppointments, target: getTarget("daily_appointments"), icon: <Calendar className="h-4 w-4 text-success" /> },
   ];
 
