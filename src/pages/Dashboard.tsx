@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { TrendingUp, Users, Phone, Mail, UserPlus, Calendar as CalendarIcon, CheckCircle2, Circle, AlertTriangle, Power, DollarSign } from "lucide-react";
 import { AgentMetricDetailDialog, MetricType } from "@/components/AgentMetricDetailDialog";
 import { MyPayoutsCard } from "@/components/MyPayoutsCard";
+import { AgentKPIPanel } from "@/components/AgentKPIPanel";
+import { AgentLeaderboard } from "@/components/AgentLeaderboard";
 import { PayoutDetailDialog } from "@/components/PayoutDetailDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -1088,6 +1090,12 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground mt-1">Overview of your team's performance</p>
       </div>
+
+      {/* Agent KPI Panel - visible to all */}
+      <AgentKPIPanel />
+
+      {/* Agent Leaderboard - Admin/Supreme Admin only */}
+      {(role === 'supreme_admin' || role === 'admin') && <AgentLeaderboard />}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
