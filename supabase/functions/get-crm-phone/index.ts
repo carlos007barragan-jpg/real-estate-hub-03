@@ -7,7 +7,7 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -26,8 +26,9 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data, error } = await supabase.auth.getClaims(token);
-    if (error || !data?.claims) {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      console.error('Auth validation failed:', error);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -35,12 +36,13 @@ Deno.serve(async (req) => {
     }
 
     const phoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER') || null;
+    console.log('Returning phone number for user:', user.id, 'phone:', phoneNumber ? 'configured' : 'not set');
 
     return new Response(JSON.stringify({ phone_number: phoneNumber }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (error) {
-    console.error('Error in get-crm-phone:', error);
+  } catch (err) {
+    console.error('Error in get-crm-phone:', err);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
