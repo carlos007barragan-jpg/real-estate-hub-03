@@ -161,41 +161,45 @@ export const AgentLeaderboard = () => {
   if (agents.length === 0) return null;
 
   return (
-    <Card className="p-6 mb-8">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-warning" />
-          <h2 className="text-xl font-semibold text-foreground">Agent Leaderboard</h2>
-        </div>
-        <Badge variant="secondary" className="text-xs">Weekly Score</Badge>
-      </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">Rank</TableHead>
-            <TableHead>Agent</TableHead>
-            <TableHead className="text-right">Activity (40%)</TableHead>
-            <TableHead className="text-right">Pipeline (30%)</TableHead>
-            <TableHead className="text-right">Closings (30%)</TableHead>
-            <TableHead className="text-right">Total Score</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {agents.map((agent) => (
-            <TableRow key={agent.userId}>
-              <TableCell>{getRankIcon(agent.rank)}</TableCell>
-              <TableCell className="font-medium">{agent.name}</TableCell>
-              <TableCell className="text-right">{Math.round(agent.activityScore)}%</TableCell>
-              <TableCell className="text-right">{Math.round(agent.pipelineScore)}%</TableCell>
-              <TableCell className="text-right">{Math.round(agent.closingsScore)}%</TableCell>
-              <TableCell className="text-right font-bold">{Math.round(agent.totalScore)}%</TableCell>
-              <TableCell>{getScoreBadge(Math.round(agent.totalScore))}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
+    <Collapsible open={open} onOpenChange={setOpen} className="mb-8">
+      <Card className="p-6">
+        <CollapsibleTrigger className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-warning" />
+            <h2 className="text-xl font-semibold text-foreground">Agent Leaderboard</h2>
+            <Badge variant="secondary" className="text-xs">Weekly Score</Badge>
+          </div>
+          <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">Rank</TableHead>
+                <TableHead>Agent</TableHead>
+                <TableHead className="text-right">Activity (40%)</TableHead>
+                <TableHead className="text-right">Pipeline (30%)</TableHead>
+                <TableHead className="text-right">Closings (30%)</TableHead>
+                <TableHead className="text-right">Total Score</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {agents.map((agent) => (
+                <TableRow key={agent.userId}>
+                  <TableCell>{getRankIcon(agent.rank)}</TableCell>
+                  <TableCell className="font-medium">{agent.name}</TableCell>
+                  <TableCell className="text-right">{Math.round(agent.activityScore)}%</TableCell>
+                  <TableCell className="text-right">{Math.round(agent.pipelineScore)}%</TableCell>
+                  <TableCell className="text-right">{Math.round(agent.closingsScore)}%</TableCell>
+                  <TableCell className="text-right font-bold">{Math.round(agent.totalScore)}%</TableCell>
+                  <TableCell>{getScoreBadge(Math.round(agent.totalScore))}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 };
