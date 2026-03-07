@@ -16,6 +16,7 @@ import { LeadFieldsManager } from "@/components/LeadFieldsManager";
 import { WorkflowBuilder } from "@/components/WorkflowBuilder";
 import { ContactFieldsManager } from "@/components/ContactFieldsManager";
 import { ApiKeysSettings } from "@/components/ApiKeysSettings";
+import { PerformanceStandardsManager } from "@/components/PerformanceStandardsManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
