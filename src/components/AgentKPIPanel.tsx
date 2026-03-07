@@ -161,14 +161,19 @@ export const AgentKPIPanel = () => {
   const dailyScore = dailyMetrics.reduce((sum, m) => sum + Math.min((m.actual / Math.max(m.target, 1)) * 100, 100), 0) / dailyMetrics.length;
 
   return (
-    <Card className="p-6 mb-8">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground">My Performance</h2>
-          <p className="text-sm text-muted-foreground">Track your daily activity, pipeline, and production</p>
-        </div>
-        <AgentScoreBadge score={dailyScore} />
-      </div>
+    <Collapsible open={panelOpen} onOpenChange={setPanelOpen} className="mb-8">
+      <Card className="p-6">
+        <CollapsibleTrigger className="flex items-center justify-between w-full">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">My Performance</h2>
+            <p className="text-sm text-muted-foreground">Track your daily activity, pipeline, and production</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <AgentScoreBadge score={dailyScore} />
+            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${panelOpen ? "rotate-180" : ""}`} />
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-4">
 
       {/* Daily Activity */}
       <Collapsible open={dailyOpen} onOpenChange={setDailyOpen}>
