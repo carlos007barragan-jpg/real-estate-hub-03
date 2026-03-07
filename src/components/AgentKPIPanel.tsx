@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Phone, MessageSquare, Calendar, Target, TrendingUp, DollarSign } from "lucide-react";
+import { ChevronDown, Phone, MessageSquare, Calendar, Target, TrendingUp, DollarSign, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePerformanceStandards } from "@/hooks/usePerformanceStandards";
@@ -65,9 +65,10 @@ export const AgentKPIPanel = () => {
   const [monthlyOpen, setMonthlyOpen] = useState(false);
   const [metrics, setMetrics] = useState({
     dailyCalls: 0,
-    dailyTasks: 0,
-    dailyUpcomingAppointments: 0,
-    dailyAppointments: 0,
+    dailyTasksCompleted: 0,
+    dailyTasksDueToday: 0,
+    contactedLeads: 0,
+    totalLeads: 0,
     weeklyNewLeads: 0,
     weeklyQualified: 0,
     weeklyAppointments: 0,
@@ -89,20 +90,24 @@ export const AgentKPIPanel = () => {
     const monthEnd = endOfMonth(now).toISOString();
 
     const fetchMetrics = async () => {
-      const [callsRes, tasksRes, upcomingApptsRes, dailyApptsRes, weeklyLeadsRes, weeklyApptsRes, weeklyDealsRes, monthlyDealsRes, commissionRes] = await Promise.all([
+      const [callsRes, tasksDueTodayRes, tasksCompletedTodayRes, allLeadsRes, callLogsForLeadsRes, smsLogsForLeadsRes, weeklyLeadsRes, weeklyApptsRes, weeklyDealsRes, monthlyDealsRes, commissionRes] = await Promise.all([
         // Daily calls
         supabase.from("call_logs").select("id").eq("user_id", userId).gte("created_at", dayStart).lte("created_at", dayEnd),
-        // Daily tasks completed today
+        // Tasks due today (target = how many are due today)
+        supabase.from("tasks").select("id").eq("user_id", userId).gte("due_date", dayStart).lte("due_date", dayEnd),
+        // Tasks completed today (actual)
         supabase.from("tasks").select("id").eq("user_id", userId).eq("status", "completed").gte("completed_at", dayStart).lte("completed_at", dayEnd),
-        // Upcoming appointments today
-        supabase.from("appointments").select("id").eq("user_id", userId).gte("appointment_date", dayStart).lte("appointment_date", dayEnd),
-        // Daily appointments completed today
-        supabase.from("appointments").select("id").eq("user_id", userId).eq("status", "completed").gte("updated_at", dayStart).lte("updated_at", dayEnd),
+        // All active leads for this user (non-archived)
+        supabase.from("leads").select("id").eq("user_id", userId).eq("is_archived", false),
+        // All call logs for this user's leads (to determine contacted)
+        supabase.from("call_logs").select("lead_id").eq("user_id", userId),
+        // All SMS logs for this user's leads (to determine contacted)
+        supabase.from("sms_logs").select("lead_id").eq("user_id", userId),
         // Weekly new leads
         supabase.from("leads").select("id, pipeline_stage").eq("user_id", userId).gte("created_at", weekStart).lte("created_at", weekEnd),
         // Weekly appointments (all)
         supabase.from("appointments").select("id, appointment_type").eq("user_id", userId).gte("appointment_date", weekStart).lte("appointment_date", weekEnd),
-        // Weekly deals (offers submitted - lead_deals)
+        // Weekly deals (offers submitted)
         supabase.from("lead_deals").select("id, pipeline_stage, status").eq("created_by", userId).gte("created_at", weekStart).lte("created_at", weekEnd),
         // Monthly closed deals
         supabase.from("lead_deals").select("id, status, close_date").eq("created_by", userId).eq("status", "won").gte("close_date", monthStart).lte("close_date", monthEnd),
@@ -111,14 +116,23 @@ export const AgentKPIPanel = () => {
       ]);
 
       const calls = callsRes.data || [];
-      const tasks = tasksRes.data || [];
-      const upcomingAppts = upcomingApptsRes.data || [];
-      const dailyAppts = dailyApptsRes.data || [];
+      const tasksDueToday = tasksDueTodayRes.data || [];
+      const tasksCompletedToday = tasksCompletedTodayRes.data || [];
+      const allLeads = allLeadsRes.data || [];
+      const callLogs = callLogsForLeadsRes.data || [];
+      const smsLogs = smsLogsForLeadsRes.data || [];
       const weeklyLeads = weeklyLeadsRes.data || [];
       const weeklyAppts = weeklyApptsRes.data || [];
       const weeklyDeals = weeklyDealsRes.data || [];
       const monthlyDeals = monthlyDealsRes.data || [];
       const commissions = commissionRes.data || [];
+
+      // Calculate contacted leads: leads that have at least one call or SMS
+      const contactedLeadIds = new Set([
+        ...callLogs.map((c: any) => c.lead_id),
+        ...smsLogs.map((s: any) => s.lead_id),
+      ]);
+      const contactedLeads = allLeads.filter((l: any) => contactedLeadIds.has(l.id)).length;
 
       const qualifiedLeads = weeklyLeads.filter((l: any) => l.pipeline_stage !== "New Lead");
       const weeklyShowings = weeklyAppts.filter((a: any) => a.appointment_type?.toLowerCase().includes("showing"));
@@ -127,9 +141,10 @@ export const AgentKPIPanel = () => {
 
       setMetrics({
         dailyCalls: calls.length,
-        dailyTasks: tasks.length,
-        dailyUpcomingAppointments: upcomingAppts.length,
-        dailyAppointments: dailyAppts.length,
+        dailyTasksCompleted: tasksCompletedToday.length,
+        dailyTasksDueToday: tasksDueToday.length,
+        contactedLeads,
+        totalLeads: allLeads.length,
         weeklyNewLeads: weeklyLeads.length,
         weeklyQualified: qualifiedLeads.length,
         weeklyAppointments: weeklyAppts.length,
@@ -147,9 +162,8 @@ export const AgentKPIPanel = () => {
 
   const dailyMetrics: KPIMetric[] = [
     { key: "daily_calls", label: "Outbound Calls", actual: metrics.dailyCalls, target: getTarget("daily_calls"), icon: <Phone className="h-4 w-4 text-primary" /> },
-    { key: "daily_tasks", label: "Daily Tasks", actual: metrics.dailyTasks, target: getTarget("daily_follow_ups"), icon: <Target className="h-4 w-4 text-warning" /> },
-    { key: "daily_upcoming_appointments", label: "Upcoming Appointments", actual: metrics.dailyUpcomingAppointments, target: getTarget("daily_appointments"), icon: <Calendar className="h-4 w-4 text-info" /> },
-    { key: "daily_appointments", label: "Appointments Set", actual: metrics.dailyAppointments, target: getTarget("daily_appointments"), icon: <Calendar className="h-4 w-4 text-success" /> },
+    { key: "daily_tasks", label: "Today's Focus", actual: metrics.dailyTasksCompleted, target: metrics.dailyTasksDueToday || 0, icon: <Target className="h-4 w-4 text-warning" /> },
+    { key: "leads_contacted", label: "Leads Contacted", actual: metrics.contactedLeads, target: metrics.totalLeads, icon: <UserCheck className="h-4 w-4 text-success" /> },
   ];
 
   const weeklyMetrics: KPIMetric[] = [
