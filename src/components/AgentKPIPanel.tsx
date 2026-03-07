@@ -90,20 +90,24 @@ export const AgentKPIPanel = () => {
     const monthEnd = endOfMonth(now).toISOString();
 
     const fetchMetrics = async () => {
-      const [callsRes, tasksRes, upcomingApptsRes, dailyApptsRes, weeklyLeadsRes, weeklyApptsRes, weeklyDealsRes, monthlyDealsRes, commissionRes] = await Promise.all([
+      const [callsRes, tasksDueTodayRes, tasksCompletedTodayRes, allLeadsRes, callLogsForLeadsRes, smsLogsForLeadsRes, weeklyLeadsRes, weeklyApptsRes, weeklyDealsRes, monthlyDealsRes, commissionRes] = await Promise.all([
         // Daily calls
         supabase.from("call_logs").select("id").eq("user_id", userId).gte("created_at", dayStart).lte("created_at", dayEnd),
-        // Daily tasks completed today
+        // Tasks due today (target = how many are due today)
+        supabase.from("tasks").select("id").eq("user_id", userId).gte("due_date", dayStart).lte("due_date", dayEnd),
+        // Tasks completed today (actual)
         supabase.from("tasks").select("id").eq("user_id", userId).eq("status", "completed").gte("completed_at", dayStart).lte("completed_at", dayEnd),
-        // Upcoming appointments today
-        supabase.from("appointments").select("id").eq("user_id", userId).gte("appointment_date", dayStart).lte("appointment_date", dayEnd),
-        // Daily appointments completed today
-        supabase.from("appointments").select("id").eq("user_id", userId).eq("status", "completed").gte("updated_at", dayStart).lte("updated_at", dayEnd),
+        // All active leads for this user (non-archived)
+        supabase.from("leads").select("id").eq("user_id", userId).eq("is_archived", false),
+        // All call logs for this user's leads (to determine contacted)
+        supabase.from("call_logs").select("lead_id").eq("user_id", userId),
+        // All SMS logs for this user's leads (to determine contacted)
+        supabase.from("sms_logs").select("lead_id").eq("user_id", userId),
         // Weekly new leads
         supabase.from("leads").select("id, pipeline_stage").eq("user_id", userId).gte("created_at", weekStart).lte("created_at", weekEnd),
         // Weekly appointments (all)
         supabase.from("appointments").select("id, appointment_type").eq("user_id", userId).gte("appointment_date", weekStart).lte("appointment_date", weekEnd),
-        // Weekly deals (offers submitted - lead_deals)
+        // Weekly deals (offers submitted)
         supabase.from("lead_deals").select("id, pipeline_stage, status").eq("created_by", userId).gte("created_at", weekStart).lte("created_at", weekEnd),
         // Monthly closed deals
         supabase.from("lead_deals").select("id, status, close_date").eq("created_by", userId).eq("status", "won").gte("close_date", monthStart).lte("close_date", monthEnd),
@@ -112,14 +116,23 @@ export const AgentKPIPanel = () => {
       ]);
 
       const calls = callsRes.data || [];
-      const tasks = tasksRes.data || [];
-      const upcomingAppts = upcomingApptsRes.data || [];
-      const dailyAppts = dailyApptsRes.data || [];
+      const tasksDueToday = tasksDueTodayRes.data || [];
+      const tasksCompletedToday = tasksCompletedTodayRes.data || [];
+      const allLeads = allLeadsRes.data || [];
+      const callLogs = callLogsForLeadsRes.data || [];
+      const smsLogs = smsLogsForLeadsRes.data || [];
       const weeklyLeads = weeklyLeadsRes.data || [];
       const weeklyAppts = weeklyApptsRes.data || [];
       const weeklyDeals = weeklyDealsRes.data || [];
       const monthlyDeals = monthlyDealsRes.data || [];
       const commissions = commissionRes.data || [];
+
+      // Calculate contacted leads: leads that have at least one call or SMS
+      const contactedLeadIds = new Set([
+        ...callLogs.map((c: any) => c.lead_id),
+        ...smsLogs.map((s: any) => s.lead_id),
+      ]);
+      const contactedLeads = allLeads.filter((l: any) => contactedLeadIds.has(l.id)).length;
 
       const qualifiedLeads = weeklyLeads.filter((l: any) => l.pipeline_stage !== "New Lead");
       const weeklyShowings = weeklyAppts.filter((a: any) => a.appointment_type?.toLowerCase().includes("showing"));
@@ -128,9 +141,10 @@ export const AgentKPIPanel = () => {
 
       setMetrics({
         dailyCalls: calls.length,
-        dailyTasks: tasks.length,
-        dailyUpcomingAppointments: upcomingAppts.length,
-        dailyAppointments: dailyAppts.length,
+        dailyTasksCompleted: tasksCompletedToday.length,
+        dailyTasksDueToday: tasksDueToday.length,
+        contactedLeads,
+        totalLeads: allLeads.length,
         weeklyNewLeads: weeklyLeads.length,
         weeklyQualified: qualifiedLeads.length,
         weeklyAppointments: weeklyAppts.length,
