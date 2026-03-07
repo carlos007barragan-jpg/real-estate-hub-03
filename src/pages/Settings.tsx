@@ -149,6 +149,12 @@ const Settings = () => {
           </TabsContent>
         )}
 
+        {isSupremeAdmin && (
+          <TabsContent value="performance">
+            <PerformanceStandardsManager />
+          </TabsContent>
+        )}
+
         <TabsContent value="notifications">
           <Card className="p-6">
             <h2 className="text-xl font-semibold text-foreground mb-6">Notification Settings</h2>
