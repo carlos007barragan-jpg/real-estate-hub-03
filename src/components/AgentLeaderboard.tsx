@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePerformanceStandards } from "@/hooks/usePerformanceStandards";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
-import { Trophy, Medal, Award } from "lucide-react";
+import { Trophy, Medal, Award, ChevronDown } from "lucide-react";
 
 interface AgentScore {
   userId: string;
@@ -28,7 +29,7 @@ const getScoreBadge = (score: number) => {
 const getRankIcon = (rank: number) => {
   if (rank === 1) return <Trophy className="h-5 w-5 text-warning" />;
   if (rank === 2) return <Medal className="h-5 w-5 text-muted-foreground" />;
-  if (rank === 3) return <Award className="h-5 w-5 text-amber-600" />;
+  if (rank === 3) return <Award className="h-5 w-5 text-warning/70" />;
   return <span className="text-sm font-bold text-muted-foreground w-5 text-center">{rank}</span>;
 };
 
@@ -37,6 +38,7 @@ export const AgentLeaderboard = () => {
   const { getTarget } = usePerformanceStandards();
   const [agents, setAgents] = useState<AgentScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -159,41 +161,45 @@ export const AgentLeaderboard = () => {
   if (agents.length === 0) return null;
 
   return (
-    <Card className="p-6 mb-8">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-warning" />
-          <h2 className="text-xl font-semibold text-foreground">Agent Leaderboard</h2>
-        </div>
-        <Badge variant="secondary" className="text-xs">Weekly Score</Badge>
-      </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">Rank</TableHead>
-            <TableHead>Agent</TableHead>
-            <TableHead className="text-right">Activity (40%)</TableHead>
-            <TableHead className="text-right">Pipeline (30%)</TableHead>
-            <TableHead className="text-right">Closings (30%)</TableHead>
-            <TableHead className="text-right">Total Score</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {agents.map((agent) => (
-            <TableRow key={agent.userId}>
-              <TableCell>{getRankIcon(agent.rank)}</TableCell>
-              <TableCell className="font-medium">{agent.name}</TableCell>
-              <TableCell className="text-right">{Math.round(agent.activityScore)}%</TableCell>
-              <TableCell className="text-right">{Math.round(agent.pipelineScore)}%</TableCell>
-              <TableCell className="text-right">{Math.round(agent.closingsScore)}%</TableCell>
-              <TableCell className="text-right font-bold">{Math.round(agent.totalScore)}%</TableCell>
-              <TableCell>{getScoreBadge(Math.round(agent.totalScore))}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
+    <Collapsible open={open} onOpenChange={setOpen} className="mb-8">
+      <Card className="p-6">
+        <CollapsibleTrigger className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-warning" />
+            <h2 className="text-xl font-semibold text-foreground">Agent Leaderboard</h2>
+            <Badge variant="secondary" className="text-xs">Weekly Score</Badge>
+          </div>
+          <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-4">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">Rank</TableHead>
+                <TableHead>Agent</TableHead>
+                <TableHead className="text-right">Activity (40%)</TableHead>
+                <TableHead className="text-right">Pipeline (30%)</TableHead>
+                <TableHead className="text-right">Closings (30%)</TableHead>
+                <TableHead className="text-right">Total Score</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {agents.map((agent) => (
+                <TableRow key={agent.userId}>
+                  <TableCell>{getRankIcon(agent.rank)}</TableCell>
+                  <TableCell className="font-medium">{agent.name}</TableCell>
+                  <TableCell className="text-right">{Math.round(agent.activityScore)}%</TableCell>
+                  <TableCell className="text-right">{Math.round(agent.pipelineScore)}%</TableCell>
+                  <TableCell className="text-right">{Math.round(agent.closingsScore)}%</TableCell>
+                  <TableCell className="text-right font-bold">{Math.round(agent.totalScore)}%</TableCell>
+                  <TableCell>{getScoreBadge(Math.round(agent.totalScore))}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 };

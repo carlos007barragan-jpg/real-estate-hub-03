@@ -1091,12 +1091,6 @@ const Dashboard = () => {
         <p className="text-muted-foreground mt-1">Overview of your team's performance</p>
       </div>
 
-      {/* Agent KPI Panel - visible to all */}
-      <AgentKPIPanel />
-
-      {/* Agent Leaderboard - Admin/Supreme Admin only */}
-      {(role === 'supreme_admin' || role === 'admin') && <AgentLeaderboard />}
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <Card className="p-6">
@@ -1182,6 +1176,11 @@ const Dashboard = () => {
         </Card>
       </div>
 
+      {/* Agent KPI Panel - visible to all, after stats grid */}
+      <AgentKPIPanel />
+
+      {/* Agent Leaderboard - Admin/Supreme Admin only */}
+      {(role === 'supreme_admin' || role === 'admin') && <AgentLeaderboard />}
 
       {/* Past Due Tasks - Only current user's own */}
       {pastDueTasks.length > 0 && (
