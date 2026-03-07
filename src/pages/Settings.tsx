@@ -67,6 +67,7 @@ const Settings = () => {
           {isAdmin && <TabsTrigger value="contact-fields">Contact Form</TabsTrigger>}
           {isAdmin && <TabsTrigger value="public-page">Public Page</TabsTrigger>}
           {isAdmin && <TabsTrigger value="api-keys">API Keys</TabsTrigger>}
+          {isSupremeAdmin && <TabsTrigger value="performance">Performance</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           {isAdmin && <TabsTrigger value="team">Team</TabsTrigger>}
         </TabsList>
