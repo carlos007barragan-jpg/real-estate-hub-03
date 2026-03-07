@@ -65,8 +65,8 @@ export const AgentKPIPanel = () => {
   const [monthlyOpen, setMonthlyOpen] = useState(false);
   const [metrics, setMetrics] = useState({
     dailyCalls: 0,
-    dailyConversations: 0,
-    dailyFollowUps: 0,
+    dailyTasks: 0,
+    dailyUpcomingAppointments: 0,
     dailyAppointments: 0,
     weeklyNewLeads: 0,
     weeklyQualified: 0,
