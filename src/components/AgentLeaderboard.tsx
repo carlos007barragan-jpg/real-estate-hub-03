@@ -38,6 +38,7 @@ export const AgentLeaderboard = () => {
   const { getTarget } = usePerformanceStandards();
   const [agents, setAgents] = useState<AgentScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!session?.user) return;
