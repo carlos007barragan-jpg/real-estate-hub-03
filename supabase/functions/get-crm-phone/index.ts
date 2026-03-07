@@ -13,22 +13,23 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
+      console.error('No auth header found');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    // Use service role to validate the user's JWT
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error } = await supabase.auth.getUser(token);
+
     if (error || !user) {
-      console.error('Auth validation failed:', error);
+      console.error('Auth validation failed:', error?.message);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
     }
 
     const phoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER') || null;
-    console.log('Returning phone number for user:', user.id, 'phone:', phoneNumber ? 'configured' : 'not set');
+    console.log('Returning phone for user:', user.id, 'configured:', !!phoneNumber);
 
     return new Response(JSON.stringify({ phone_number: phoneNumber }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
