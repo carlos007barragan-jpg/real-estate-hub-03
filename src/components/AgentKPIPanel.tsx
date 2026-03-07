@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Phone, MessageSquare, Calendar, Target, TrendingUp, DollarSign } from "lucide-react";
+import { ChevronDown, Phone, MessageSquare, Calendar, Target, TrendingUp, DollarSign, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePerformanceStandards } from "@/hooks/usePerformanceStandards";
