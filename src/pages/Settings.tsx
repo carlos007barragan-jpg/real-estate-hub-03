@@ -72,6 +72,7 @@ const Settings = () => {
 
         <TabsContent value="general">
           <div className="space-y-6">
+            {isAdmin && <CrmPhoneDisplay />}
             <AgentPhoneSetup />
             <RoundRobinSettings />
             
