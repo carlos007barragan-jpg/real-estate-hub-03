@@ -5,6 +5,7 @@ import { CompleteProfileModal } from "./CompleteProfileModal";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  loginPath?: string;
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
