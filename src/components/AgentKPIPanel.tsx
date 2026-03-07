@@ -92,12 +92,12 @@ export const AgentKPIPanel = () => {
       const [callsRes, tasksRes, upcomingApptsRes, dailyApptsRes, weeklyLeadsRes, weeklyApptsRes, weeklyDealsRes, monthlyDealsRes, commissionRes] = await Promise.all([
         // Daily calls
         supabase.from("call_logs").select("id").eq("user_id", userId).gte("created_at", dayStart).lte("created_at", dayEnd),
-        // Daily tasks (due today or completed today)
-        supabase.from("tasks").select("id, status, due_date").eq("user_id", userId).gte("due_date", dayStart).lte("due_date", dayEnd),
+        // Daily tasks completed today
+        supabase.from("tasks").select("id").eq("user_id", userId).eq("status", "completed").gte("completed_at", dayStart).lte("completed_at", dayEnd),
         // Upcoming appointments today
         supabase.from("appointments").select("id").eq("user_id", userId).gte("appointment_date", dayStart).lte("appointment_date", dayEnd),
-        // Daily appointments set (created today)
-        supabase.from("appointments").select("id").eq("user_id", userId).gte("created_at", dayStart).lte("created_at", dayEnd),
+        // Daily appointments completed today
+        supabase.from("appointments").select("id").eq("user_id", userId).eq("status", "completed").gte("updated_at", dayStart).lte("updated_at", dayEnd),
         // Weekly new leads
         supabase.from("leads").select("id, pipeline_stage").eq("user_id", userId).gte("created_at", weekStart).lte("created_at", weekEnd),
         // Weekly appointments (all)
