@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.translate-transcription]
 verify_jwt = false
+
+[functions.get-crm-phone]
+verify_jwt = false
