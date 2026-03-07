@@ -89,12 +89,14 @@ export const AgentKPIPanel = () => {
     const monthEnd = endOfMonth(now).toISOString();
 
     const fetchMetrics = async () => {
-      const [callsRes, followUpsRes, dailyApptsRes, weeklyLeadsRes, weeklyApptsRes, weeklyDealsRes, monthlyDealsRes, commissionRes] = await Promise.all([
+      const [callsRes, tasksRes, upcomingApptsRes, dailyApptsRes, weeklyLeadsRes, weeklyApptsRes, weeklyDealsRes, monthlyDealsRes, commissionRes] = await Promise.all([
         // Daily calls
-        supabase.from("call_logs").select("id, duration").eq("user_id", userId).gte("created_at", dayStart).lte("created_at", dayEnd),
-        // Daily follow-ups
-        supabase.from("follow_ups").select("id").eq("user_id", userId).gte("created_at", dayStart).lte("created_at", dayEnd),
-        // Daily appointments
+        supabase.from("call_logs").select("id").eq("user_id", userId).gte("created_at", dayStart).lte("created_at", dayEnd),
+        // Daily tasks (due today or completed today)
+        supabase.from("tasks").select("id, status, due_date").eq("user_id", userId).gte("due_date", dayStart).lte("due_date", dayEnd),
+        // Upcoming appointments today
+        supabase.from("appointments").select("id").eq("user_id", userId).gte("appointment_date", dayStart).lte("appointment_date", dayEnd),
+        // Daily appointments set (created today)
         supabase.from("appointments").select("id").eq("user_id", userId).gte("created_at", dayStart).lte("created_at", dayEnd),
         // Weekly new leads
         supabase.from("leads").select("id, pipeline_stage").eq("user_id", userId).gte("created_at", weekStart).lte("created_at", weekEnd),
@@ -109,8 +111,8 @@ export const AgentKPIPanel = () => {
       ]);
 
       const calls = callsRes.data || [];
-      const conversations = calls.filter((c: any) => (c.duration || 0) >= 60);
-      const followUps = followUpsRes.data || [];
+      const tasks = tasksRes.data || [];
+      const upcomingAppts = upcomingApptsRes.data || [];
       const dailyAppts = dailyApptsRes.data || [];
       const weeklyLeads = weeklyLeadsRes.data || [];
       const weeklyAppts = weeklyApptsRes.data || [];
@@ -125,8 +127,8 @@ export const AgentKPIPanel = () => {
 
       setMetrics({
         dailyCalls: calls.length,
-        dailyConversations: conversations.length,
-        dailyFollowUps: followUps.length,
+        dailyTasks: tasks.length,
+        dailyUpcomingAppointments: upcomingAppts.length,
         dailyAppointments: dailyAppts.length,
         weeklyNewLeads: weeklyLeads.length,
         weeklyQualified: qualifiedLeads.length,
