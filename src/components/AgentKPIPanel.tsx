@@ -59,6 +59,7 @@ const KPIRow = ({ metric }: { metric: KPIMetric }) => {
 export const AgentKPIPanel = () => {
   const { session } = useAuth();
   const { getTarget, loading: standardsLoading } = usePerformanceStandards();
+  const [panelOpen, setPanelOpen] = useState(false);
   const [dailyOpen, setDailyOpen] = useState(true);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [monthlyOpen, setMonthlyOpen] = useState(false);
