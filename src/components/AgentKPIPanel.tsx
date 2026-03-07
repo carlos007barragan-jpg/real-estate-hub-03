@@ -221,7 +221,9 @@ export const AgentKPIPanel = () => {
           </div>
         </CollapsibleContent>
       </Collapsible>
-    </Card>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 };
 
