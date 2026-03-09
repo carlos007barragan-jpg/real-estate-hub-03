@@ -430,17 +430,32 @@ export default function NewLeads() {
 
         <TabsContent value="calls" className="space-y-6 mt-4">
           <div className="grid gap-4 md:grid-cols-3">
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground">Total Inbound Calls</div>
-              <div className="text-3xl font-bold mt-2">{inboundStats.total}</div>
+            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('All Inbound Calls', allInboundLeads)}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Total Inbound Calls</div>
+                  <div className="text-3xl font-bold mt-2">{inboundStats.total}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground">Answered</div>
-              <div className="text-3xl font-bold mt-2 text-success">{inboundStats.answered}</div>
+            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Answered Calls', allInboundLeads.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded'))}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Answered</div>
+                  <div className="text-3xl font-bold mt-2 text-success">{inboundStats.answered}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground">Unanswered</div>
-              <div className="text-3xl font-bold mt-2 text-warning">{inboundStats.unanswered}</div>
+            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Unanswered Calls', allInboundLeads.filter(l => l.assigned_to === 'unassigned'))}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Unanswered</div>
+                  <div className="text-3xl font-bold mt-2 text-warning">{inboundStats.unanswered}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
           </div>
 
