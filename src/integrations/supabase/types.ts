@@ -972,6 +972,8 @@ export type Database = {
           close_date: string | null
           commercial_property_type: string | null
           commission: string | null
+          consult_date: string | null
+          consult_notes: string | null
           contract_price: string | null
           created_at: string
           current_address: string | null
@@ -982,6 +984,7 @@ export type Database = {
           estimated_credit_score: string | null
           financing_type: string | null
           id: string
+          initial_consult_completed: boolean
           inventory_id: string | null
           investor_deals: Json | null
           is_archived: boolean
@@ -1047,6 +1050,8 @@ export type Database = {
           close_date?: string | null
           commercial_property_type?: string | null
           commission?: string | null
+          consult_date?: string | null
+          consult_notes?: string | null
           contract_price?: string | null
           created_at?: string
           current_address?: string | null
@@ -1057,6 +1062,7 @@ export type Database = {
           estimated_credit_score?: string | null
           financing_type?: string | null
           id?: string
+          initial_consult_completed?: boolean
           inventory_id?: string | null
           investor_deals?: Json | null
           is_archived?: boolean
@@ -1122,6 +1128,8 @@ export type Database = {
           close_date?: string | null
           commercial_property_type?: string | null
           commission?: string | null
+          consult_date?: string | null
+          consult_notes?: string | null
           contract_price?: string | null
           created_at?: string
           current_address?: string | null
@@ -1132,6 +1140,7 @@ export type Database = {
           estimated_credit_score?: string | null
           financing_type?: string | null
           id?: string
+          initial_consult_completed?: boolean
           inventory_id?: string | null
           investor_deals?: Json | null
           is_archived?: boolean
