@@ -121,27 +121,32 @@ export default function NewLeads() {
         property_of_interest: l.property_of_interest,
       })));
 
-      // Inbound call stats (org-wide)
+      // Inbound call stats (org-wide) - fetch with details for history
       const { data: allInbound } = await supabase
         .from('leads')
-        .select('id, assigned_to')
+        .select('id, name, phone, email, assigned_to, created_at, source')
         .in('user_id', orgUserIds)
-        .eq('is_inbound_call', true);
+        .eq('is_inbound_call', true)
+        .order('created_at', { ascending: false });
 
       const inTotal = allInbound?.length || 0;
-      const inAnswered = allInbound?.filter(l => l.assigned_to !== 'unassigned').length || 0;
-      setInboundStats({ total: inTotal, answered: inAnswered, unanswered: inTotal - inAnswered });
+      const inAnswered = allInbound?.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded').length || 0;
+      const inDiscarded = allInbound?.filter(l => l.assigned_to === 'discarded').length || 0;
+      setInboundStats({ total: inTotal, answered: inAnswered, unanswered: inTotal - inAnswered - inDiscarded });
+      setAllInboundLeads(allInbound || []);
 
-      // Website lead stats (org-wide)
+      // Website lead stats (org-wide) - fetch with details for history
       const { data: allWebsite } = await supabase
         .from('leads')
-        .select('id, assigned_to')
+        .select('id, name, phone, email, assigned_to, created_at, source')
         .in('user_id', orgUserIds)
-        .eq('source', 'Online Lead - Website');
+        .eq('source', 'Online Lead - Website')
+        .order('created_at', { ascending: false });
 
       const webTotal = allWebsite?.length || 0;
-      const webAssigned = allWebsite?.filter(l => l.assigned_to !== 'unassigned').length || 0;
+      const webAssigned = allWebsite?.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded').length || 0;
       setWebsiteStats({ total: webTotal, assigned: webAssigned, unassigned: webTotal - webAssigned });
+      setAllWebsiteLeads(allWebsite || []);
 
     } catch (error: any) {
       console.error('Error fetching new leads:', error);
