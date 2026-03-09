@@ -277,10 +277,13 @@ export default function NewLeads() {
             </div>
           )}
 
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 flex-wrap">
             <Button onClick={() => handleAssignToMe(lead.id)} variant="default">Assign to Me</Button>
             <ForwardLeadDialog leadId={lead.id} onSuccess={fetchNewLeads} />
             <Button onClick={() => navigate(`/leads/${lead.id}`)} variant="outline">View Details</Button>
+            <Button onClick={() => handleDiscard(lead.id)} variant="destructive" size="sm" className="gap-1">
+              <Trash2 className="w-4 h-4" /> Discard
+            </Button>
           </div>
         </div>
 
