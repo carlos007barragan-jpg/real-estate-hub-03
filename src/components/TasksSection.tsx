@@ -8,8 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MultiAgentSelect } from "@/components/MultiAgentSelect";
-import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, Save, ChevronDown, ChevronRight, AlertTriangle, Clock, Users, Zap } from "lucide-react";
+import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, Save, ChevronDown, ChevronRight, AlertTriangle, Clock, Users, Zap, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getConsultConfirmedTasks, getConsultNotConfirmedTask, insertBuyerTasks } from "@/lib/buyerWorkflowTasks";
 
 const QUICK_TASK_PRESETS = [
   { label: "Call Back", title: "Call back lead", description: "Follow up with a return phone call" },
