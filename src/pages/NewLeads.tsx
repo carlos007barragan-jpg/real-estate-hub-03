@@ -217,6 +217,22 @@ export default function NewLeads() {
     }
   };
 
+  const handleDiscard = async (leadId: string) => {
+    try {
+      const { error } = await supabase.from('leads').update({ assigned_to: 'discarded' }).eq('id', leadId);
+      if (error) throw error;
+      toast({ title: "Discarded", description: "Lead has been discarded" });
+      fetchNewLeads();
+    } catch (error: any) {
+      console.error('Error discarding lead:', error);
+      toast({ title: "Error", description: "Failed to discard lead", variant: "destructive" });
+    }
+  };
+
+  const openHistory = (title: string, leads: any[]) => {
+    setHistoryDialog({ open: true, title, leads });
+  };
+
   const renderLeadCard = (lead: NewLead, isWebsite: boolean) => (
     <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
       <div className="flex items-start justify-between">
