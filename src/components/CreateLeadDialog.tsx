@@ -399,6 +399,9 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         social_status: "",
       });
       setSelectedAgents([]);
+      setConsultCompleted(false);
+      setConsultDate("");
+      setConsultNotes("");
       setCustomFieldValues({});
       setOpen(false);
       onLeadCreated();
