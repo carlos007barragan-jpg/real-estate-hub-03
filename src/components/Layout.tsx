@@ -103,7 +103,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 key={item.title}
                 to={item.url}
                 className={({ isActive }) =>
-                  `inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                  `relative inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive
                       ? "bg-primary-foreground text-primary"
                       : "text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
@@ -112,6 +112,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               >
                 <item.icon className="h-4 w-4" />
                 <span>{item.title}</span>
+                {item.title === "New Leads" && newLeadsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                    {newLeadsCount > 99 ? "99+" : newLeadsCount}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
