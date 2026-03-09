@@ -333,21 +333,41 @@ export default function NewLeads() {
         <TabsContent value="all" className="space-y-6 mt-4">
           {/* Combined stats */}
           <div className="grid gap-4 md:grid-cols-4">
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground">Total Inbound Calls</div>
-              <div className="text-3xl font-bold mt-2">{inboundStats.total}</div>
+            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('All Inbound Calls', allInboundLeads)}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Total Inbound Calls</div>
+                  <div className="text-3xl font-bold mt-2">{inboundStats.total}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground">Calls Answered</div>
-              <div className="text-3xl font-bold mt-2 text-success">{inboundStats.answered}</div>
+            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Calls Answered', allInboundLeads.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded'))}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Calls Answered</div>
+                  <div className="text-3xl font-bold mt-2 text-success">{inboundStats.answered}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
-            <Card className="p-6 border-primary/20">
-              <div className="text-sm text-muted-foreground">Website Leads</div>
-              <div className="text-3xl font-bold mt-2">{websiteStats.total}</div>
+            <Card className="p-6 border-primary/20 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('All Website Leads', allWebsiteLeads)}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Website Leads</div>
+                  <div className="text-3xl font-bold mt-2">{websiteStats.total}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground">Website Unassigned</div>
-              <div className="text-3xl font-bold mt-2 text-warning">{websiteStats.unassigned}</div>
+            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Website Unassigned', allWebsiteLeads.filter(l => l.assigned_to === 'unassigned'))}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Website Unassigned</div>
+                  <div className="text-3xl font-bold mt-2 text-warning">{websiteStats.unassigned}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
           </div>
 
