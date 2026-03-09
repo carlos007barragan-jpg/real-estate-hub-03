@@ -72,6 +72,8 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
   const [overdueOpen, setOverdueOpen] = useState(true);
   const [pendingOpen, setPendingOpen] = useState(true);
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [consultDatePicker, setConsultDatePicker] = useState<string | null>(null); // taskId being confirmed
+  const [consultDateValue, setConsultDateValue] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
