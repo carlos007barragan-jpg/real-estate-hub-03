@@ -49,6 +49,7 @@ interface Task {
   completed_at?: string;
   created_at: string;
   user_id: string;
+  appointment_type?: string;
   assigneeNames?: string[];
   assigneeIds?: string[];
 }
