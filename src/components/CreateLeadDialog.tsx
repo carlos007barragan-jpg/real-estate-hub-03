@@ -358,9 +358,24 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         }
       }
 
+      // Auto-create buyer workflow tasks
+      if (isBuyerType && leadData) {
+        try {
+          const taskUserId = selectedAgents.length > 0 ? selectedAgents[0] : user.id;
+          const onboardingTasks = getBuyerOnboardingTasks(
+            consultCompleted,
+            consultCompleted && consultDate ? new Date(consultDate) : undefined
+          );
+          await insertBuyerTasks(leadData.id, taskUserId, onboardingTasks);
+        } catch (taskError) {
+          console.error("Error creating buyer workflow tasks:", taskError);
+          // Don't block lead creation for task errors
+        }
+      }
+
       toast({
         title: "Lead created!",
-        description: `${formData.name} has been added to your leads.`,
+        description: `${formData.name} has been added to your leads.${isBuyerType ? ' Buyer workflow tasks have been auto-generated.' : ''}`,
       });
 
       setFormData({
