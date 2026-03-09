@@ -48,6 +48,9 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [consultCompleted, setConsultCompleted] = useState(false);
+  const [consultDate, setConsultDate] = useState("");
+  const [consultNotes, setConsultNotes] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
