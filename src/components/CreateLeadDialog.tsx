@@ -21,8 +21,10 @@ import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { nameSchema, emailSchema, phoneSchema } from "@/lib/validation";
 import { MultiAgentSelect } from "@/components/MultiAgentSelect";
+import { getBuyerOnboardingTasks, insertBuyerTasks } from "@/lib/buyerWorkflowTasks";
 
 interface CustomField {
   id: string;
