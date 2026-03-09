@@ -21,8 +21,10 @@ import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { nameSchema, emailSchema, phoneSchema } from "@/lib/validation";
 import { MultiAgentSelect } from "@/components/MultiAgentSelect";
+import { getBuyerOnboardingTasks, insertBuyerTasks } from "@/lib/buyerWorkflowTasks";
 
 interface CustomField {
   id: string;
@@ -46,6 +48,9 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>({});
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [selectedAgents, setSelectedAgents] = useState<string[]>([]);
+  const [consultCompleted, setConsultCompleted] = useState(false);
+  const [consultDate, setConsultDate] = useState("");
+  const [consultNotes, setConsultNotes] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -134,6 +139,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
       console.error("Error fetching transaction types:", error);
     }
   };
+
 
 
   const renderCustomField = (field: CustomField) => {
@@ -286,6 +292,8 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         }
       }
 
+      const isBuyerType = formData.lead_temperature?.toLowerCase().includes("buyer");
+
       const { data: leadData, error } = await supabase.from("leads").insert({
         user_id: user.id,
         name: formData.name,
@@ -312,7 +320,10 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         preferred_contact_method: formData.preferred_contact_method,
         social_status: formData.social_status || null,
         custom_data: customFieldValues,
-      }).select().single();
+        initial_consult_completed: isBuyerType ? consultCompleted : false,
+        consult_date: isBuyerType && consultCompleted && consultDate ? consultDate : null,
+        consult_notes: isBuyerType && consultCompleted && consultNotes ? consultNotes : null,
+      } as any).select().single();
 
       if (error) throw error;
 
@@ -348,9 +359,24 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         }
       }
 
+      // Auto-create buyer workflow tasks
+      if (isBuyerType && leadData) {
+        try {
+          const taskUserId = selectedAgents.length > 0 ? selectedAgents[0] : user.id;
+          const onboardingTasks = getBuyerOnboardingTasks(
+            consultCompleted,
+            consultCompleted && consultDate ? new Date(consultDate) : undefined
+          );
+          await insertBuyerTasks(leadData.id, taskUserId, onboardingTasks);
+        } catch (taskError) {
+          console.error("Error creating buyer workflow tasks:", taskError);
+          // Don't block lead creation for task errors
+        }
+      }
+
       toast({
         title: "Lead created!",
-        description: `${formData.name} has been added to your leads.`,
+        description: `${formData.name} has been added to your leads.${isBuyerType ? ' Buyer workflow tasks have been auto-generated.' : ''}`,
       });
 
       setFormData({
@@ -374,6 +400,9 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         social_status: "",
       });
       setSelectedAgents([]);
+      setConsultCompleted(false);
+      setConsultDate("");
+      setConsultNotes("");
       setCustomFieldValues({});
       setOpen(false);
       onLeadCreated();
@@ -541,6 +570,50 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
               />
             </div>
           </div>
+
+          {/* Buyer Consult Toggle - only show for buyer transaction types */}
+          {formData.lead_temperature?.toLowerCase().includes("buyer") && (
+            <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="consult-toggle" className="text-sm font-medium">
+                    Buyer Consult Already Completed?
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Toggle on if an in-person consultation has already occurred (walk-in, referral, etc.)
+                  </p>
+                </div>
+                <Switch
+                  id="consult-toggle"
+                  checked={consultCompleted}
+                  onCheckedChange={setConsultCompleted}
+                />
+              </div>
+              {consultCompleted && (
+                <div className="space-y-3 pt-2 border-t border-primary/10">
+                  <div className="space-y-2">
+                    <Label htmlFor="consult_date">Consult Date</Label>
+                    <Input
+                      id="consult_date"
+                      type="datetime-local"
+                      value={consultDate}
+                      onChange={(e) => setConsultDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="consult_notes">Consult Notes</Label>
+                    <Textarea
+                      id="consult_notes"
+                      value={consultNotes}
+                      onChange={(e) => setConsultNotes(e.target.value)}
+                      placeholder="Key takeaways from the consultation..."
+                      className="min-h-[80px]"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

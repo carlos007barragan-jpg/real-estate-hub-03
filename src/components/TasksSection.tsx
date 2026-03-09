@@ -8,8 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MultiAgentSelect } from "@/components/MultiAgentSelect";
-import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, Save, ChevronDown, ChevronRight, AlertTriangle, Clock, Users, Zap } from "lucide-react";
+import { PlusCircle, Calendar, CheckCircle2, Trash2, Pencil, Save, ChevronDown, ChevronRight, AlertTriangle, Clock, Users, Zap, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getConsultConfirmedTasks, getConsultNotConfirmedTask, insertBuyerTasks } from "@/lib/buyerWorkflowTasks";
 
 const QUICK_TASK_PRESETS = [
   { label: "Call Back", title: "Call back lead", description: "Follow up with a return phone call" },
@@ -48,6 +49,7 @@ interface Task {
   completed_at?: string;
   created_at: string;
   user_id: string;
+  appointment_type?: string;
   assigneeNames?: string[];
   assigneeIds?: string[];
 }
@@ -71,6 +73,8 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
   const [overdueOpen, setOverdueOpen] = useState(true);
   const [pendingOpen, setPendingOpen] = useState(true);
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [consultDatePicker, setConsultDatePicker] = useState<string | null>(null); // taskId being confirmed
+  const [consultDateValue, setConsultDateValue] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -234,6 +238,73 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
     return new Date(task.due_date) < new Date();
   };
 
+  const isConsultSchedulingTask = (task: Task) => {
+    return task.appointment_type === "buyer_consult_scheduling" && task.status !== "completed";
+  };
+
+  const handleConsultConfirmed = async (taskId: string) => {
+    if (!consultDateValue) {
+      toast({ title: "Error", description: "Please select a consult date", variant: "destructive" });
+      return;
+    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Get the lead_id from the task
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) throw new Error("Task not found");
+
+      // Update the lead's consult_date
+      await supabase.from("leads").update({
+        consult_date: consultDateValue,
+        initial_consult_completed: false, // will be completed after the consult
+      } as any).eq("id", leadId);
+
+      // Create reminder and post-consult tasks
+      const consultDate = new Date(consultDateValue);
+      const confirmTasks = getConsultConfirmedTasks(consultDate);
+      await insertBuyerTasks(leadId, task.user_id, confirmTasks);
+
+      // Mark current task as completed
+      await supabase.from("tasks").update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        description: (task.description || "") + `\n\n✅ Consult confirmed for ${new Date(consultDateValue).toLocaleString()}`,
+      }).eq("id", taskId);
+
+      setConsultDatePicker(null);
+      setConsultDateValue("");
+      fetchTasks();
+      toast({ title: "Consult confirmed!", description: "Reminder and follow-up tasks have been auto-created." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleConsultNotConfirmed = async (taskId: string) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) throw new Error("Task not found");
+
+      // Create re-attempt task
+      const retryTask = getConsultNotConfirmedTask();
+      await insertBuyerTasks(leadId, task.user_id, [retryTask]);
+
+      // Mark current task as completed with note
+      await supabase.from("tasks").update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        description: (task.description || "") + "\n\n❌ Consult not confirmed. Re-attempt task created.",
+      }).eq("id", taskId);
+
+      fetchTasks();
+      toast({ title: "Follow-up scheduled", description: "A re-attempt scheduling task has been created for tomorrow." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const isDueSoon = (task: Task) => {
     if (!task.due_date || task.status === "completed" || isOverdue(task)) return false;
     const due = new Date(task.due_date);
@@ -331,6 +402,45 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
                 </div>
               )}
             </div>
+            {/* Buyer Consult Confirmation Buttons */}
+            {isConsultSchedulingTask(task) && (
+              <div className="mt-2">
+                {consultDatePicker === task.id ? (
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                    <Input
+                      type="datetime-local"
+                      value={consultDateValue}
+                      onChange={(e) => setConsultDateValue(e.target.value)}
+                      className="text-xs h-8 flex-1"
+                    />
+                    <Button size="sm" className="h-8 text-xs gap-1" onClick={() => handleConsultConfirmed(task.id)}>
+                      <Check className="h-3 w-3" /> Save
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setConsultDatePicker(null); setConsultDateValue(""); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => setConsultDatePicker(task.id)}
+                    >
+                      <Check className="h-3 w-3" /> Confirmed
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                      onClick={() => handleConsultNotConfirmed(task.id)}
+                    >
+                      <X className="h-3 w-3" /> Not Confirmed
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="icon" onClick={() => startEditing(task)} className="h-7 w-7 text-muted-foreground hover:text-primary">
