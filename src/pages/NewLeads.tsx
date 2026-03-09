@@ -36,6 +36,9 @@ export default function NewLeads() {
   const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
   const [inboundStats, setInboundStats] = useState({ total: 0, answered: 0, unanswered: 0 });
   const [websiteStats, setWebsiteStats] = useState({ total: 0, assigned: 0, unassigned: 0 });
+  const [historyDialog, setHistoryDialog] = useState<{ open: boolean; title: string; leads: any[] }>({ open: false, title: '', leads: [] });
+  const [allInboundLeads, setAllInboundLeads] = useState<any[]>([]);
+  const [allWebsiteLeads, setAllWebsiteLeads] = useState<any[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
