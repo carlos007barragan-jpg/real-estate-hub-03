@@ -23,7 +23,54 @@ const settingsNavItem = { title: "Settings", url: "/settings", icon: Settings };
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, session } = useAuth();
+  const [newLeadsCount, setNewLeadsCount] = useState(0);
+
+  // Fetch count of unassigned new leads (inbound calls + website)
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const fetchNewLeadsCount = async () => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', session.user.id)
+        .single();
+
+      const orgId = profile?.organization_id;
+      let orgUserIds: string[] = [session.user.id];
+      if (orgId) {
+        const { data: orgProfiles } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('organization_id', orgId);
+        if (orgProfiles?.length) {
+          orgUserIds = orgProfiles.map(p => p.user_id);
+        }
+      }
+
+      const { count } = await supabase
+        .from('leads')
+        .select('id', { count: 'exact', head: true })
+        .in('user_id', orgUserIds)
+        .eq('assigned_to', 'unassigned')
+        .or('is_inbound_call.eq.true,source.eq.Online Lead - Website');
+
+      setNewLeadsCount(count || 0);
+    };
+
+    fetchNewLeadsCount();
+
+    // Subscribe to realtime changes on leads table
+    const channel = supabase
+      .channel('new-leads-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        fetchNewLeadsCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.user?.id]);
 
   const navItems = [
     ...baseNavItems,
