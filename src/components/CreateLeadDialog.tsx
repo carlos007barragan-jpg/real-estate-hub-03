@@ -140,49 +140,7 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
     }
   };
 
-          {/* Buyer Consult Toggle - only show for buyer transaction types */}
-          {formData.lead_temperature?.toLowerCase().includes("buyer") && (
-            <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="consult-toggle" className="text-sm font-medium">
-                    Buyer Consult Already Completed?
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Toggle on if an in-person consultation has already occurred (walk-in, referral, etc.)
-                  </p>
-                </div>
-                <Switch
-                  id="consult-toggle"
-                  checked={consultCompleted}
-                  onCheckedChange={setConsultCompleted}
-                />
-              </div>
-              {consultCompleted && (
-                <div className="space-y-3 pt-2 border-t border-primary/10">
-                  <div className="space-y-2">
-                    <Label htmlFor="consult_date">Consult Date</Label>
-                    <Input
-                      id="consult_date"
-                      type="datetime-local"
-                      value={consultDate}
-                      onChange={(e) => setConsultDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="consult_notes">Consult Notes</Label>
-                    <Textarea
-                      id="consult_notes"
-                      value={consultNotes}
-                      onChange={(e) => setConsultNotes(e.target.value)}
-                      placeholder="Key takeaways from the consultation..."
-                      className="min-h-[80px]"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+
 
   const renderCustomField = (field: CustomField) => {
     const value = customFieldValues[field.field_name] || "";
