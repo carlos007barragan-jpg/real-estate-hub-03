@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Building2, LayoutDashboard, Users, Layers, Phone, Settings, LogOut, PhoneIncoming, CalendarDays, Package, Shield } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,54 @@ const settingsNavItem = { title: "Settings", url: "/settings", icon: Settings };
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, session } = useAuth();
+  const [newLeadsCount, setNewLeadsCount] = useState(0);
+
+  // Fetch count of unassigned new leads (inbound calls + website)
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const fetchNewLeadsCount = async () => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('user_id', session.user.id)
+        .single();
+
+      const orgId = profile?.organization_id;
+      let orgUserIds: string[] = [session.user.id];
+      if (orgId) {
+        const { data: orgProfiles } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('organization_id', orgId);
+        if (orgProfiles?.length) {
+          orgUserIds = orgProfiles.map(p => p.user_id);
+        }
+      }
+
+      const { count } = await supabase
+        .from('leads')
+        .select('id', { count: 'exact', head: true })
+        .in('user_id', orgUserIds)
+        .eq('assigned_to', 'unassigned')
+        .or('is_inbound_call.eq.true,source.eq.Online Lead - Website');
+
+      setNewLeadsCount(count || 0);
+    };
+
+    fetchNewLeadsCount();
+
+    // Subscribe to realtime changes on leads table
+    const channel = supabase
+      .channel('new-leads-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        fetchNewLeadsCount();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.user?.id]);
 
   const navItems = [
     ...baseNavItems,
@@ -55,7 +103,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 key={item.title}
                 to={item.url}
                 className={({ isActive }) =>
-                  `inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                  `relative inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive
                       ? "bg-primary-foreground text-primary"
                       : "text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
@@ -64,6 +112,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               >
                 <item.icon className="h-4 w-4" />
                 <span>{item.title}</span>
+                {item.title === "New Leads" && newLeadsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                    {newLeadsCount > 99 ? "99+" : newLeadsCount}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -116,7 +169,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               key={item.title}
               to={item.url}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px] ${
+                `relative flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-[60px] ${
                   isActive
                     ? "text-primary"
                     : "text-muted-foreground"
@@ -125,6 +178,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
             >
               <item.icon className="h-5 w-5" />
               <span className="text-[10px] font-medium">{item.title}</span>
+              {item.title === "New Leads" && newLeadsCount > 0 && (
+                <span className="absolute top-0.5 right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
+                  {newLeadsCount > 99 ? "99+" : newLeadsCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </div>
