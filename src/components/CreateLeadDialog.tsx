@@ -291,6 +291,8 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         }
       }
 
+      const isBuyerType = formData.lead_temperature?.toLowerCase().includes("buyer");
+
       const { data: leadData, error } = await supabase.from("leads").insert({
         user_id: user.id,
         name: formData.name,
@@ -317,7 +319,10 @@ export const CreateLeadDialog = ({ onLeadCreated }: CreateLeadDialogProps) => {
         preferred_contact_method: formData.preferred_contact_method,
         social_status: formData.social_status || null,
         custom_data: customFieldValues,
-      }).select().single();
+        initial_consult_completed: isBuyerType ? consultCompleted : false,
+        consult_date: isBuyerType && consultCompleted && consultDate ? consultDate : null,
+        consult_notes: isBuyerType && consultCompleted && consultNotes ? consultNotes : null,
+      } as any).select().single();
 
       if (error) throw error;
 
