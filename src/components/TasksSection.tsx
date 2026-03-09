@@ -402,6 +402,45 @@ export const TasksSection = ({ leadId }: TasksSectionProps) => {
                 </div>
               )}
             </div>
+            {/* Buyer Consult Confirmation Buttons */}
+            {isConsultSchedulingTask(task) && (
+              <div className="mt-2">
+                {consultDatePicker === task.id ? (
+                  <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                    <Input
+                      type="datetime-local"
+                      value={consultDateValue}
+                      onChange={(e) => setConsultDateValue(e.target.value)}
+                      className="text-xs h-8 flex-1"
+                    />
+                    <Button size="sm" className="h-8 text-xs gap-1" onClick={() => handleConsultConfirmed(task.id)}>
+                      <Check className="h-3 w-3" /> Save
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => { setConsultDatePicker(null); setConsultDateValue(""); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => setConsultDatePicker(task.id)}
+                    >
+                      <Check className="h-3 w-3" /> Confirmed
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                      onClick={() => handleConsultNotConfirmed(task.id)}
+                    >
+                      <X className="h-3 w-3" /> Not Confirmed
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button variant="ghost" size="icon" onClick={() => startEditing(task)} className="h-7 w-7 text-muted-foreground hover:text-primary">
