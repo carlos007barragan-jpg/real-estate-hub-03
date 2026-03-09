@@ -387,17 +387,32 @@ export default function NewLeads() {
 
         <TabsContent value="website" className="space-y-6 mt-4">
           <div className="grid gap-4 md:grid-cols-3">
-            <Card className="p-6 border-primary/20">
-              <div className="text-sm text-muted-foreground">Total Website Leads</div>
-              <div className="text-3xl font-bold mt-2">{websiteStats.total}</div>
+            <Card className="p-6 border-primary/20 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('All Website Leads', allWebsiteLeads)}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Total Website Leads</div>
+                  <div className="text-3xl font-bold mt-2">{websiteStats.total}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground">Assigned</div>
-              <div className="text-3xl font-bold mt-2 text-success">{websiteStats.assigned}</div>
+            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Assigned Website Leads', allWebsiteLeads.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded'))}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Assigned</div>
+                  <div className="text-3xl font-bold mt-2 text-success">{websiteStats.assigned}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
-            <Card className="p-6">
-              <div className="text-sm text-muted-foreground">Unassigned</div>
-              <div className="text-3xl font-bold mt-2 text-warning">{websiteStats.unassigned}</div>
+            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Unassigned Website Leads', allWebsiteLeads.filter(l => l.assigned_to === 'unassigned'))}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-muted-foreground">Unassigned</div>
+                  <div className="text-3xl font-bold mt-2 text-warning">{websiteStats.unassigned}</div>
+                </div>
+                <History className="w-5 h-5 text-muted-foreground" />
+              </div>
             </Card>
           </div>
 
