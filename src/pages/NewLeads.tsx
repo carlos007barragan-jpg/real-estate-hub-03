@@ -471,6 +471,41 @@ export default function NewLeads() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* History Dialog */}
+      <Dialog open={historyDialog.open} onOpenChange={(open) => setHistoryDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{historyDialog.title}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[400px]">
+            {historyDialog.leads.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No leads found</p>
+            ) : (
+              <div className="space-y-3">
+                {historyDialog.leads.map((lead: any) => (
+                  <div
+                    key={lead.id}
+                    className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => { setHistoryDialog(prev => ({ ...prev, open: false })); navigate(`/leads/${lead.id}`); }}
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{lead.name}</p>
+                      <p className="text-xs text-muted-foreground">{lead.phone} · {lead.email}</p>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant={lead.assigned_to === 'unassigned' ? 'outline' : lead.assigned_to === 'discarded' ? 'destructive' : 'default'} className="text-xs">
+                        {lead.assigned_to === 'unassigned' ? 'Unassigned' : lead.assigned_to === 'discarded' ? 'Discarded' : lead.assigned_to}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">{format(new Date(lead.created_at), 'MMM dd, h:mm a')}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
