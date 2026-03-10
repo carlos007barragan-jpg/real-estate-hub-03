@@ -117,16 +117,13 @@ Deno.serve(async (req) => {
         const updateData: Record<string, any> = {
           last_inbound_at: new Date().toISOString(),
           source_call_sid: callSid,
+          is_inbound_call: true,
         };
 
-        // If lead was previously assigned, mark as unassigned so it appears in new leads queue
-        // But keep the assigned_to info in a note
-        if (matchedLead.assigned_to && matchedLead.assigned_to !== 'unassigned' && matchedLead.assigned_to !== 'discarded') {
-          // Don't reassign — just update the timestamp so it shows as returning
-        } else {
-          updateData.assigned_to = 'unassigned';
-          updateData.is_inbound_call = true;
-        }
+        // Always mark as unassigned so it appears in the new leads queue
+        // Store previous assignment in note for context
+        const previousAssignee = matchedLead.assigned_to;
+        updateData.assigned_to = 'unassigned';
 
         await supabase
           .from('leads')
