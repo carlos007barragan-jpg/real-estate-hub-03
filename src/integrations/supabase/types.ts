@@ -991,6 +991,7 @@ export type Database = {
           is_demo_data: boolean | null
           is_inbound_call: boolean | null
           language_preference: string | null
+          last_inbound_at: string | null
           last_modified_by: string | null
           lead_lifecycle: string
           lead_temperature: string | null
@@ -999,6 +1000,7 @@ export type Database = {
           llc_information: string | null
           loan_details: string | null
           marital_status: string | null
+          merged_from_lead_id: string | null
           monthly_payment: string | null
           name: string
           noi: string | null
@@ -1069,6 +1071,7 @@ export type Database = {
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
+          last_inbound_at?: string | null
           last_modified_by?: string | null
           lead_lifecycle?: string
           lead_temperature?: string | null
@@ -1077,6 +1080,7 @@ export type Database = {
           llc_information?: string | null
           loan_details?: string | null
           marital_status?: string | null
+          merged_from_lead_id?: string | null
           monthly_payment?: string | null
           name: string
           noi?: string | null
@@ -1147,6 +1151,7 @@ export type Database = {
           is_demo_data?: boolean | null
           is_inbound_call?: boolean | null
           language_preference?: string | null
+          last_inbound_at?: string | null
           last_modified_by?: string | null
           lead_lifecycle?: string
           lead_temperature?: string | null
@@ -1155,6 +1160,7 @@ export type Database = {
           llc_information?: string | null
           loan_details?: string | null
           marital_status?: string | null
+          merged_from_lead_id?: string | null
           monthly_payment?: string | null
           name?: string
           noi?: string | null

@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Phone, Mail, Play, Pause, Voicemail, Globe, User, Calendar, Trash2, History } from "lucide-react";
+import { Phone, Mail, Play, Pause, Voicemail, Globe, User, Calendar, Trash2, History, GitMerge } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,10 @@ interface NewLead {
   duration: number | null;
   direction: string;
   property_of_interest: string | null;
+  last_inbound_at: string | null;
+  is_returning: boolean;
+  call_count: number;
+  note_count: number;
 }
 
 export default function NewLeads() {
@@ -72,7 +76,7 @@ export default function NewLeads() {
       // Fetch unassigned inbound call leads for the whole org
       const { data: inboundData, error: inboundError } = await supabase
         .from('leads')
-        .select(`id, name, email, phone, status, source, created_at, source_call_sid, assigned_to, property_of_interest`)
+        .select(`id, name, email, phone, status, source, created_at, source_call_sid, assigned_to, property_of_interest, last_inbound_at`)
         .in('user_id', orgUserIds)
         .eq('is_inbound_call', true)
         .eq('assigned_to', 'unassigned')
@@ -86,8 +90,20 @@ export default function NewLeads() {
         ? await supabase.from('call_logs').select('*').in('lead_id', inboundIds)
         : { data: [] };
 
+      // Fetch note counts & call counts for returning-lead detection
+      const { data: callCounts } = inboundIds.length > 0
+        ? await supabase.from('call_logs').select('lead_id').in('lead_id', inboundIds)
+        : { data: [] };
+      const { data: noteCounts } = inboundIds.length > 0
+        ? await supabase.from('notes').select('lead_id').in('lead_id', inboundIds)
+        : { data: [] };
+
       const mergedInbound = inboundData?.map(lead => {
         const callLog = callLogs?.find(log => log.lead_id === lead.id);
+        const leadCallCount = callCounts?.filter(c => c.lead_id === lead.id).length || 0;
+        const leadNoteCount = noteCounts?.filter(n => n.lead_id === lead.id).length || 0;
+        // A lead is "returning" if it was created before this latest inbound contact
+        const isReturning = lead.last_inbound_at && new Date(lead.last_inbound_at).getTime() > new Date(lead.created_at).getTime() + 60000;
         return {
           ...lead,
           recording_url: callLog?.recording_url || null,
@@ -95,6 +111,10 @@ export default function NewLeads() {
           duration: callLog?.duration || null,
           direction: callLog?.direction || 'inbound',
           property_of_interest: lead.property_of_interest,
+          last_inbound_at: lead.last_inbound_at,
+          is_returning: !!isReturning || leadCallCount > 1,
+          call_count: leadCallCount,
+          note_count: leadNoteCount,
         };
       }) || [];
 
@@ -103,7 +123,7 @@ export default function NewLeads() {
       // Fetch website leads (unassigned) for the whole org
       const { data: webData, error: webError } = await supabase
         .from('leads')
-        .select(`id, name, email, phone, status, source, created_at, assigned_to, property_of_interest`)
+        .select(`id, name, email, phone, status, source, created_at, assigned_to, property_of_interest, last_inbound_at`)
         .in('user_id', orgUserIds)
         .eq('source', 'Online Lead - Website')
         .eq('assigned_to', 'unassigned')
@@ -119,6 +139,10 @@ export default function NewLeads() {
         duration: null,
         direction: 'website',
         property_of_interest: l.property_of_interest,
+        last_inbound_at: l.last_inbound_at,
+        is_returning: !!(l.last_inbound_at && new Date(l.last_inbound_at).getTime() > new Date(l.created_at).getTime() + 60000),
+        call_count: 0,
+        note_count: 0,
       })));
 
       // Inbound call stats (org-wide) - fetch with details for history
@@ -242,12 +266,37 @@ export default function NewLeads() {
               {isWebsite ? <Globe className="w-5 h-5 text-primary" /> : <Phone className="w-5 h-5 text-info" />}
             </div>
             <div>
-              <h3 className="font-semibold text-lg">{lead.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-lg">{lead.name}</h3>
+                {lead.is_returning && (
+                  <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600 bg-amber-50">
+                    <GitMerge className="w-3 h-3" />
+                    Returning Lead
+                  </Badge>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">
-                {format(new Date(lead.created_at), 'MMM dd, yyyy h:mm a')}
+                {lead.is_returning ? (
+                  <>
+                    Originally added {format(new Date(lead.created_at), 'MMM dd, yyyy')} · Last contact {format(new Date(lead.last_inbound_at!), 'MMM dd, h:mm a')}
+                  </>
+                ) : (
+                  format(new Date(lead.created_at), 'MMM dd, yyyy h:mm a')
+                )}
               </p>
             </div>
           </div>
+
+          {lead.is_returning && (
+            <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <div className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
+                <GitMerge className="w-3 h-3" /> Existing Lead — Merged Automatically
+              </div>
+              <p className="text-sm text-amber-600 dark:text-amber-300">
+                This contact already exists in the CRM{lead.call_count > 1 ? ` with ${lead.call_count} previous calls` : ''}. New data has been merged into their profile. Click "View Details" to see full history.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2 mb-4">
             <div className="flex items-center gap-2 text-sm">
