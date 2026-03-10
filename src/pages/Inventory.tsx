@@ -176,7 +176,7 @@ export default function Inventory() {
 
   // Real-time subscription with debouncing
   useEffect(() => {
-    let debounceTimer: NodeJS.Timeout;
+    let debounceTimer: ReturnType<typeof setTimeout>;
     
     const inventoryChannel = supabase
       .channel('inventory-changes')
