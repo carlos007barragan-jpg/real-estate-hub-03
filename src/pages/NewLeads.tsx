@@ -76,7 +76,7 @@ export default function NewLeads() {
       // Fetch unassigned inbound call leads for the whole org
       const { data: inboundData, error: inboundError } = await supabase
         .from('leads')
-        .select(`id, name, email, phone, status, source, created_at, source_call_sid, assigned_to, property_of_interest`)
+        .select(`id, name, email, phone, status, source, created_at, source_call_sid, assigned_to, property_of_interest, last_inbound_at`)
         .in('user_id', orgUserIds)
         .eq('is_inbound_call', true)
         .eq('assigned_to', 'unassigned')
@@ -90,8 +90,20 @@ export default function NewLeads() {
         ? await supabase.from('call_logs').select('*').in('lead_id', inboundIds)
         : { data: [] };
 
+      // Fetch note counts & call counts for returning-lead detection
+      const { data: callCounts } = inboundIds.length > 0
+        ? await supabase.from('call_logs').select('lead_id').in('lead_id', inboundIds)
+        : { data: [] };
+      const { data: noteCounts } = inboundIds.length > 0
+        ? await supabase.from('notes').select('lead_id').in('lead_id', inboundIds)
+        : { data: [] };
+
       const mergedInbound = inboundData?.map(lead => {
         const callLog = callLogs?.find(log => log.lead_id === lead.id);
+        const leadCallCount = callCounts?.filter(c => c.lead_id === lead.id).length || 0;
+        const leadNoteCount = noteCounts?.filter(n => n.lead_id === lead.id).length || 0;
+        // A lead is "returning" if it was created before this latest inbound contact
+        const isReturning = lead.last_inbound_at && new Date(lead.last_inbound_at).getTime() > new Date(lead.created_at).getTime() + 60000;
         return {
           ...lead,
           recording_url: callLog?.recording_url || null,
@@ -99,6 +111,10 @@ export default function NewLeads() {
           duration: callLog?.duration || null,
           direction: callLog?.direction || 'inbound',
           property_of_interest: lead.property_of_interest,
+          last_inbound_at: lead.last_inbound_at,
+          is_returning: !!isReturning || leadCallCount > 1,
+          call_count: leadCallCount,
+          note_count: leadNoteCount,
         };
       }) || [];
 
