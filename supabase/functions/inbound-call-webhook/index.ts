@@ -131,12 +131,15 @@ Deno.serve(async (req) => {
           .eq('id', matchedLead.id);
 
         // Add a note about the inbound call
+        const previousNote = previousAssignee && previousAssignee !== 'unassigned' && previousAssignee !== 'discarded'
+          ? ` Previously assigned to: ${previousAssignee}.`
+          : '';
         await supabase
           .from('notes')
           .insert({
             lead_id: matchedLead.id,
             user_id: matchedLead.user_id,
-            content: `📞 Inbound call received from ${from} at ${new Date().toLocaleString()}. This is a returning contact.`,
+            content: `📞 Inbound call received from ${from} at ${new Date().toLocaleString()}. This is a returning contact.${previousNote}`,
             author: 'System',
             note_type: 'system',
           });
