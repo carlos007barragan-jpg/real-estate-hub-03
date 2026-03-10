@@ -266,12 +266,37 @@ export default function NewLeads() {
               {isWebsite ? <Globe className="w-5 h-5 text-primary" /> : <Phone className="w-5 h-5 text-info" />}
             </div>
             <div>
-              <h3 className="font-semibold text-lg">{lead.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-lg">{lead.name}</h3>
+                {lead.is_returning && (
+                  <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600 bg-amber-50">
+                    <GitMerge className="w-3 h-3" />
+                    Returning Lead
+                  </Badge>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">
-                {format(new Date(lead.created_at), 'MMM dd, yyyy h:mm a')}
+                {lead.is_returning ? (
+                  <>
+                    Originally added {format(new Date(lead.created_at), 'MMM dd, yyyy')} · Last contact {format(new Date(lead.last_inbound_at!), 'MMM dd, h:mm a')}
+                  </>
+                ) : (
+                  format(new Date(lead.created_at), 'MMM dd, yyyy h:mm a')
+                )}
               </p>
             </div>
           </div>
+
+          {lead.is_returning && (
+            <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <div className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
+                <GitMerge className="w-3 h-3" /> Existing Lead — Merged Automatically
+              </div>
+              <p className="text-sm text-amber-600 dark:text-amber-300">
+                This contact already exists in the CRM{lead.call_count > 1 ? ` with ${lead.call_count} previous calls` : ''}. New data has been merged into their profile. Click "View Details" to see full history.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2 mb-4">
             <div className="flex items-center gap-2 text-sm">
