@@ -26,6 +26,10 @@ interface NewLead {
   duration: number | null;
   direction: string;
   property_of_interest: string | null;
+  last_inbound_at: string | null;
+  is_returning: boolean;
+  call_count: number;
+  note_count: number;
 }
 
 export default function NewLeads() {
