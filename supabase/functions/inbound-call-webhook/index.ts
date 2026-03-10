@@ -6,6 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Normalize phone number to digits-only for matching
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  // If 11 digits starting with 1, strip the leading 1
+  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
+  return digits;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -78,15 +86,64 @@ Deno.serve(async (req) => {
 
     // Stage: agents (first attempt) → find/create lead + log call
     if (stage === 'agents') {
-      // Check if lead exists with this phone number
+      // Check if lead exists with this phone number (exact match first)
       const { data: existingLead } = await supabase
         .from('leads')
-        .select('id, user_id')
+        .select('id, user_id, name, assigned_to')
         .eq('phone', from)
         .maybeSingle();
 
-      leadId = existingLead?.id ?? null;
-      leadOwnerUserId = existingLead?.user_id ?? null;
+      // If no exact match, try normalized phone search across all leads
+      let matchedLead = existingLead;
+      if (!matchedLead) {
+        const normalizedFrom = normalizePhone(from);
+        const { data: allLeads } = await supabase
+          .from('leads')
+          .select('id, user_id, name, phone, assigned_to')
+          .limit(500);
+
+        if (allLeads) {
+          matchedLead = allLeads.find(l => normalizePhone(l.phone) === normalizedFrom) || null;
+        }
+      }
+
+      leadId = matchedLead?.id ?? null;
+      leadOwnerUserId = matchedLead?.user_id ?? null;
+
+      if (matchedLead) {
+        // Returning lead — update last_inbound_at and ensure it shows in queue
+        console.log('Returning lead detected:', matchedLead.id, matchedLead.name);
+        
+        const updateData: Record<string, any> = {
+          last_inbound_at: new Date().toISOString(),
+          source_call_sid: callSid,
+        };
+
+        // If lead was previously assigned, mark as unassigned so it appears in new leads queue
+        // But keep the assigned_to info in a note
+        if (matchedLead.assigned_to && matchedLead.assigned_to !== 'unassigned' && matchedLead.assigned_to !== 'discarded') {
+          // Don't reassign — just update the timestamp so it shows as returning
+        } else {
+          updateData.assigned_to = 'unassigned';
+          updateData.is_inbound_call = true;
+        }
+
+        await supabase
+          .from('leads')
+          .update(updateData)
+          .eq('id', matchedLead.id);
+
+        // Add a note about the inbound call
+        await supabase
+          .from('notes')
+          .insert({
+            lead_id: matchedLead.id,
+            user_id: matchedLead.user_id,
+            content: `📞 Inbound call received from ${from} at ${new Date().toLocaleString()}. This is a returning contact.`,
+            author: 'System',
+            note_type: 'system',
+          });
+      }
 
       // If no lead exists, create a new one
       if (!leadId) {
@@ -122,6 +179,7 @@ Deno.serve(async (req) => {
             user_id: leadOwnerUserId,
             is_inbound_call: true,
             source_call_sid: callSid,
+            last_inbound_at: new Date().toISOString(),
           })
           .select('id')
           .single();
@@ -348,4 +406,3 @@ async function resolveSettingsUserId(supabase: any, candidateUserId: string): Pr
   const adminId = admins?.[0]?.user_id;
   return adminId ?? candidateUserId;
 }
-

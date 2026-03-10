@@ -6,6 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key',
 };
 
+// Normalize phone number to digits-only for matching
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
+  return digits;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -79,19 +86,83 @@ serve(async (req) => {
         .eq('id', keyRecord.id);
     }
 
-    // Check if lead exists
-    const { data: existingLead } = await supabase
+    // Check if lead exists — try exact match first, then normalized phone
+    let existingLead = null;
+
+    const { data: exactMatch } = await supabase
       .from('leads')
       .select('*')
       .or(`email.eq.${email},phone.eq.${phone}`)
       .limit(1)
       .single();
 
+    existingLead = exactMatch;
+
+    // If no exact match, try normalized phone search
+    if (!existingLead && phone) {
+      const normalizedPhone = normalizePhone(phone);
+      const { data: allLeads } = await supabase
+        .from('leads')
+        .select('*')
+        .limit(500);
+
+      if (allLeads) {
+        existingLead = allLeads.find(l => normalizePhone(l.phone) === normalizedPhone) || null;
+      }
+    }
+
     let leadId = existingLead?.id;
     let isNewLead = false;
 
-    // Create new lead if doesn't exist
-    if (!existingLead) {
+    if (existingLead) {
+      // Merge newer data into existing lead (newer wins for non-empty fields)
+      console.log("Merging into existing lead:", existingLead.id, existingLead.name);
+
+      let propertyName = null;
+      if (propId) {
+        const { data: property } = await supabase
+          .from('inventory')
+          .select('name, property_address')
+          .eq('id', propId)
+          .single();
+        propertyName = property?.name || property?.property_address;
+      }
+
+      const mergeUpdate: Record<string, any> = {
+        last_inbound_at: new Date().toISOString(),
+      };
+
+      // Update name if the existing one is a placeholder
+      if (existingLead.name?.startsWith('Inbound Call') && fullName) {
+        mergeUpdate.name = fullName;
+      }
+      // Update email if existing is a placeholder
+      if (existingLead.email?.includes('@placeholder.com') && email) {
+        mergeUpdate.email = email;
+      }
+      // Update property of interest if provided
+      if (propertyName) {
+        mergeUpdate.property_of_interest = propertyName;
+      }
+
+      await supabase
+        .from('leads')
+        .update(mergeUpdate)
+        .eq('id', existingLead.id);
+
+      // Add a note about the new inquiry
+      await supabase
+        .from('notes')
+        .insert({
+          lead_id: existingLead.id,
+          user_id: existingLead.user_id,
+          content: `🌐 New website inquiry from ${fullName} (${email}, ${phone})${propertyName ? ` for property: ${propertyName}` : ''}${message ? `. Message: ${message}` : ''}`,
+          author: 'System',
+          note_type: 'system',
+        });
+
+    } else {
+      // Create new lead if doesn't exist
       console.log("Creating new lead for:", email);
 
       let propertyName = null;
@@ -139,7 +210,8 @@ serve(async (req) => {
           property_of_interest: propertyName,
           user_id: propertyUserId,
           assigned_to: 'unassigned',
-          is_inbound_call: false
+          is_inbound_call: false,
+          last_inbound_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -214,8 +286,8 @@ serve(async (req) => {
         .insert({
           user_id: property.assigned_agent_id,
           type: 'showing_request',
-          title: 'New Showing Request',
-          description: `${leadLabel} requested a showing for ${propertyLabel}`,
+          title: existingLead ? '📋 Returning Lead — New Showing Request' : 'New Showing Request',
+          description: `${leadLabel} requested a showing for ${propertyLabel}${existingLead ? ' (existing lead merged)' : ''}`,
           link: `/leads/${leadId}`
         });
     } else if (isNewLead) {
@@ -248,6 +320,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         leadId,
+        merged: !!existingLead,
         message: "Thank you! An agent will contact you shortly to confirm your appointment."
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
