@@ -123,7 +123,7 @@ export default function NewLeads() {
       // Fetch website leads (unassigned) for the whole org
       const { data: webData, error: webError } = await supabase
         .from('leads')
-        .select(`id, name, email, phone, status, source, created_at, assigned_to, property_of_interest`)
+        .select(`id, name, email, phone, status, source, created_at, assigned_to, property_of_interest, last_inbound_at`)
         .in('user_id', orgUserIds)
         .eq('source', 'Online Lead - Website')
         .eq('assigned_to', 'unassigned')
@@ -139,6 +139,10 @@ export default function NewLeads() {
         duration: null,
         direction: 'website',
         property_of_interest: l.property_of_interest,
+        last_inbound_at: l.last_inbound_at,
+        is_returning: !!(l.last_inbound_at && new Date(l.last_inbound_at).getTime() > new Date(l.created_at).getTime() + 60000),
+        call_count: 0,
+        note_count: 0,
       })));
 
       // Inbound call stats (org-wide) - fetch with details for history
