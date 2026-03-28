@@ -1,12 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Phone, PhoneOff, Mic, MicOff, UserPlus } from "lucide-react";
+import { Phone, PhoneOff, Mic, MicOff, Wifi, WifiOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Device, Call } from "@twilio/voice-sdk";
 import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
 import { useUserRole } from "@/hooks/useUserRole";
+
+// Refresh token 5 minutes before it expires (token lasts 1 hour)
+const TOKEN_REFRESH_MS = 55 * 60 * 1000;
 
 export const GlobalCallManager = () => {
   const { toast } = useToast();
@@ -18,51 +21,69 @@ export const GlobalCallManager = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [outgoingCallDetails, setOutgoingCallDetails] = useState<{ phoneNumber: string; contactName: string } | null>(null);
+  const [deviceStatus, setDeviceStatus] = useState<'connecting' | 'ready' | 'error'>('connecting');
   const intervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const deviceRef = useRef<Device | null>(null);
   const callRef = useRef<Call | null>(null);
+  const tokenRefreshRef = useRef<number | null>(null);
   const { isAdmin } = useUserRole();
 
-  useEffect(() => {
-    initializeDevice();
-    
-    // Listen for outgoing call requests
-    const handleInitiateCall = (event: any) => {
-      const { phoneNumber, contactName } = event.detail;
-      makeOutgoingCall(phoneNumber, contactName);
-    };
-    
-    window.addEventListener('initiateCall', handleInitiateCall);
-    
-    return () => {
-      window.removeEventListener('initiateCall', handleInitiateCall);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (audioRef.current) audioRef.current.pause();
-      if (callRef.current) callRef.current.disconnect();
-      if (deviceRef.current) deviceRef.current.destroy();
-    };
-  }, []);
-
-  const initializeDevice = async () => {
+  const fetchToken = useCallback(async (): Promise<string | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) return null;
 
       const { data, error } = await supabase.functions.invoke('get-twilio-token', {
         body: { identity: user.email }
       });
 
       if (error) throw error;
+      return data.token;
+    } catch (error: any) {
+      console.error('Error fetching Twilio token:', error);
+      return null;
+    }
+  }, []);
 
-      const newDevice = new Device(data.token, { logLevel: 1 });
+  const initializeDevice = useCallback(async () => {
+    try {
+      setDeviceStatus('connecting');
+      const token = await fetchToken();
+      if (!token) {
+        setDeviceStatus('error');
+        return;
+      }
+
+      // Destroy previous device if exists
+      if (deviceRef.current) {
+        deviceRef.current.destroy();
+      }
+
+      const newDevice = new Device(token, { logLevel: 1 });
 
       newDevice.on('registered', () => {
         console.log('Twilio Device ready to receive calls');
+        setDeviceStatus('ready');
       });
 
       newDevice.on('error', (error) => {
         console.error('Twilio Device error:', error);
+        setDeviceStatus('error');
+      });
+
+      newDevice.on('unregistered', () => {
+        console.log('Twilio Device unregistered');
+        setDeviceStatus('error');
+      });
+
+      newDevice.on('tokenWillExpire', async () => {
+        console.log('Twilio token expiring soon, refreshing...');
+        const newToken = await fetchToken();
+        if (newToken) {
+          newDevice.updateToken(newToken);
+          console.log('Twilio token refreshed successfully');
+        }
       });
 
       newDevice.on('incoming', async (incoming) => {
@@ -99,10 +120,44 @@ export const GlobalCallManager = () => {
       await newDevice.register();
       setDevice(newDevice);
       deviceRef.current = newDevice;
+
+      // Schedule token refresh
+      if (tokenRefreshRef.current) clearInterval(tokenRefreshRef.current);
+      tokenRefreshRef.current = window.setInterval(async () => {
+        console.log('Proactive token refresh...');
+        const newToken = await fetchToken();
+        if (newToken && deviceRef.current) {
+          deviceRef.current.updateToken(newToken);
+          console.log('Token refreshed proactively');
+        }
+      }, TOKEN_REFRESH_MS);
+
     } catch (error: any) {
       console.error('Error initializing device:', error);
+      setDeviceStatus('error');
     }
-  };
+  }, [fetchToken, toast]);
+
+  useEffect(() => {
+    initializeDevice();
+    
+    // Listen for outgoing call requests
+    const handleInitiateCall = (event: any) => {
+      const { phoneNumber, contactName } = event.detail;
+      makeOutgoingCall(phoneNumber, contactName);
+    };
+    
+    window.addEventListener('initiateCall', handleInitiateCall);
+    
+    return () => {
+      window.removeEventListener('initiateCall', handleInitiateCall);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (tokenRefreshRef.current) clearInterval(tokenRefreshRef.current);
+      if (audioRef.current) audioRef.current.pause();
+      if (callRef.current) callRef.current.disconnect();
+      if (deviceRef.current) deviceRef.current.destroy();
+    };
+  }, []);
 
   const acceptIncoming = async () => {
     if (!incomingCall) return;
@@ -146,7 +201,7 @@ export const GlobalCallManager = () => {
   };
 
   const makeOutgoingCall = async (phoneNumber: string, contactName: string) => {
-    if (!device) {
+    if (!deviceRef.current) {
       toast({
         title: "Device not ready",
         description: "Please wait for the device to initialize",
@@ -158,7 +213,7 @@ export const GlobalCallManager = () => {
     try {
       setOutgoingCallDetails({ phoneNumber, contactName });
       
-      const outgoingCall = await device.connect({
+      const outgoingCall = await deviceRef.current.connect({
         params: {
           To: phoneNumber,
         },
@@ -321,5 +376,27 @@ export const GlobalCallManager = () => {
     );
   }
 
-  return null;
+  // Phone status indicator (small, bottom-right)
+  return (
+    <div className="fixed bottom-4 right-4 z-40">
+      <button
+        onClick={deviceStatus === 'error' ? initializeDevice : undefined}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shadow-md transition-colors ${
+          deviceStatus === 'ready'
+            ? 'bg-success/10 text-success border border-success/30'
+            : deviceStatus === 'connecting'
+            ? 'bg-warning/10 text-warning border border-warning/30 animate-pulse'
+            : 'bg-destructive/10 text-destructive border border-destructive/30 cursor-pointer hover:bg-destructive/20'
+        }`}
+        title={deviceStatus === 'error' ? 'Click to reconnect' : deviceStatus === 'ready' ? 'Phone system connected' : 'Connecting...'}
+      >
+        {deviceStatus === 'ready' ? (
+          <Wifi className="h-3 w-3" />
+        ) : (
+          <WifiOff className="h-3 w-3" />
+        )}
+        {deviceStatus === 'ready' ? 'Phone Ready' : deviceStatus === 'connecting' ? 'Connecting...' : 'Reconnect'}
+      </button>
+    </div>
+  );
 };
