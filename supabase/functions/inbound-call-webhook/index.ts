@@ -479,18 +479,20 @@ Deno.serve(async (req) => {
 
       const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserId || leadOwnerUserId || '');
 
+      // Helper to build stage URLs with orgId
+      const stageUrl = (s: string, extra = '') => `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=${s}&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${resolvedSettingsUserId}&orgId=${orgId}${extra}`;
+
       // ---- If assigned lead with smart routing, skip IVR and ring assigned agent directly ----
       if (isAssignedLead && assignedAgentUserId) {
         const targets = await buildSingleAgentDialTargets(supabase, assignedAgentUserId);
-        const fallbackStageUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=roundrobin&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${resolvedSettingsUserId}`);
+        const fallbackStageUrl = escapeXmlAttr(stageUrl('roundrobin'));
         const statusCallbackUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${resolvedSettingsUserId}`);
 
         if (targets.length === 0) {
-          // No contact info for assigned agent — go to round-robin
           const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   ${GREETING_TWIML}
-  <Redirect method="POST">${escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=roundrobin&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${resolvedSettingsUserId}`)}</Redirect>
+  <Redirect method="POST">${fallbackStageUrl}</Redirect>
 </Response>`;
           return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
         }
@@ -507,7 +509,7 @@ Deno.serve(async (req) => {
 
       // ---- If round-robin is OFF, skip IVR and go to fallback ----
       if (!autoRoundRobin) {
-        const fallbackStageUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=fallback&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${resolvedSettingsUserId}`);
+        const fallbackStageUrl = escapeXmlAttr(stageUrl('fallback'));
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   ${GREETING_TWIML}
@@ -517,8 +519,8 @@ Deno.serve(async (req) => {
       }
 
       // ---- Play IVR menu with <Gather> ----
-      const ivrMenuUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=ivr-menu&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${resolvedSettingsUserId}`);
-      const roundRobinUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=roundrobin&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${resolvedSettingsUserId}`);
+      const ivrMenuUrl = escapeXmlAttr(stageUrl('ivr-menu'));
+      const roundRobinUrl = escapeXmlAttr(stageUrl('roundrobin'));
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
