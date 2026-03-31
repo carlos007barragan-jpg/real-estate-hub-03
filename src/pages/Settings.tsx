@@ -24,7 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const Settings = () => {
   const { toast } = useToast();
-  const { isAdmin, role, loading } = useUserRole();
+  const { isAdmin, role, loading: roleLoading } = useUserRole();
   const isSupremeAdmin = role === "supreme_admin";
   // Supreme admins also pass isAdmin check since has_role treats them as admin
   const [darkMode, setDarkMode] = useState(() => {
@@ -50,6 +50,17 @@ const Settings = () => {
     }
     window.dispatchEvent(new Event("darkModeChange"));
   }, [darkMode]);
+
+  if (roleLoading) {
+    return (
+      <div className="p-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+          <p className="text-muted-foreground mt-1">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
