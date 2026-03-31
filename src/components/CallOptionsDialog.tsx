@@ -173,13 +173,30 @@ export const CallOptionsDialog = ({
         {!showLogForm ? (
           <div className="space-y-3 pt-2">
             <Button
-              onClick={handleSystemCall}
+              onClick={handleCallToMyPhone}
+              disabled={callingToPhone}
               className="w-full justify-start gap-3 h-14 text-left bg-success hover:bg-success/90"
             >
-              <PhoneOutgoing className="h-5 w-5 shrink-0" />
+              {callingToPhone ? (
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+              ) : (
+                <PhoneCall className="h-5 w-5 shrink-0" />
+              )}
               <div>
-                <p className="font-medium text-sm">Call from System</p>
-                <p className="text-xs opacity-80">Use the built-in phone to call {leadPhone}</p>
+                <p className="font-medium text-sm">Call to My Phone</p>
+                <p className="text-xs opacity-80">Ring your registered phone, then connect to {leadName}</p>
+              </div>
+            </Button>
+
+            <Button
+              onClick={handleSystemCall}
+              variant="outline"
+              className="w-full justify-start gap-3 h-14 text-left"
+            >
+              <PhoneOutgoing className="h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <p className="font-medium text-sm">Call from Browser</p>
+                <p className="text-xs text-muted-foreground">Use WebRTC to call {leadPhone} directly</p>
               </div>
             </Button>
 
