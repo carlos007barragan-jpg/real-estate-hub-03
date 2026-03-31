@@ -97,6 +97,7 @@ const App = () => {
               <Route path="/owner-signup" element={<OwnerSignup />} />
               <Route path="/owner-portal" element={<ProtectedRoute loginPath="/owner-login"><OwnerPortalDashboard /></ProtectedRoute>} />
               <Route path="/dispo-sheet" element={<DispoSheet />} />
+              <Route path="/public-properties" element={<PublicProperties />} />
               
               {/* CRM Routes */}
               <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
