@@ -98,9 +98,10 @@ async function buildAllAgentDialTargets(supabase: any, orgId: string | null): Pr
       console.log('[INBOUND] Excluding marketing user:', profile.email);
       continue;
     }
-    // Exclude test accounts
-    if (profile.email && (profile.email.includes('test') || profile.first_name === 'HEHE')) {
-      console.log('[INBOUND] Excluding test account:', profile.email);
+    // Exclude test accounts and admin/CEO (Bond)
+    const emailLower = (profile.email || '').toLowerCase();
+    if (profile.first_name === 'HEHE' || emailLower.includes('test') || emailLower.includes('bond') || emailLower.includes('ceotech')) {
+      console.log('[INBOUND] Excluding non-sales account:', profile.email);
       continue;
     }
 
