@@ -56,7 +56,8 @@ export const TeamManagement = () => {
           first_name,
           last_name,
           email,
-          created_at
+          created_at,
+          extension
         `)
         .eq("organization_id", profile.organization_id);
 
