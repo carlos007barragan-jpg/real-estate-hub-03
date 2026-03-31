@@ -4,13 +4,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Phone, ShieldAlert } from "lucide-react";
+import { RefreshCw, Phone, ShieldAlert, Brain } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const RoundRobinSettings = () => {
   const [autoRoundRobin, setAutoRoundRobin] = useState(false);
+  const [smartRouting, setSmartRouting] = useState(true);
   const [fallbackPhone1, setFallbackPhone1] = useState("");
   const [fallbackPhone2, setFallbackPhone2] = useState("");
   const [loading, setLoading] = useState(true);
@@ -18,7 +19,6 @@ export const RoundRobinSettings = () => {
   const { toast } = useToast();
   const { role: contextRole, roleLoading } = useAuth();
   
-  // Also fetch role directly to handle stale cached roles
   const [freshRole, setFreshRole] = useState<string | null>(null);
   useEffect(() => {
     const fetchFreshRole = async () => {
@@ -36,8 +36,6 @@ export const RoundRobinSettings = () => {
 
   const effectiveRole = freshRole || contextRole;
   const isSupremeAdmin = effectiveRole === 'supreme_admin';
-
-  // While role is loading, don't lock the UI
   const isLocked = !roleLoading && !isSupremeAdmin;
 
   useEffect(() => {
@@ -47,15 +45,11 @@ export const RoundRobinSettings = () => {
   const fetchSettings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      if (!user) { setLoading(false); return; }
 
-      // Try fetching all settings (admins can view all)
       const { data, error } = await supabase
         .from('crm_settings')
-        .select('auto_roundrobin_unanswered, fallback_phone_1, fallback_phone_2')
+        .select('auto_roundrobin_unanswered, smart_routing_enabled, fallback_phone_1, fallback_phone_2')
         .limit(1)
         .maybeSingle();
 
@@ -65,6 +59,7 @@ export const RoundRobinSettings = () => {
 
       if (data) {
         setAutoRoundRobin(data.auto_roundrobin_unanswered);
+        setSmartRouting((data as any).smart_routing_enabled ?? true);
         setFallbackPhone1(data.fallback_phone_1 || "");
         setFallbackPhone2(data.fallback_phone_2 || "");
       }
@@ -75,50 +70,39 @@ export const RoundRobinSettings = () => {
     }
   };
 
-  const handleToggle = async (checked: boolean) => {
+  const updateSetting = async (field: string, value: boolean, label: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      setAutoRoundRobin(checked);
-
-      // Check if any settings exist (org-wide)
       const { data: existing } = await supabase
-        .from('crm_settings')
-        .select('id, user_id')
-        .limit(1)
-        .maybeSingle();
+        .from('crm_settings').select('id, user_id').limit(1).maybeSingle();
 
       if (existing) {
-        // Update existing record
         const { error } = await supabase
-          .from('crm_settings')
-          .update({ auto_roundrobin_unanswered: checked })
-          .eq('id', existing.id);
-
+          .from('crm_settings').update({ [field]: value }).eq('id', existing.id);
         if (error) throw error;
       } else {
-        // Create new
         const { error } = await supabase
-          .from('crm_settings')
-          .insert({ user_id: user.id, auto_roundrobin_unanswered: checked });
-
+          .from('crm_settings').insert({ user_id: user.id, [field]: value });
         if (error) throw error;
       }
 
-      toast({
-        title: "Settings Updated",
-        description: `Auto round-robin for unanswered calls ${checked ? 'enabled' : 'disabled'}`,
-      });
+      toast({ title: "Settings Updated", description: `${label} ${value ? 'enabled' : 'disabled'}` });
     } catch (error: any) {
-      console.error('Error updating settings:', error);
-      setAutoRoundRobin(!checked); // Revert on error
-      toast({
-        title: "Error",
-        description: "Failed to update settings",
-        variant: "destructive",
-      });
+      console.error('Error updating setting:', error);
+      toast({ title: "Error", description: "Failed to update settings", variant: "destructive" });
     }
+  };
+
+  const handleRoundRobinToggle = (checked: boolean) => {
+    setAutoRoundRobin(checked);
+    updateSetting('auto_roundrobin_unanswered', checked, 'Auto Round-Robin');
+  };
+
+  const handleSmartRoutingToggle = (checked: boolean) => {
+    setSmartRouting(checked);
+    updateSetting('smart_routing_enabled', checked, 'Smart Routing');
   };
 
   const handleSavePhoneNumbers = async () => {
@@ -127,56 +111,32 @@ export const RoundRobinSettings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if any settings exist (org-wide)
       const { data: existing } = await supabase
-        .from('crm_settings')
-        .select('id, user_id')
-        .limit(1)
-        .maybeSingle();
+        .from('crm_settings').select('id, user_id').limit(1).maybeSingle();
 
       if (existing) {
-        // Update existing record
         const { error } = await supabase
           .from('crm_settings')
-          .update({ 
-            fallback_phone_1: fallbackPhone1 || null,
-            fallback_phone_2: fallbackPhone2 || null 
-          })
+          .update({ fallback_phone_1: fallbackPhone1 || null, fallback_phone_2: fallbackPhone2 || null })
           .eq('id', existing.id);
-
         if (error) throw error;
       } else {
-        // Create new
         const { error } = await supabase
           .from('crm_settings')
-          .insert({ 
-            user_id: user.id, 
-            fallback_phone_1: fallbackPhone1 || null,
-            fallback_phone_2: fallbackPhone2 || null 
-          });
-
+          .insert({ user_id: user.id, fallback_phone_1: fallbackPhone1 || null, fallback_phone_2: fallbackPhone2 || null });
         if (error) throw error;
       }
 
-      toast({
-        title: "Phone Numbers Saved",
-        description: "Inbound calls will now ring these numbers if no one picks up on the CRM",
-      });
+      toast({ title: "Phone Numbers Saved", description: "Fallback numbers updated" });
     } catch (error: any) {
       console.error('Error saving phone numbers:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save phone numbers",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to save phone numbers", variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return null;
-  }
+  if (loading) return null;
 
   return (
     <Card className="p-6">
@@ -190,33 +150,56 @@ export const RoundRobinSettings = () => {
         )}
       </div>
       <div className="space-y-6 max-w-2xl">
+        {/* Auto Round-Robin Toggle */}
         <div className="flex items-center justify-between py-4 border-b">
           <div className="flex items-center gap-3">
             <RefreshCw className="h-5 w-5 text-muted-foreground" />
             <div>
               <Label htmlFor="auto-roundrobin" className="text-base font-medium cursor-pointer">
-                Auto Round-Robin Unanswered Calls
+                Auto Round-Robin
               </Label>
               <p className="text-sm text-muted-foreground">
-                Automatically assign unanswered inbound calls to agents using round-robin
+                Ring all active agents simultaneously for unassigned callers. If OFF, calls go straight to fallback numbers.
               </p>
             </div>
           </div>
           <Switch
             id="auto-roundrobin"
             checked={autoRoundRobin}
-            onCheckedChange={handleToggle}
+            onCheckedChange={handleRoundRobinToggle}
             disabled={isLocked}
           />
         </div>
 
+        {/* Smart Routing Toggle */}
+        <div className="flex items-center justify-between py-4 border-b">
+          <div className="flex items-center gap-3">
+            <Brain className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <Label htmlFor="smart-routing" className="text-base font-medium cursor-pointer">
+                Smart Routing
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Check if caller has an assigned agent and route directly to them. If OFF, all inbound calls ring all agents.
+              </p>
+            </div>
+          </div>
+          <Switch
+            id="smart-routing"
+            checked={smartRouting}
+            onCheckedChange={handleSmartRoutingToggle}
+            disabled={isLocked}
+          />
+        </div>
+
+        {/* Fallback Phone Numbers */}
         <div className="space-y-4 pt-4">
           <div className="flex items-center gap-3 mb-4">
             <Phone className="h-5 w-5 text-muted-foreground" />
             <div>
               <h3 className="text-base font-medium">Fallback Phone Numbers</h3>
               <p className="text-sm text-muted-foreground">
-                These numbers will ring if no one picks up on the CRM web interface
+                These numbers ring if no agent picks up within 30 seconds
               </p>
             </div>
           </div>
@@ -246,11 +229,7 @@ export const RoundRobinSettings = () => {
           </div>
 
           {!isLocked && (
-            <Button 
-              onClick={handleSavePhoneNumbers} 
-              disabled={saving}
-              className="mt-4"
-            >
+            <Button onClick={handleSavePhoneNumbers} disabled={saving} className="mt-4">
               {saving ? "Saving..." : "Save Phone Numbers"}
             </Button>
           )}

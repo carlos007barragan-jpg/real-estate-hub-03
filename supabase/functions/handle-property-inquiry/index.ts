@@ -204,7 +204,7 @@ serve(async (req) => {
           name: fullName,
           email,
           phone,
-          source: 'Online Lead - Website',
+          source: requestSource || 'Online Lead - Website',
           status: 'new',
           pipeline_stage: 'New Lead',
           lead_lifecycle: 'Contact',
