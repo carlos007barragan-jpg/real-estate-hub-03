@@ -55,6 +55,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       ]);
 
       const userRole = roleResult.data?.role as AppRole | null;
+      console.log('[AuthContext] Role query result:', roleResult.data, 'error:', roleResult.error, 'resolved role:', userRole);
       setRole(userRole);
 
       const profile = profileResult.data;
