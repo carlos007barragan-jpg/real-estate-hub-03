@@ -84,7 +84,8 @@ export const TeamManagement = () => {
             first_name: prof.first_name,
             last_name: prof.last_name,
             role: roleData?.role || "agent",
-            created_at: prof.created_at
+            created_at: prof.created_at,
+            extension: (prof as any).extension ?? null,
           });
         } catch (err) {
           console.error("Error processing user:", prof.email, err);
