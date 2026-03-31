@@ -295,40 +295,57 @@ Deno.serve(async (req) => {
       return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
     }
 
-    // ---- Stage: agents (dial CRM web clients first) ----
+    // ---- Stage: agents (dial agent phones AND CRM web clients simultaneously) ----
 
-    // Get all active agents
+    // Get all active agents with their phone numbers
     const { data: agents } = await supabase
       .from('agents')
-      .select('user_id')
+      .select('user_id, phone_number')
       .eq('is_active', true);
 
-    // Build dial targets with active agent client identities
-    const identities: string[] = [];
+    // Build dial targets: both phone numbers and WebRTC client identities
+    const dialTargets: string[] = [];
 
     if (agents && agents.length > 0) {
       for (const agent of agents) {
+        // Add agent's registered phone number
+        if (agent.phone_number && agent.phone_number.length > 0) {
+          dialTargets.push(`<Number>${agent.phone_number}</Number>`);
+        }
+
+        // Also add WebRTC client identity so browser-connected agents get notified
         const { data: userRes, error: userError } = await supabase.auth.admin.getUserById(agent.user_id);
         if (!userError && userRes?.user?.email) {
-          identities.push(sanitizeIdentity(userRes.user.email));
+          dialTargets.push(`<Client><Identity>${sanitizeIdentity(userRes.user.email)}</Identity></Client>`);
         }
       }
     }
 
-    // If no identities from active agents, attempt to ring the lead owner
-    if (identities.length === 0 && leadOwnerUserId) {
+    // If no active agents, try the lead owner
+    if (dialTargets.length === 0 && leadOwnerUserId) {
+      // Check if lead owner has a phone in agents table
+      const { data: ownerAgent } = await supabase
+        .from('agents')
+        .select('phone_number')
+        .eq('user_id', leadOwnerUserId)
+        .maybeSingle();
+
+      if (ownerAgent?.phone_number) {
+        dialTargets.push(`<Number>${ownerAgent.phone_number}</Number>`);
+      }
+
       const { data: ownerRes, error: ownerError } = await supabase.auth.admin.getUserById(leadOwnerUserId);
       if (!ownerError && ownerRes?.user?.email) {
-        identities.push(sanitizeIdentity(ownerRes.user.email));
+        dialTargets.push(`<Client><Identity>${sanitizeIdentity(ownerRes.user.email)}</Identity></Client>`);
       }
     }
 
-    const clientTargets = identities.map((id) => `<Client><Identity>${id}</Identity></Client>`).join('\n    ');
+    const allTargets = dialTargets.join('\n    ');
 
-    console.log('Dial identities resolved:', identities, 'Dial targets built:', clientTargets);
+    console.log('Dial targets resolved:', dialTargets.length, 'targets');
 
-    // If we have no web clients to ring, jump straight to fallback stage
-    if (identities.length === 0) {
+    // If we have no targets at all, jump straight to fallback stage
+    if (dialTargets.length === 0) {
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Redirect method="POST">${fallbackStageUrlEsc}</Redirect>
@@ -336,12 +353,15 @@ Deno.serve(async (req) => {
       return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
     }
 
-    // Return TwiML: ring web clients → (action) fallback stage (only on no-answer/busy/failed/etc)
+    // Caller ID for dialing agent phones
+    const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER') || to;
+
+    // Return TwiML: ring agent phones + web clients simultaneously → fallback on no-answer
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice">Thank you for calling. Please hold while we connect you to an agent.</Say>
-  <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="25" action="${fallbackStageUrlEsc}" method="POST" statusCallback="${statusCallbackUrlEsc}" statusCallbackEvent="completed" statusCallbackMethod="POST">
-    ${clientTargets}
+  <Dial callerId="${twilioPhone}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="30" action="${fallbackStageUrlEsc}" method="POST" statusCallback="${statusCallbackUrlEsc}" statusCallbackEvent="completed" statusCallbackMethod="POST">
+    ${allTargets}
   </Dial>
   <Redirect method="POST">${fallbackStageUrlEsc}</Redirect>
 </Response>`;

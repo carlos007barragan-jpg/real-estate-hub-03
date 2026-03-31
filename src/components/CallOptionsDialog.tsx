@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Phone, PhoneOutgoing, ClipboardList } from "lucide-react";
+import { Phone, PhoneOutgoing, PhoneCall, ClipboardList, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -33,11 +33,39 @@ export const CallOptionsDialog = ({
   const [notes, setNotes] = useState("");
   const [outcome, setOutcome] = useState("connected");
   const [logging, setLogging] = useState(false);
+  const [callingToPhone, setCallingToPhone] = useState(false);
 
   const handleSystemCall = () => {
     onOpenChange(false);
     setShowLogForm(false);
     onSystemCall();
+  };
+
+  const handleCallToMyPhone = async () => {
+    setCallingToPhone(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('outbound-call-bridge', {
+        body: { leadPhone, leadName, leadId }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: "Calling your phone...",
+        description: "Pick up your phone. Once you answer, we'll connect you to " + leadName,
+      });
+      onOpenChange(false);
+      onCallLogged?.();
+    } catch (error: any) {
+      toast({
+        title: "Call Failed",
+        description: error.message || "Failed to initiate call",
+        variant: "destructive",
+      });
+    } finally {
+      setCallingToPhone(false);
+    }
   };
 
   const handleLogManualCall = async () => {
@@ -145,13 +173,30 @@ export const CallOptionsDialog = ({
         {!showLogForm ? (
           <div className="space-y-3 pt-2">
             <Button
-              onClick={handleSystemCall}
+              onClick={handleCallToMyPhone}
+              disabled={callingToPhone}
               className="w-full justify-start gap-3 h-14 text-left bg-success hover:bg-success/90"
             >
-              <PhoneOutgoing className="h-5 w-5 shrink-0" />
+              {callingToPhone ? (
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+              ) : (
+                <PhoneCall className="h-5 w-5 shrink-0" />
+              )}
               <div>
-                <p className="font-medium text-sm">Call from System</p>
-                <p className="text-xs opacity-80">Use the built-in phone to call {leadPhone}</p>
+                <p className="font-medium text-sm">Call to My Phone</p>
+                <p className="text-xs opacity-80">Ring your registered phone, then connect to {leadName}</p>
+              </div>
+            </Button>
+
+            <Button
+              onClick={handleSystemCall}
+              variant="outline"
+              className="w-full justify-start gap-3 h-14 text-left"
+            >
+              <PhoneOutgoing className="h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <p className="font-medium text-sm">Call from Browser</p>
+                <p className="text-xs text-muted-foreground">Use WebRTC to call {leadPhone} directly</p>
               </div>
             </Button>
 
