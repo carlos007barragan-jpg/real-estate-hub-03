@@ -267,6 +267,11 @@ export default function NewLeads() {
             </div>
             <div className="flex items-center gap-2 text-sm flex-wrap">
               <Badge variant="default">{lead.source}</Badge>
+              {lead.source === SOURCE_CALLS && lead.call_status && (
+                <Badge variant={lead.call_status === 'completed' ? 'default' : lead.call_status === 'no-answer' ? 'destructive' : 'secondary'}>
+                  {lead.call_status === 'completed' ? 'Completed' : lead.call_status === 'no-answer' ? 'Missed' : lead.call_status === 'in-progress' ? 'In Progress' : lead.call_status}
+                </Badge>
+              )}
               {lead.source === SOURCE_CALLS && <Badge variant="secondary">Duration: {formatDuration(lead.duration)}</Badge>}
               {lead.property_of_interest && (
                 <Badge variant="secondary" className="gap-1"><Calendar className="w-3 h-3" />{lead.property_of_interest}</Badge>
