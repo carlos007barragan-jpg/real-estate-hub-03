@@ -18,6 +18,7 @@ interface User {
   last_name: string | null;
   role: string;
   created_at: string;
+  extension: number | null;
 }
 
 export const TeamManagement = () => {
