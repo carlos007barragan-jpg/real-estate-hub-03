@@ -365,60 +365,68 @@ Deno.serve(async (req) => {
 
       // Create new lead if none found — scoped to resolved org
       if (!leadId) {
-        console.log('[INBOUND] No existing lead found. Creating new lead for:', from, 'in org:', orgId);
+        try {
+          console.log('[INBOUND] No existing lead found. Creating new lead for:', from, 'in org:', orgId);
 
-        // Use the first admin/user from the resolved org
-        if (orgUserIds.length > 0) {
-          // Prefer an admin user as the lead owner
-          const { data: adminRoles } = await supabase
-            .from('user_roles').select('user_id')
-            .in('role', ['admin', 'supreme_admin'])
-            .in('user_id', orgUserIds).limit(1);
-          leadOwnerUserId = adminRoles?.[0]?.user_id ?? orgUserIds[0];
-        } else {
-          const { data: firstUser } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
-          leadOwnerUserId = firstUser?.users?.[0]?.id ?? null;
-        }
-
-        if (!leadOwnerUserId) throw new Error('No users in system');
-
-        const { data: newLead, error: leadError } = await supabase
-          .from('leads').insert({
-            name: `Inbound Call - ${from}`,
-            email: `inbound+${from.replace(/\D/g, '')}@placeholder.com`,
-            phone: from, status: 'new', source: 'Inbound Call',
-            assigned_to: 'unassigned', pipeline_stage: 'New Lead',
-            user_id: leadOwnerUserId, is_inbound_call: true,
-            source_call_sid: callSid, last_inbound_at: new Date().toISOString(),
-          }).select('id').single();
-
-        if (leadError) { console.error('[INBOUND] LEAD INSERT ERROR:', JSON.stringify(leadError)); throw leadError; }
-        leadId = newLead.id;
-        console.log('[INBOUND] ✅ New lead created:', leadId);
-
-        await supabase.from('notes').insert({
-          lead_id: leadId, user_id: leadOwnerUserId,
-          content: `📞 New inbound call from ${from}. Unknown caller — new lead created automatically.`,
-          author: 'System', note_type: 'system',
-        });
-
-        // Notify org members
-        const { data: ownerProfile } = await supabase
-          .from('profiles').select('organization_id').eq('user_id', leadOwnerUserId).maybeSingle();
-        const orgId = ownerProfile?.organization_id;
-        if (orgId) {
-          const { data: orgMembers } = await supabase
-            .from('profiles').select('user_id').eq('organization_id', orgId);
-          if (orgMembers?.length) {
-            const notifications = orgMembers.map(m => ({
-              user_id: m.user_id, organization_id: orgId, type: 'lead_created',
-              title: '📞 New Inbound Call',
-              description: `Incoming call from ${from} — new lead created. Check Live Calls tab.`,
-              link: `/leads/${leadId}`, event_type: 'inbound_call',
-              entity_type: 'lead', entity_id: leadId,
-            }));
-            await supabase.from('notifications').insert(notifications);
+          // Use the first admin/user from the resolved org
+          if (orgUserIds.length > 0) {
+            const { data: adminRoles } = await supabase
+              .from('user_roles').select('user_id')
+              .in('role', ['admin', 'supreme_admin'])
+              .in('user_id', orgUserIds).limit(1);
+            leadOwnerUserId = adminRoles?.[0]?.user_id ?? orgUserIds[0];
+          } else {
+            const { data: firstUser } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
+            leadOwnerUserId = firstUser?.users?.[0]?.id ?? null;
           }
+
+          if (leadOwnerUserId) {
+            const { data: newLead, error: leadError } = await supabase
+              .from('leads').insert({
+                name: `Inbound Call - ${from}`,
+                email: `inbound+${from.replace(/\D/g, '')}@placeholder.com`,
+                phone: from, status: 'new', source: 'Inbound Call',
+                assigned_to: 'unassigned', pipeline_stage: 'New Lead',
+                user_id: leadOwnerUserId, is_inbound_call: true,
+                source_call_sid: callSid, last_inbound_at: new Date().toISOString(),
+              }).select('id').single();
+
+            if (leadError) {
+              console.error('[INBOUND] LEAD INSERT ERROR:', JSON.stringify(leadError));
+            } else {
+              leadId = newLead.id;
+              console.log('[INBOUND] ✅ New lead created:', leadId);
+
+              await supabase.from('notes').insert({
+                lead_id: leadId, user_id: leadOwnerUserId,
+                content: `📞 New inbound call from ${from}. Unknown caller — new lead created automatically.`,
+                author: 'System', note_type: 'system',
+              }).catch(() => {});
+
+              // Notify org members
+              try {
+                const notifOrgId = orgId;
+                if (notifOrgId) {
+                  const { data: orgMembers } = await supabase
+                    .from('profiles').select('user_id').eq('organization_id', notifOrgId);
+                  if (orgMembers?.length) {
+                    const notifications = orgMembers.map(m => ({
+                      user_id: m.user_id, organization_id: notifOrgId, type: 'lead_created',
+                      title: '📞 New Inbound Call',
+                      description: `Incoming call from ${from} — new lead created. Check Live Calls tab.`,
+                      link: `/leads/${leadId}`, event_type: 'inbound_call',
+                      entity_type: 'lead', entity_id: leadId,
+                    }));
+                    await supabase.from('notifications').insert(notifications);
+                  }
+                }
+              } catch (e) { console.error('[INBOUND] Notification error:', e); }
+            }
+          } else {
+            console.error('[INBOUND] No users found in system — skipping lead creation');
+          }
+        } catch (e) {
+          console.error('[INBOUND] Lead creation failed (non-fatal):', e);
         }
       }
 
