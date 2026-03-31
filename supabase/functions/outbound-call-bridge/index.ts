@@ -1,15 +1,8 @@
-// Outbound Call Bridge - Click-to-call flow:
-// 1. Calls the agent's phone first
-// 2. When agent answers, dials the lead's phone
-// 3. Bridges both parties
-//
-// Also serves TwiML for the agent leg (when ?action=twiml)
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
@@ -38,7 +31,6 @@ Deno.serve(async (req) => {
       ? `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}`
       : '';
 
-    // TwiML: tell agent they're being connected, then dial the lead
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="alice">Connecting you now.</Say>
@@ -53,37 +45,64 @@ Deno.serve(async (req) => {
   // ---- REST endpoint: initiate the call to agent's phone ----
   try {
     const { leadPhone, leadName, leadId } = await req.json();
+    console.log('[outbound-call-bridge] Request received:', { leadPhone, leadName, leadId });
 
     // Validate inputs
     if (!leadPhone || typeof leadPhone !== 'string' || leadPhone.length < 7 || leadPhone.length > 20) {
       throw new Error('Invalid lead phone number');
     }
 
-    // Get the authenticated user
+    // Get the authenticated user using service role (more reliable)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Not authenticated');
+    if (!authHeader) {
+      console.error('[outbound-call-bridge] No Authorization header present');
+      throw new Error('Not authenticated - no auth header');
+    }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) throw new Error('Not authenticated');
+    // Validate the JWT using service role
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
-    // Get agent's registered phone number
-    const { data: agent } = await supabaseAdmin
+    if (authError || !user) {
+      console.error('[outbound-call-bridge] Auth failed:', authError?.message);
+      throw new Error('Not authenticated');
+    }
+    console.log('[outbound-call-bridge] Authenticated user:', user.id, user.email);
+
+    // Get agent's phone number - try agents table first, then profiles
+    const { data: agent, error: agentErr } = await supabaseAdmin
       .from('agents')
       .select('phone_number')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .maybeSingle();
 
-    if (!agent?.phone_number) {
-      throw new Error('No phone number registered. Go to Settings > General to register your phone number.');
+    console.log('[outbound-call-bridge] Agents table lookup:', { agent, error: agentErr?.message });
+
+    let agentPhone = agent?.phone_number;
+
+    // Fallback to profiles.phone_number if agents table has no entry
+    if (!agentPhone) {
+      const { data: profile, error: profileErr } = await supabaseAdmin
+        .from('profiles')
+        .select('phone_number')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      console.log('[outbound-call-bridge] Profile lookup:', { phone: profile?.phone_number, error: profileErr?.message });
+      agentPhone = profile?.phone_number;
+    }
+
+    if (!agentPhone) {
+      console.error('[outbound-call-bridge] No phone number found for user:', user.id);
+      return new Response(
+        JSON.stringify({ error: 'No phone number registered. Go to Settings > General to register your phone number.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     // Normalize lead phone to E.164
@@ -97,15 +116,21 @@ Deno.serve(async (req) => {
     const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
     const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER');
 
+    console.log('[outbound-call-bridge] Twilio env check:', {
+      hasSid: !!accountSid,
+      hasToken: !!authToken,
+      hasPhone: !!twilioPhone,
+    });
+
     if (!accountSid || !authToken || !twilioPhone) {
-      throw new Error('Twilio credentials not configured');
+      throw new Error(`Twilio credentials not configured: SID=${!!accountSid} TOKEN=${!!authToken} PHONE=${!!twilioPhone}`);
     }
 
-    // Build TwiML URL - when agent answers, this TwiML will dial the lead
+    // Build TwiML URL
     const twimlUrl = `${supabaseUrl}/functions/v1/outbound-call-bridge?action=twiml&to=${encodeURIComponent(e164LeadPhone)}&callerId=${encodeURIComponent(twilioPhone)}&leadId=${encodeURIComponent(leadId || '')}`;
 
-    console.log('Initiating outbound bridge call:', {
-      agentPhone: agent.phone_number,
+    console.log('[outbound-call-bridge] Initiating bridge call:', {
+      agentPhone,
       leadPhone: e164LeadPhone,
       twimlUrl,
     });
@@ -114,12 +139,11 @@ Deno.serve(async (req) => {
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
 
     const formData = new URLSearchParams();
-    formData.append('To', agent.phone_number);
+    formData.append('To', agentPhone);
     formData.append('From', twilioPhone);
     formData.append('Url', twimlUrl);
     formData.append('Timeout', '30');
 
-    // Add status callback for the agent leg
     if (leadId) {
       const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${user.id}`;
       formData.append('StatusCallback', statusCallbackUrl);
@@ -139,11 +163,11 @@ Deno.serve(async (req) => {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Twilio error:', data);
-      throw new Error(data.message || 'Failed to initiate call');
+      console.error('[outbound-call-bridge] Twilio API error:', response.status, data);
+      throw new Error(data.message || `Twilio error ${response.status}`);
     }
 
-    console.log('Bridge call initiated, CallSid:', data.sid);
+    console.log('[outbound-call-bridge] Bridge call initiated, CallSid:', data.sid);
 
     // Log the call
     await supabaseAdmin.from('call_logs').insert({
@@ -158,20 +182,14 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, callSid: data.sid }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error) {
-    console.error('Error in outbound call bridge:', error);
+    console.error('[outbound-call-bridge] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
