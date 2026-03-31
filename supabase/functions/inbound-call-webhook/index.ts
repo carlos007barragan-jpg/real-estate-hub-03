@@ -292,7 +292,7 @@ Deno.serve(async (req) => {
       if (dialTargets.length === 0) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">${BILINGUAL_GREETING}</Say>
+  ${GREETING_TWIML}
   <Redirect method="POST">${fallbackStageUrl}</Redirect>
 </Response>`;
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
@@ -300,11 +300,10 @@ Deno.serve(async (req) => {
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">${BILINGUAL_GREETING}</Say>
+  ${GREETING_TWIML}
   <Dial callerId="${twilioPhone}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="30" action="${fallbackStageUrl}" method="POST" statusCallback="${statusCallbackUrl}" statusCallbackEvent="completed" statusCallbackMethod="POST">
     ${dialTargets.join('\n    ')}
   </Dial>
-  <Redirect method="POST">${fallbackStageUrl}</Redirect>
 </Response>`;
 
       return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
