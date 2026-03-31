@@ -41,6 +41,33 @@ export const CallOptionsDialog = ({
     onSystemCall();
   };
 
+  const handleCallToMyPhone = async () => {
+    setCallingToPhone(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('outbound-call-bridge', {
+        body: { leadPhone, leadName, leadId }
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: "Calling your phone...",
+        description: "Pick up your phone. Once you answer, we'll connect you to " + leadName,
+      });
+      onOpenChange(false);
+      onCallLogged?.();
+    } catch (error: any) {
+      toast({
+        title: "Call Failed",
+        description: error.message || "Failed to initiate call",
+        variant: "destructive",
+      });
+    } finally {
+      setCallingToPhone(false);
+    }
+  };
+
   const handleLogManualCall = async () => {
     setLogging(true);
     try {
