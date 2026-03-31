@@ -1,0 +1,1 @@
+ALTER TABLE public.crm_settings ADD COLUMN IF NOT EXISTS smart_routing_enabled boolean NOT NULL DEFAULT true;
