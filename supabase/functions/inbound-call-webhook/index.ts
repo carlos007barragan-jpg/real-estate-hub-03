@@ -731,11 +731,13 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('[INBOUND] ERROR:', error);
+    console.error('[INBOUND] FATAL ERROR:', error);
+    // MUST return 200 with valid TwiML — Twilio shows "application error" on non-200
     return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna" language="en-US">We're sorry, an error occurred. Please try again later.</Say>
-  <Say voice="Polly.Lupe" language="es-US">Lo sentimos, ha ocurrido un error.</Say>
-</Response>`, { headers: { 'Content-Type': 'text/xml' }, status: 500 });
+  ${GREETING_TWIML}
+  <Say voice="Polly.Joanna" language="en-US">We are experiencing a temporary issue. Please call back shortly.</Say>
+  <Say voice="Polly.Lupe" language="es-US">Estamos experimentando un problema temporal. Por favor llame de nuevo.</Say>
+</Response>`, { headers: { 'Content-Type': 'text/xml' }, status: 200 });
   }
 });
