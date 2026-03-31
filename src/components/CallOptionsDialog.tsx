@@ -33,6 +33,7 @@ export const CallOptionsDialog = ({
   const [notes, setNotes] = useState("");
   const [outcome, setOutcome] = useState("connected");
   const [logging, setLogging] = useState(false);
+  const [callingToPhone, setCallingToPhone] = useState(false);
 
   const handleSystemCall = () => {
     onOpenChange(false);
