@@ -384,7 +384,8 @@ Deno.serve(async (req) => {
     console.error('Error in inbound call webhook:', error);
     return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">We're sorry, an error occurred. Please try again later. Lo sentimos, ha ocurrido un error.</Say>
+  <Say voice="Polly.Joanna" language="en-US">We're sorry, an error occurred. Please try again later.</Say>
+  <Say voice="Polly.Lupe" language="es-US">Lo sentimos, ha ocurrido un error.</Say>
 </Response>`, { headers: { 'Content-Type': 'text/xml' }, status: 500 });
   }
 });
