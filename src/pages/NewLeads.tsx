@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Phone, Mail, Play, Pause, Voicemail, Globe, User, Calendar, Trash2, History, GitMerge } from "lucide-react";
+import { Phone, Mail, Play, Pause, Voicemail, Globe, Calendar, Trash2, History, GitMerge, Building } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
@@ -33,26 +33,25 @@ interface NewLead {
 }
 
 export default function NewLeads() {
-  const [inboundLeads, setInboundLeads] = useState<NewLead[]>([]);
-  const [websiteLeads, setWebsiteLeads] = useState<NewLead[]>([]);
+  const [allLeads, setAllLeads] = useState<NewLead[]>([]);
   const [loading, setLoading] = useState(false);
   const [playingLeadId, setPlayingLeadId] = useState<string | null>(null);
   const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
-  const [inboundStats, setInboundStats] = useState({ total: 0, answered: 0, unanswered: 0 });
-  const [websiteStats, setWebsiteStats] = useState({ total: 0, assigned: 0, unassigned: 0 });
   const [historyDialog, setHistoryDialog] = useState<{ open: boolean; title: string; leads: any[] }>({ open: false, title: '', leads: [] });
-  const [allInboundLeads, setAllInboundLeads] = useState<any[]>([]);
-  const [allWebsiteLeads, setAllWebsiteLeads] = useState<any[]>([]);
+  const [allHistoryLeads, setAllHistoryLeads] = useState<any[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const SOURCE_CALLS = "Inbound Call";
+  const SOURCE_RL = "Real Living Website";
+  const SOURCE_OF = "Owner Finance Website";
 
   const fetchNewLeads = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user's organization to fetch all org leads
       const { data: profile } = await supabase
         .from('profiles')
         .select('organization_id')
@@ -60,8 +59,6 @@ export default function NewLeads() {
         .single();
 
       const orgId = profile?.organization_id;
-
-      // Get all user_ids in the organization
       let orgUserIds: string[] = [user.id];
       if (orgId) {
         const { data: orgProfiles } = await supabase
@@ -73,105 +70,58 @@ export default function NewLeads() {
         }
       }
 
-      // Fetch unassigned inbound call leads for the whole org
-      const { data: inboundData, error: inboundError } = await supabase
+      // Fetch all unassigned leads from the 3 sources
+      const { data: leadsData, error: leadsError } = await supabase
         .from('leads')
-        .select(`id, name, email, phone, status, source, created_at, source_call_sid, assigned_to, property_of_interest, last_inbound_at`)
+        .select('id, name, email, phone, status, source, created_at, source_call_sid, assigned_to, property_of_interest, last_inbound_at, is_inbound_call')
         .in('user_id', orgUserIds)
-        .eq('is_inbound_call', true)
         .eq('assigned_to', 'unassigned')
+        .in('source', [SOURCE_CALLS, SOURCE_RL, SOURCE_OF, 'Online Lead - Website'])
         .order('created_at', { ascending: false });
 
-      if (inboundError) throw inboundError;
+      if (leadsError) throw leadsError;
 
       // Fetch call logs for inbound leads
-      const inboundIds = inboundData?.map(l => l.id) || [];
+      const inboundIds = leadsData?.filter(l => l.is_inbound_call).map(l => l.id) || [];
       const { data: callLogs } = inboundIds.length > 0
         ? await supabase.from('call_logs').select('*').in('lead_id', inboundIds)
         : { data: [] };
-
-      // Fetch note counts & call counts for returning-lead detection
       const { data: callCounts } = inboundIds.length > 0
         ? await supabase.from('call_logs').select('lead_id').in('lead_id', inboundIds)
         : { data: [] };
-      const { data: noteCounts } = inboundIds.length > 0
-        ? await supabase.from('notes').select('lead_id').in('lead_id', inboundIds)
-        : { data: [] };
 
-      const mergedInbound = inboundData?.map(lead => {
+      const merged: NewLead[] = (leadsData || []).map(lead => {
         const callLog = callLogs?.find(log => log.lead_id === lead.id);
         const leadCallCount = callCounts?.filter(c => c.lead_id === lead.id).length || 0;
-        const leadNoteCount = noteCounts?.filter(n => n.lead_id === lead.id).length || 0;
-        // A lead is "returning" if it was created before this latest inbound contact
         const isReturning = lead.last_inbound_at && new Date(lead.last_inbound_at).getTime() > new Date(lead.created_at).getTime() + 60000;
+        // Normalize legacy source
+        const normalizedSource = lead.source === 'Online Lead - Website' ? SOURCE_RL : lead.source;
         return {
           ...lead,
+          source: normalizedSource,
           recording_url: callLog?.recording_url || null,
           transcription: callLog?.transcription || null,
           duration: callLog?.duration || null,
-          direction: callLog?.direction || 'inbound',
+          direction: callLog?.direction || (lead.is_inbound_call ? 'inbound' : 'website'),
           property_of_interest: lead.property_of_interest,
           last_inbound_at: lead.last_inbound_at,
           is_returning: !!isReturning || leadCallCount > 1,
           call_count: leadCallCount,
-          note_count: leadNoteCount,
+          note_count: 0,
         };
-      }) || [];
+      });
 
-      setInboundLeads(mergedInbound);
+      setAllLeads(merged);
 
-      // Fetch website leads (unassigned) for the whole org
-      const { data: webData, error: webError } = await supabase
-        .from('leads')
-        .select(`id, name, email, phone, status, source, created_at, assigned_to, property_of_interest, last_inbound_at`)
-        .in('user_id', orgUserIds)
-        .eq('source', 'Online Lead - Website')
-        .eq('assigned_to', 'unassigned')
-        .order('created_at', { ascending: false });
-
-      if (webError) throw webError;
-
-      setWebsiteLeads((webData || []).map(l => ({
-        ...l,
-        source_call_sid: null,
-        recording_url: null,
-        transcription: null,
-        duration: null,
-        direction: 'website',
-        property_of_interest: l.property_of_interest,
-        last_inbound_at: l.last_inbound_at,
-        is_returning: !!(l.last_inbound_at && new Date(l.last_inbound_at).getTime() > new Date(l.created_at).getTime() + 60000),
-        call_count: 0,
-        note_count: 0,
-      })));
-
-      // Inbound call stats (org-wide) - fetch with details for history
-      const { data: allInbound } = await supabase
+      // History stats (all leads, not just unassigned)
+      const { data: allHistory } = await supabase
         .from('leads')
         .select('id, name, phone, email, assigned_to, created_at, source')
         .in('user_id', orgUserIds)
-        .eq('is_inbound_call', true)
+        .in('source', [SOURCE_CALLS, SOURCE_RL, SOURCE_OF, 'Online Lead - Website'])
         .order('created_at', { ascending: false });
 
-      const inTotal = allInbound?.length || 0;
-      const inAnswered = allInbound?.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded').length || 0;
-      const inDiscarded = allInbound?.filter(l => l.assigned_to === 'discarded').length || 0;
-      setInboundStats({ total: inTotal, answered: inAnswered, unanswered: inTotal - inAnswered - inDiscarded });
-      setAllInboundLeads(allInbound || []);
-
-      // Website lead stats (org-wide) - fetch with details for history
-      const { data: allWebsite } = await supabase
-        .from('leads')
-        .select('id, name, phone, email, assigned_to, created_at, source')
-        .in('user_id', orgUserIds)
-        .eq('source', 'Online Lead - Website')
-        .order('created_at', { ascending: false });
-
-      const webTotal = allWebsite?.length || 0;
-      const webAssigned = allWebsite?.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded').length || 0;
-      setWebsiteStats({ total: webTotal, assigned: webAssigned, unassigned: webTotal - webAssigned });
-      setAllWebsiteLeads(allWebsite || []);
-
+      setAllHistoryLeads(allHistory || []);
     } catch (error: any) {
       console.error('Error fetching new leads:', error);
       toast({ title: "Error", description: "Failed to load new leads", variant: "destructive" });
@@ -182,15 +132,24 @@ export default function NewLeads() {
 
   useEffect(() => {
     fetchNewLeads();
-
     const channel = supabase
       .channel('new-leads-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, () => fetchNewLeads())
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, () => fetchNewLeads())
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  // Derived data
+  const callLeads = allLeads.filter(l => l.source === SOURCE_CALLS);
+  const rlLeads = allLeads.filter(l => l.source === SOURCE_RL);
+  const ofLeads = allLeads.filter(l => l.source === SOURCE_OF);
+
+  const normalizeSource = (s: string) => s === 'Online Lead - Website' ? SOURCE_RL : s;
+  const unassignedCalls = allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_CALLS && l.assigned_to === 'unassigned').length;
+  const unassignedRL = allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_RL && l.assigned_to === 'unassigned').length;
+  const unassignedOF = allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_OF && l.assigned_to === 'unassigned').length;
+  const totalUnassigned = unassignedCalls + unassignedRL + unassignedOF;
 
   const playRecording = async (leadId: string, url: string) => {
     try {
@@ -202,10 +161,8 @@ export default function NewLeads() {
         return;
       }
       if (audioRef.current) audioRef.current.pause();
-
       const { data, error } = await supabase.functions.invoke('get-recording', { body: { recordingUrl: url } });
       if (error) throw error;
-
       const audio = new Audio(data.audioUrl);
       audioRef.current = audio;
       audio.onended = () => setPlayingLeadId(null);
@@ -236,7 +193,6 @@ export default function NewLeads() {
       toast({ title: "Success", description: "Lead assigned to you" });
       fetchNewLeads();
     } catch (error: any) {
-      console.error('Error assigning lead:', error);
       toast({ title: "Error", description: "Failed to assign lead", variant: "destructive" });
     }
   };
@@ -248,7 +204,6 @@ export default function NewLeads() {
       toast({ title: "Discarded", description: "Lead has been discarded" });
       fetchNewLeads();
     } catch (error: any) {
-      console.error('Error discarding lead:', error);
       toast({ title: "Error", description: "Failed to discard lead", variant: "destructive" });
     }
   };
@@ -257,29 +212,32 @@ export default function NewLeads() {
     setHistoryDialog({ open: true, title, leads });
   };
 
-  const renderLeadCard = (lead: NewLead, isWebsite: boolean) => (
+  const getSourceIcon = (source: string) => {
+    if (source === SOURCE_CALLS) return <Phone className="w-5 h-5 text-info" />;
+    if (source === SOURCE_OF) return <Building className="w-5 h-5 text-amber-600" />;
+    return <Globe className="w-5 h-5 text-primary" />;
+  };
+
+  const renderLeadCard = (lead: NewLead) => (
     <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-3">
-            <div className={`p-2 rounded-lg ${isWebsite ? 'bg-primary/10' : 'bg-info/10'}`}>
-              {isWebsite ? <Globe className="w-5 h-5 text-primary" /> : <Phone className="w-5 h-5 text-info" />}
+            <div className={`p-2 rounded-lg ${lead.source === SOURCE_CALLS ? 'bg-info/10' : lead.source === SOURCE_OF ? 'bg-amber-500/10' : 'bg-primary/10'}`}>
+              {getSourceIcon(lead.source)}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-lg">{lead.name}</h3>
                 {lead.is_returning && (
                   <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600 bg-amber-50">
-                    <GitMerge className="w-3 h-3" />
-                    Returning Lead
+                    <GitMerge className="w-3 h-3" /> Returning Lead
                   </Badge>
                 )}
               </div>
               <p className="text-sm text-muted-foreground">
                 {lead.is_returning ? (
-                  <>
-                    Originally added {format(new Date(lead.created_at), 'MMM dd, yyyy')} · Last contact {format(new Date(lead.last_inbound_at!), 'MMM dd, h:mm a')}
-                  </>
+                  <>Originally added {format(new Date(lead.created_at), 'MMM dd, yyyy')} · Last contact {format(new Date(lead.last_inbound_at!), 'MMM dd, h:mm a')}</>
                 ) : (
                   format(new Date(lead.created_at), 'MMM dd, yyyy h:mm a')
                 )}
@@ -293,28 +251,23 @@ export default function NewLeads() {
                 <GitMerge className="w-3 h-3" /> Existing Lead — Merged Automatically
               </div>
               <p className="text-sm text-amber-600 dark:text-amber-300">
-                This contact already exists in the CRM{lead.call_count > 1 ? ` with ${lead.call_count} previous calls` : ''}. New data has been merged into their profile. Click "View Details" to see full history.
+                This contact already exists in the CRM{lead.call_count > 1 ? ` with ${lead.call_count} previous calls` : ''}. Click "View Details" to see full history.
               </p>
             </div>
           )}
 
           <div className="space-y-2 mb-4">
             <div className="flex items-center gap-2 text-sm">
-              <Phone className="w-4 h-4 text-muted-foreground" />
-              <span>{lead.phone}</span>
+              <Phone className="w-4 h-4 text-muted-foreground" /><span>{lead.phone}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Mail className="w-4 h-4 text-muted-foreground" />
-              <span>{lead.email}</span>
+              <Mail className="w-4 h-4 text-muted-foreground" /><span>{lead.email}</span>
             </div>
             <div className="flex items-center gap-2 text-sm flex-wrap">
-              <Badge variant={isWebsite ? "default" : "outline"}>{lead.source}</Badge>
-              {!isWebsite && <Badge variant="secondary">Duration: {formatDuration(lead.duration)}</Badge>}
+              <Badge variant="default">{lead.source}</Badge>
+              {lead.source === SOURCE_CALLS && <Badge variant="secondary">Duration: {formatDuration(lead.duration)}</Badge>}
               {lead.property_of_interest && (
-                <Badge variant="secondary" className="gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {lead.property_of_interest}
-                </Badge>
+                <Badge variant="secondary" className="gap-1"><Calendar className="w-3 h-3" />{lead.property_of_interest}</Badge>
               )}
             </div>
           </div>
@@ -337,22 +290,75 @@ export default function NewLeads() {
         </div>
 
         {lead.recording_url && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => playRecording(lead.id, lead.recording_url!)}
-            disabled={loadingAudio === lead.id}
-            className="gap-2 ml-4"
-          >
-            {playingLeadId === lead.id ? (
-              <><Pause className="w-4 h-4" /> Pause</>
-            ) : (
-              <><Play className="w-4 h-4" /> {loadingAudio === lead.id ? 'Loading...' : 'Play Voicemail'}</>
-            )}
+          <Button size="sm" variant="outline" onClick={() => playRecording(lead.id, lead.recording_url!)} disabled={loadingAudio === lead.id} className="gap-2 ml-4">
+            {playingLeadId === lead.id ? <><Pause className="w-4 h-4" /> Pause</> : <><Play className="w-4 h-4" /> {loadingAudio === lead.id ? 'Loading...' : 'Play Voicemail'}</>}
           </Button>
         )}
       </div>
     </Card>
+  );
+
+  const renderLeadList = (leads: NewLead[], emptyIcon: React.ReactNode, emptyText: string) => (
+    leads.length === 0 ? (
+      <Card className="p-8 text-center">
+        {emptyIcon}
+        <p className="text-muted-foreground">{emptyText}</p>
+      </Card>
+    ) : (
+      <div className="grid gap-4">
+        {leads.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(lead => renderLeadCard(lead))}
+      </div>
+    )
+  );
+
+  const renderMetricCards = () => (
+    <div className="grid gap-4 md:grid-cols-4">
+      <Card
+        className={`p-6 cursor-pointer hover:shadow-md transition-shadow ${unassignedCalls > 0 ? 'border-destructive/50 bg-destructive/5' : ''}`}
+        onClick={() => openHistory('Unassigned Calls', allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_CALLS && l.assigned_to === 'unassigned'))}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-muted-foreground">Unassigned Calls</div>
+            <div className={`text-3xl font-bold mt-2 ${unassignedCalls > 0 ? 'text-destructive' : ''}`}>{unassignedCalls}</div>
+          </div>
+          <Phone className="w-5 h-5 text-muted-foreground" />
+        </div>
+      </Card>
+      <Card
+        className={`p-6 cursor-pointer hover:shadow-md transition-shadow ${unassignedRL > 0 ? 'border-amber-500/50 bg-amber-50 dark:bg-amber-950/10' : ''}`}
+        onClick={() => openHistory('Unassigned Real Living Leads', allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_RL && l.assigned_to === 'unassigned'))}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-muted-foreground">Unassigned Real Living</div>
+            <div className={`text-3xl font-bold mt-2 ${unassignedRL > 0 ? 'text-amber-600' : ''}`}>{unassignedRL}</div>
+          </div>
+          <Globe className="w-5 h-5 text-muted-foreground" />
+        </div>
+      </Card>
+      <Card
+        className={`p-6 cursor-pointer hover:shadow-md transition-shadow ${unassignedOF > 0 ? 'border-amber-500/50 bg-amber-50 dark:bg-amber-950/10' : ''}`}
+        onClick={() => openHistory('Unassigned Owner Finance Leads', allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_OF && l.assigned_to === 'unassigned'))}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-muted-foreground">Unassigned Owner Finance</div>
+            <div className={`text-3xl font-bold mt-2 ${unassignedOF > 0 ? 'text-amber-600' : ''}`}>{unassignedOF}</div>
+          </div>
+          <Building className="w-5 h-5 text-muted-foreground" />
+        </div>
+      </Card>
+      <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('All Unassigned', allHistoryLeads.filter(l => l.assigned_to === 'unassigned'))}>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm text-muted-foreground">Total Unassigned</div>
+            <div className="text-3xl font-bold mt-2">{totalUnassigned}</div>
+          </div>
+          <History className="w-5 h-5 text-muted-foreground" />
+        </div>
+      </Card>
+    </div>
   );
 
   return (
@@ -360,164 +366,34 @@ export default function NewLeads() {
       <div>
         <h1 className="text-3xl font-bold">New Inbound Leads</h1>
         <p className="text-muted-foreground mt-2">
-          Unassigned leads from inbound calls and website submissions — assign to agents
+          Unassigned leads from calls, Real Living website, and Owner Finance website
         </p>
       </div>
 
+      {renderMetricCards()}
+
       <Tabs defaultValue="all" className="w-full">
         <TabsList>
-          <TabsTrigger value="all">
-            All ({inboundLeads.length + websiteLeads.length})
-          </TabsTrigger>
-          <TabsTrigger value="website" className="gap-1.5">
-            <Globe className="w-4 h-4" />
-            Website ({websiteLeads.length})
-          </TabsTrigger>
-          <TabsTrigger value="calls" className="gap-1.5">
-            <Phone className="w-4 h-4" />
-            Inbound Calls ({inboundLeads.length})
-          </TabsTrigger>
+          <TabsTrigger value="all">All ({allLeads.length})</TabsTrigger>
+          <TabsTrigger value="calls" className="gap-1.5"><Phone className="w-4 h-4" />Live Calls ({callLeads.length})</TabsTrigger>
+          <TabsTrigger value="rl" className="gap-1.5"><Globe className="w-4 h-4" />Real Living Web ({rlLeads.length})</TabsTrigger>
+          <TabsTrigger value="of" className="gap-1.5"><Building className="w-4 h-4" />Owner Finance ({ofLeads.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-6 mt-4">
-          {/* Combined stats */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('All Inbound Calls', allInboundLeads)}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Total Inbound Calls</div>
-                  <div className="text-3xl font-bold mt-2">{inboundStats.total}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Calls Answered', allInboundLeads.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded'))}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Calls Answered</div>
-                  <div className="text-3xl font-bold mt-2 text-success">{inboundStats.answered}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-            <Card className="p-6 border-primary/20 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('All Website Leads', allWebsiteLeads)}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Website Leads</div>
-                  <div className="text-3xl font-bold mt-2">{websiteStats.total}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Website Unassigned', allWebsiteLeads.filter(l => l.assigned_to === 'unassigned'))}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Website Unassigned</div>
-                  <div className="text-3xl font-bold mt-2 text-warning">{websiteStats.unassigned}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-          </div>
-
-          {inboundLeads.length + websiteLeads.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Voicemail className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No new inbound leads</p>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {[...websiteLeads, ...inboundLeads]
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                .map(lead => renderLeadCard(lead, lead.source === 'Online Lead - Website'))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="website" className="space-y-6 mt-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card className="p-6 border-primary/20 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('All Website Leads', allWebsiteLeads)}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Total Website Leads</div>
-                  <div className="text-3xl font-bold mt-2">{websiteStats.total}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Assigned Website Leads', allWebsiteLeads.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded'))}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Assigned</div>
-                  <div className="text-3xl font-bold mt-2 text-success">{websiteStats.assigned}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Unassigned Website Leads', allWebsiteLeads.filter(l => l.assigned_to === 'unassigned'))}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Unassigned</div>
-                  <div className="text-3xl font-bold mt-2 text-warning">{websiteStats.unassigned}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-          </div>
-
-          {websiteLeads.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Globe className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No unassigned website leads</p>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {websiteLeads.map(lead => renderLeadCard(lead, true))}
-            </div>
-          )}
+          {renderLeadList(allLeads, <Voicemail className="w-12 h-12 mx-auto text-muted-foreground mb-4" />, "No new inbound leads")}
         </TabsContent>
 
         <TabsContent value="calls" className="space-y-6 mt-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('All Inbound Calls', allInboundLeads)}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Total Inbound Calls</div>
-                  <div className="text-3xl font-bold mt-2">{inboundStats.total}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Answered Calls', allInboundLeads.filter(l => l.assigned_to !== 'unassigned' && l.assigned_to !== 'discarded'))}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Answered</div>
-                  <div className="text-3xl font-bold mt-2 text-success">{inboundStats.answered}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-            <Card className="p-6 cursor-pointer hover:shadow-md transition-shadow" onClick={() => openHistory('Unanswered Calls', allInboundLeads.filter(l => l.assigned_to === 'unassigned'))}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-muted-foreground">Unanswered</div>
-                  <div className="text-3xl font-bold mt-2 text-warning">{inboundStats.unanswered}</div>
-                </div>
-                <History className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </Card>
-          </div>
+          {renderLeadList(callLeads, <Voicemail className="w-12 h-12 mx-auto text-muted-foreground mb-4" />, "No new inbound call leads")}
+        </TabsContent>
 
-          {inboundLeads.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Voicemail className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No new inbound call leads</p>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {inboundLeads.map(lead => renderLeadCard(lead, false))}
-            </div>
-          )}
+        <TabsContent value="rl" className="space-y-6 mt-4">
+          {renderLeadList(rlLeads, <Globe className="w-12 h-12 mx-auto text-muted-foreground mb-4" />, "No unassigned Real Living website leads")}
+        </TabsContent>
+
+        <TabsContent value="of" className="space-y-6 mt-4">
+          {renderLeadList(ofLeads, <Building className="w-12 h-12 mx-auto text-muted-foreground mb-4" />, "No unassigned Owner Finance website leads")}
         </TabsContent>
       </Tabs>
 
