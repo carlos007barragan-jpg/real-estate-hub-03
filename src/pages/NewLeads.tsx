@@ -81,10 +81,10 @@ export default function NewLeads() {
 
       if (leadsError) throw leadsError;
 
-      // Fetch call logs for inbound leads
-      const inboundIds = leadsData?.filter(l => l.is_inbound_call).map(l => l.id) || [];
+      // Fetch call logs for inbound leads (all statuses)
+      const inboundIds = leadsData?.filter(l => l.source === SOURCE_CALLS || l.source === 'Inbound Call' || l.is_inbound_call).map(l => l.id) || [];
       const { data: callLogs } = inboundIds.length > 0
-        ? await supabase.from('call_logs').select('*').in('lead_id', inboundIds)
+        ? await supabase.from('call_logs').select('*').in('lead_id', inboundIds).order('created_at', { ascending: false })
         : { data: [] };
       const { data: callCounts } = inboundIds.length > 0
         ? await supabase.from('call_logs').select('lead_id').in('lead_id', inboundIds)
