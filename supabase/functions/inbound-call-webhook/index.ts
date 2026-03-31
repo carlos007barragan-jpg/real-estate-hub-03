@@ -451,16 +451,29 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Deduplicate call log
+      // Deduplicate call log — use an admin from the resolved org
       try {
         const { data: existingLog } = await supabase
           .from('call_logs').select('id').eq('call_sid', callSid).maybeSingle();
-        if (!existingLog && leadId && leadOwnerUserId) {
-          await supabase.from('call_logs').insert({
-            call_sid: callSid, lead_id: leadId, user_id: leadOwnerUserId,
-            from_number: from, to_number: to, status: 'in-progress',
-            direction: 'inbound', answered_by: answeredBy,
-          });
+        if (!existingLog && leadId) {
+          // Find an admin in the org to own the call_log
+          let callLogUserId = leadOwnerUserId;
+          if (orgUserIds.length > 0) {
+            const { data: adminRoles } = await supabase
+              .from('user_roles').select('user_id')
+              .in('role', ['admin', 'supreme_admin'])
+              .in('user_id', orgUserIds).limit(1);
+            callLogUserId = adminRoles?.[0]?.user_id ?? orgUserIds[0];
+          }
+          if (callLogUserId) {
+            const { error: clErr } = await supabase.from('call_logs').insert({
+              call_sid: callSid, lead_id: leadId, user_id: callLogUserId,
+              from_number: from, to_number: to, status: 'in-progress',
+              direction: 'inbound', answered_by: answeredBy,
+            });
+            if (clErr) console.error('[INBOUND] call_log insert error:', JSON.stringify(clErr));
+            else console.log('[INBOUND] ✅ call_log created with user_id:', callLogUserId);
+          }
         }
       } catch (e) { console.error('[INBOUND] Call log insert error (non-fatal):', e); }
 
