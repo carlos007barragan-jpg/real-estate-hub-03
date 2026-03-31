@@ -342,6 +342,13 @@ export const TeamManagement = () => {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
+                    {user.extension ? (
+                      <Badge variant="outline" className="font-mono">{user.extension}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Select
                       value={user.role}
                       onValueChange={(value: "admin" | "agent" | "marketing_manager" | "marketing") => handleRoleChange(user.id, value)}
