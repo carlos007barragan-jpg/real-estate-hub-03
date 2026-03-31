@@ -30,6 +30,7 @@ interface NewLead {
   is_returning: boolean;
   call_count: number;
   note_count: number;
+  call_status: string | null;
 }
 
 export default function NewLeads() {
