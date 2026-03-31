@@ -431,17 +431,19 @@ Deno.serve(async (req) => {
       }
 
       // Deduplicate call log
-      const { data: existingLog } = await supabase
-        .from('call_logs').select('id').eq('call_sid', callSid).maybeSingle();
-      if (!existingLog && leadId && leadOwnerUserId) {
-        await supabase.from('call_logs').insert({
-          call_sid: callSid, lead_id: leadId, user_id: leadOwnerUserId,
-          from_number: from, to_number: to, status: 'in-progress',
-          direction: 'inbound', answered_by: answeredBy,
-        });
-      }
+      try {
+        const { data: existingLog } = await supabase
+          .from('call_logs').select('id').eq('call_sid', callSid).maybeSingle();
+        if (!existingLog && leadId && leadOwnerUserId) {
+          await supabase.from('call_logs').insert({
+            call_sid: callSid, lead_id: leadId, user_id: leadOwnerUserId,
+            from_number: from, to_number: to, status: 'in-progress',
+            direction: 'inbound', answered_by: answeredBy,
+          });
+        }
+      } catch (e) { console.error('[INBOUND] Call log insert error (non-fatal):', e); }
 
-      const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserId || leadOwnerUserId!);
+      const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserId || leadOwnerUserId || '');
 
       // ---- If assigned lead with smart routing, skip IVR and ring assigned agent directly ----
       if (isAssignedLead && assignedAgentUserId) {
