@@ -18,11 +18,15 @@ const sanitizeIdentity = (email: string) =>
 const escapeXmlAttr = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const BILINGUAL_GREETING =
-  'Thank you for calling Real Living. One of our agents will be with you shortly. Gracias por llamar a Real Living. Uno de nuestros agentes le atenderá en breve.';
+const GREETING_TWIML = `
+  <Say voice="Polly.Joanna" language="en-US">Thank you for calling Real Living. One of our agents will be with you shortly.</Say>
+  <Pause length="1"/>
+  <Say voice="Polly.Lupe" language="es-US">Gracias por llamar a Real Living. Uno de nuestros agentes le atenderá en breve.</Say>`;
 
-const BILINGUAL_VOICEMAIL =
-  "We're sorry we missed your call. Please leave a message and a Real Living agent will call you back. Lo sentimos, deje un mensaje y un agente le devolverá la llamada.";
+const VOICEMAIL_TWIML = `
+  <Say voice="Polly.Joanna" language="en-US">We're sorry we missed your call. Please leave a message and a Real Living agent will call you back.</Say>
+  <Pause length="1"/>
+  <Say voice="Polly.Lupe" language="es-US">Lo sentimos, deje un mensaje y un agente le devolverá la llamada.</Say>`;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -234,7 +238,7 @@ Deno.serve(async (req) => {
         console.log('Round-robin OFF and no assigned agent — going straight to fallback');
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">${BILINGUAL_GREETING}</Say>
+  ${GREETING_TWIML}
   <Redirect method="POST">${fallbackStageUrl}</Redirect>
 </Response>`;
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
@@ -288,7 +292,7 @@ Deno.serve(async (req) => {
       if (dialTargets.length === 0) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">${BILINGUAL_GREETING}</Say>
+  ${GREETING_TWIML}
   <Redirect method="POST">${fallbackStageUrl}</Redirect>
 </Response>`;
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
@@ -296,11 +300,10 @@ Deno.serve(async (req) => {
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">${BILINGUAL_GREETING}</Say>
+  ${GREETING_TWIML}
   <Dial callerId="${twilioPhone}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="30" action="${fallbackStageUrl}" method="POST" statusCallback="${statusCallbackUrl}" statusCallbackEvent="completed" statusCallbackMethod="POST">
     ${dialTargets.join('\n    ')}
   </Dial>
-  <Redirect method="POST">${fallbackStageUrl}</Redirect>
 </Response>`;
 
       return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
@@ -315,14 +318,19 @@ Deno.serve(async (req) => {
         leadOwnerUserId = leadOwnerUserId ?? existingLead?.user_id ?? null;
       }
 
-      if (dialCallStatus === 'completed') {
+      // If the agent answered and the call completed normally, just hang up — no voicemail
+      if (dialCallStatus === 'completed' || dialCallStatus === 'answered') {
+        console.log('Agent answered and call completed — no voicemail needed');
         return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup /></Response>', {
           headers: { 'Content-Type': 'text/xml' },
         });
       }
 
+      console.log('Dial status:', dialCallStatus, '— proceeding to fallback/voicemail');
+
       const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserId ?? '');
       const statusCallbackUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${resolvedSettingsUserId}`);
+      const voicemailStageUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=voicemail&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${resolvedSettingsUserId}`);
 
       const fallbackNumbers = [crmSettings?.fallback_phone_1, crmSettings?.fallback_phone_2].filter(
         (n): n is string => typeof n === 'string' && n.length > 0
@@ -331,7 +339,7 @@ Deno.serve(async (req) => {
       if (fallbackNumbers.length === 0) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">${BILINGUAL_VOICEMAIL}</Say>
+  ${VOICEMAIL_TWIML}
   <Record maxLength="120" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" />
 </Response>`;
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
@@ -340,14 +348,31 @@ Deno.serve(async (req) => {
       const numberTargets = fallbackNumbers.map(num => `<Number>${num}</Number>`).join('\n    ');
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">Please hold while we connect you. Por favor espere mientras lo conectamos.</Say>
-  <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="35" statusCallback="${statusCallbackUrl}" statusCallbackEvent="completed" statusCallbackMethod="POST">
+  <Say voice="Polly.Joanna" language="en-US">Please hold while we connect you.</Say>
+  <Pause length="1"/>
+  <Say voice="Polly.Lupe" language="es-US">Por favor espere mientras lo conectamos.</Say>
+  <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="35" action="${voicemailStageUrl}" method="POST" statusCallback="${statusCallbackUrl}" statusCallbackEvent="completed" statusCallbackMethod="POST">
     ${numberTargets}
   </Dial>
-  <Say voice="Polly.Joanna">${BILINGUAL_VOICEMAIL}</Say>
-  <Record maxLength="120" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" />
 </Response>`;
 
+      return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
+    }
+
+    // ========== STAGE: VOICEMAIL ==========
+    if (stage === 'voicemail') {
+      // Only play voicemail if fallback also didn't answer
+      if (dialCallStatus === 'completed' || dialCallStatus === 'answered') {
+        return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup /></Response>', {
+          headers: { 'Content-Type': 'text/xml' },
+        });
+      }
+
+      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  ${VOICEMAIL_TWIML}
+  <Record maxLength="120" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" />
+</Response>`;
       return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
     }
 
@@ -359,7 +384,8 @@ Deno.serve(async (req) => {
     console.error('Error in inbound call webhook:', error);
     return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">We're sorry, an error occurred. Please try again later. Lo sentimos, ha ocurrido un error.</Say>
+  <Say voice="Polly.Joanna" language="en-US">We're sorry, an error occurred. Please try again later.</Say>
+  <Say voice="Polly.Lupe" language="es-US">Lo sentimos, ha ocurrido un error.</Say>
 </Response>`, { headers: { 'Content-Type': 'text/xml' }, status: 500 });
   }
 });
