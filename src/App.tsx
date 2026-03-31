@@ -32,6 +32,7 @@ import OwnerPortalDashboard from "./pages/OwnerPortalDashboard";
 import DispoSheet from "./pages/DispoSheet";
 import OwnerManagement from "./pages/OwnerManagement";
 import PublicPageSettings from "./pages/PublicPageSettings";
+import PublicProperties from "./pages/PublicProperties";
 import UpdatePassword from "./pages/UpdatePassword";
 
 const queryClient = new QueryClient({
