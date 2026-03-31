@@ -18,11 +18,15 @@ const sanitizeIdentity = (email: string) =>
 const escapeXmlAttr = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const BILINGUAL_GREETING =
-  'Thank you for calling Real Living. One of our agents will be with you shortly. Gracias por llamar a Real Living. Uno de nuestros agentes le atenderá en breve.';
+const GREETING_TWIML = `
+  <Say voice="Polly.Joanna" language="en-US">Thank you for calling Real Living. One of our agents will be with you shortly.</Say>
+  <Pause length="1"/>
+  <Say voice="Polly.Lupe" language="es-US">Gracias por llamar a Real Living. Uno de nuestros agentes le atenderá en breve.</Say>`;
 
-const BILINGUAL_VOICEMAIL =
-  "We're sorry we missed your call. Please leave a message and a Real Living agent will call you back. Lo sentimos, deje un mensaje y un agente le devolverá la llamada.";
+const VOICEMAIL_TWIML = `
+  <Say voice="Polly.Joanna" language="en-US">We're sorry we missed your call. Please leave a message and a Real Living agent will call you back.</Say>
+  <Pause length="1"/>
+  <Say voice="Polly.Lupe" language="es-US">Lo sentimos, deje un mensaje y un agente le devolverá la llamada.</Say>`;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
