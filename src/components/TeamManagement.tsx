@@ -319,6 +319,7 @@ export const TeamManagement = () => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Ext.</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead className="text-right">Actions</TableHead>
