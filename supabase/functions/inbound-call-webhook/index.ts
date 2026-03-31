@@ -542,10 +542,10 @@ Deno.serve(async (req) => {
     if (stage === 'ivr-menu') {
       console.log('[INBOUND] IVR menu digit:', digits);
       const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserIdFromUrl ?? '');
+      const mkUrl = (s: string, extra = '') => `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=${s}&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}&orgId=${orgIdFromUrl}${extra}`;
 
       if (digits === '1') {
-        // Go to directory
-        const directoryUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=directory&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}`);
+        const directoryUrl = escapeXmlAttr(mkUrl('directory'));
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Redirect method="POST">${directoryUrl}</Redirect>
@@ -553,8 +553,7 @@ Deno.serve(async (req) => {
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
       }
 
-      // Digit 0 or anything else → round-robin
-      const roundRobinUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=roundrobin&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}`);
+      const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Redirect method="POST">${roundRobinUrl}</Redirect>
@@ -567,10 +566,11 @@ Deno.serve(async (req) => {
       console.log('[INBOUND] Building agent directory');
       const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserIdFromUrl ?? '');
       const directory = await fetchAgentDirectory(supabase, leadOwnerUserIdFromUrl ?? '');
+      const mkUrl = (s: string, extra = '') => `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=${s}&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}&orgId=${orgIdFromUrl}${extra}`;
 
       if (directory.length === 0) {
         console.log('[INBOUND] No agents found for directory — going to round-robin');
-        const roundRobinUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=roundrobin&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}`);
+        const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna" language="en-US">No agents are currently available in the directory. Please hold while we connect you.</Say>
@@ -579,15 +579,13 @@ Deno.serve(async (req) => {
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
       }
 
-      // Build directory listing TwiML
       const directoryLines = directory.map(a =>
         `For ${a.first_name} ${a.last_name}, press ${a.extension}.`
       ).join(' ');
 
-      // Store directory mapping in URL params (extension -> user_id)
       const dirMap = directory.map(a => `${a.extension}:${a.user_id}`).join(',');
-      const dialExtUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=dial-extension&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}&dirMap=${encodeURIComponent(dirMap)}`);
-      const roundRobinUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=roundrobin&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}`);
+      const dialExtUrl = escapeXmlAttr(mkUrl('dial-extension', `&dirMap=${encodeURIComponent(dirMap)}`));
+      const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -606,16 +604,15 @@ Deno.serve(async (req) => {
       const dirMapStr = requestUrl.searchParams.get('dirMap') ?? '';
       console.log('[INBOUND] Dial-extension digit:', digits, 'dirMap:', dirMapStr);
       const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserIdFromUrl ?? '');
+      const mkUrl = (s: string, extra = '') => `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=${s}&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}&orgId=${orgIdFromUrl}${extra}`;
 
-      // If star pressed, replay directory
       if (digits === '*') {
-        const directoryUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=directory&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}`);
+        const directoryUrl = escapeXmlAttr(mkUrl('directory'));
         return new Response(`<?xml version="1.0" encoding="UTF-8"?><Response><Redirect method="POST">${directoryUrl}</Redirect></Response>`, {
           headers: { 'Content-Type': 'text/xml' },
         });
       }
 
-      // Parse directory map
       const dirEntries = dirMapStr ? decodeURIComponent(dirMapStr).split(',') : [];
       const extMap = new Map<string, string>();
       for (const entry of dirEntries) {
@@ -627,7 +624,7 @@ Deno.serve(async (req) => {
 
       if (!selectedUserId) {
         console.log('[INBOUND] Invalid extension — going to round-robin');
-        const roundRobinUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=roundrobin&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}`);
+        const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
         return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna" language="en-US">Invalid selection. Connecting you to the next available agent.</Say>
@@ -635,9 +632,8 @@ Deno.serve(async (req) => {
 </Response>`, { headers: { 'Content-Type': 'text/xml' } });
       }
 
-      // Ring selected agent, fallback to round-robin if no answer
       const targets = await buildSingleAgentDialTargets(supabase, selectedUserId);
-      const roundRobinUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=roundrobin&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}`);
+      const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
       const statusCallbackUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadIdFromUrl}&userId=${resolvedSettingsUserId}`);
 
       if (targets.length === 0) {
@@ -664,7 +660,6 @@ Deno.serve(async (req) => {
     if (stage === 'roundrobin') {
       console.log('[INBOUND] Round-robin stage, dialCallStatus:', dialCallStatus);
 
-      // If a previous dial completed successfully, hang up
       if (dialCallStatus === 'completed' || dialCallStatus === 'answered') {
         return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup /></Response>', {
           headers: { 'Content-Type': 'text/xml' },
@@ -672,10 +667,12 @@ Deno.serve(async (req) => {
       }
 
       const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserIdFromUrl ?? '');
-      const fallbackStageUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/inbound-call-webhook?stage=fallback&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}`);
+      const resolvedOrgId = orgIdFromUrl ?? orgId;
+      const mkUrl = (s: string) => `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=${s}&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}&orgId=${resolvedOrgId}`;
+      const fallbackStageUrl = escapeXmlAttr(mkUrl('fallback'));
       const statusCallbackUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadIdFromUrl}&userId=${resolvedSettingsUserId}`);
 
-      const dialTargets = await buildAllAgentDialTargets(supabase, leadOwnerUserIdFromUrl ?? '');
+      const dialTargets = await buildAllAgentDialTargets(supabase, resolvedOrgId);
 
       if (dialTargets.length === 0) {
         console.log('[INBOUND] No dial targets — going to fallback');
