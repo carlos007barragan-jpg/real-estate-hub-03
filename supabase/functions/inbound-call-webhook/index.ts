@@ -50,58 +50,78 @@ async function resolveSettingsUserId(supabase: any, candidateUserId: string): Pr
   return admins?.[0]?.user_id ?? candidateUserId;
 }
 
-async function buildAllAgentDialTargets(supabase: any, leadOwnerUserId: string): Promise<string[]> {
+function formatE164(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if (digits.startsWith('+')) return phone;
+  return `+${digits}`;
+}
+
+async function buildAllAgentDialTargets(supabase: any, orgId: string | null): Promise<string[]> {
   const dialTargets: string[] = [];
   const seenPhones = new Set<string>();
   const seenEmails = new Set<string>();
 
-  // 1. Agents table
-  const { data: agents } = await supabase
-    .from('agents').select('user_id, phone_number').eq('is_active', true);
+  if (!orgId) {
+    console.log('[INBOUND] buildAllAgentDialTargets: no orgId — returning empty');
+    return [];
+  }
 
-  if (agents?.length) {
-    for (const agent of agents) {
-      if (agent.phone_number && !seenPhones.has(agent.phone_number)) {
-        dialTargets.push(`<Number>${agent.phone_number}</Number>`);
-        seenPhones.add(agent.phone_number);
+  // Query all profiles with a non-null extension in this org
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('user_id, phone_number, email, first_name, last_name, extension')
+    .eq('organization_id', orgId)
+    .not('extension', 'is', null);
+
+  if (profilesError) {
+    console.error('[INBOUND] Error fetching org profiles for dial:', profilesError);
+    return [];
+  }
+
+  if (!profiles?.length) {
+    console.log('[INBOUND] No profiles with extensions found in org:', orgId);
+    return [];
+  }
+
+  // Fetch roles to exclude marketing
+  const userIds = profiles.map((p: any) => p.user_id);
+  const { data: roles } = await supabase
+    .from('user_roles').select('user_id, role').in('user_id', userIds);
+  const roleMap = new Map((roles ?? []).map((r: any) => [r.user_id, r.role]));
+
+  for (const profile of profiles) {
+    const role = roleMap.get(profile.user_id);
+    // Exclude marketing roles
+    if (role === 'marketing' || role === 'marketing_manager') {
+      console.log('[INBOUND] Excluding marketing user:', profile.email);
+      continue;
+    }
+    // Exclude test accounts
+    if (profile.email && (profile.email.includes('test') || profile.first_name === 'HEHE')) {
+      console.log('[INBOUND] Excluding test account:', profile.email);
+      continue;
+    }
+
+    // Add phone number
+    if (profile.phone_number) {
+      const e164 = formatE164(profile.phone_number);
+      if (!seenPhones.has(e164)) {
+        dialTargets.push(`<Number>${e164}</Number>`);
+        seenPhones.add(e164);
       }
-      const { data: userRes } = await supabase.auth.admin.getUserById(agent.user_id);
-      if (userRes?.user?.email && !seenEmails.has(userRes.user.email)) {
-        dialTargets.push(`<Client><Identity>${sanitizeIdentity(userRes.user.email)}</Identity></Client>`);
-        seenEmails.add(userRes.user.email);
-      }
+    }
+
+    // Add WebRTC client
+    if (profile.email && !seenEmails.has(profile.email)) {
+      dialTargets.push(`<Client><Identity>${sanitizeIdentity(profile.email)}</Identity></Client>`);
+      seenEmails.add(profile.email);
     }
   }
 
-  // 2. Org profiles with phones
-  let orgId: string | null = null;
-  if (leadOwnerUserId) {
-    const { data: ownerProfile } = await supabase
-      .from('profiles').select('organization_id').eq('user_id', leadOwnerUserId).maybeSingle();
-    orgId = ownerProfile?.organization_id ?? null;
-  }
-
-  if (orgId) {
-    const { data: orgProfiles } = await supabase
-      .from('profiles').select('user_id, phone_number')
-      .eq('organization_id', orgId).not('phone_number', 'is', null);
-
-    if (orgProfiles?.length) {
-      for (const profile of orgProfiles) {
-        if (profile.phone_number && !seenPhones.has(profile.phone_number)) {
-          dialTargets.push(`<Number>${profile.phone_number}</Number>`);
-          seenPhones.add(profile.phone_number);
-        }
-        const { data: userRes } = await supabase.auth.admin.getUserById(profile.user_id);
-        if (userRes?.user?.email && !seenEmails.has(userRes.user.email)) {
-          dialTargets.push(`<Client><Identity>${sanitizeIdentity(userRes.user.email)}</Identity></Client>`);
-          seenEmails.add(userRes.user.email);
-        }
-      }
-    }
-  }
-
-  console.log('[INBOUND] buildAllAgentDialTargets:', dialTargets.length, 'phones:', seenPhones.size, 'clients:', seenEmails.size);
+  console.log('[INBOUND] buildAllAgentDialTargets:', dialTargets.length, 'targets, phones:', seenPhones.size, 'clients:', seenEmails.size,
+    'agents:', profiles.filter((p: any) => !roleMap.get(p.user_id)?.includes('marketing') && p.first_name !== 'HEHE').map((p: any) => `${p.first_name} ${p.last_name} ext${p.extension}`));
   return dialTargets;
 }
 
