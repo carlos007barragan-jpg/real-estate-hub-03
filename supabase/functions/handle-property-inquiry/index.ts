@@ -33,6 +33,7 @@ serve(async (req) => {
       message,
       organizationId, organization_id,
       inquiry_type,
+      source: requestSource,
     } = body;
 
     // Normalize field names (snake_case from external app, camelCase from legacy)
