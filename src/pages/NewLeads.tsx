@@ -30,6 +30,7 @@ interface NewLead {
   is_returning: boolean;
   call_count: number;
   note_count: number;
+  call_status: string | null;
 }
 
 export default function NewLeads() {
@@ -81,10 +82,10 @@ export default function NewLeads() {
 
       if (leadsError) throw leadsError;
 
-      // Fetch call logs for inbound leads
-      const inboundIds = leadsData?.filter(l => l.is_inbound_call).map(l => l.id) || [];
+      // Fetch call logs for inbound leads (all statuses)
+      const inboundIds = leadsData?.filter(l => l.source === SOURCE_CALLS || l.source === 'Inbound Call' || l.is_inbound_call).map(l => l.id) || [];
       const { data: callLogs } = inboundIds.length > 0
-        ? await supabase.from('call_logs').select('*').in('lead_id', inboundIds)
+        ? await supabase.from('call_logs').select('*').in('lead_id', inboundIds).order('created_at', { ascending: false })
         : { data: [] };
       const { data: callCounts } = inboundIds.length > 0
         ? await supabase.from('call_logs').select('lead_id').in('lead_id', inboundIds)
@@ -108,6 +109,7 @@ export default function NewLeads() {
           is_returning: !!isReturning || leadCallCount > 1,
           call_count: leadCallCount,
           note_count: 0,
+          call_status: callLog?.status || null,
         };
       });
 
@@ -265,6 +267,11 @@ export default function NewLeads() {
             </div>
             <div className="flex items-center gap-2 text-sm flex-wrap">
               <Badge variant="default">{lead.source}</Badge>
+              {lead.source === SOURCE_CALLS && lead.call_status && (
+                <Badge variant={lead.call_status === 'completed' ? 'default' : lead.call_status === 'no-answer' ? 'destructive' : 'secondary'}>
+                  {lead.call_status === 'completed' ? 'Completed' : lead.call_status === 'no-answer' ? 'Missed' : lead.call_status === 'in-progress' ? 'In Progress' : lead.call_status}
+                </Badge>
+              )}
               {lead.source === SOURCE_CALLS && <Badge variant="secondary">Duration: {formatDuration(lead.duration)}</Badge>}
               {lead.property_of_interest && (
                 <Badge variant="secondary" className="gap-1"><Calendar className="w-3 h-3" />{lead.property_of_interest}</Badge>

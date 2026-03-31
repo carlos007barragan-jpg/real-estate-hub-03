@@ -149,32 +149,22 @@ async function fetchAgentDirectory(supabase: any, leadOwnerUserId: string): Prom
   }
   if (!orgId) return [];
 
+  // Fetch agents that have an extension assigned, ordered by extension
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('user_id, first_name, last_name')
+    .select('user_id, first_name, last_name, extension')
     .eq('organization_id', orgId)
-    .order('first_name', { ascending: true });
+    .not('extension', 'is', null)
+    .order('extension', { ascending: true });
 
   if (!profiles?.length) return [];
 
-  // Only include agents/admins (not owner_user)
-  const entries: AgentDirectoryEntry[] = [];
-  let ext = 1;
-  for (const p of profiles) {
-    if (ext > 9) break; // max 9 per page
-    const { data: roles } = await supabase
-      .from('user_roles').select('role').eq('user_id', p.user_id);
-    const roleValues = (roles ?? []).map((r: any) => r.role);
-    if (roleValues.includes('owner_user')) continue;
-    entries.push({
-      user_id: p.user_id,
-      first_name: p.first_name || 'Agent',
-      last_name: p.last_name || '',
-      extension: ext,
-    });
-    ext++;
-  }
-  return entries;
+  return profiles.map((p: any) => ({
+    user_id: p.user_id,
+    first_name: p.first_name || 'Agent',
+    last_name: p.last_name || '',
+    extension: p.extension,
+  }));
 }
 
 // ==================== MAIN HANDLER ====================

@@ -18,6 +18,7 @@ interface User {
   last_name: string | null;
   role: string;
   created_at: string;
+  extension: number | null;
 }
 
 export const TeamManagement = () => {
@@ -55,7 +56,8 @@ export const TeamManagement = () => {
           first_name,
           last_name,
           email,
-          created_at
+          created_at,
+          extension
         `)
         .eq("organization_id", profile.organization_id);
 
@@ -82,7 +84,8 @@ export const TeamManagement = () => {
             first_name: prof.first_name,
             last_name: prof.last_name,
             role: roleData?.role || "agent",
-            created_at: prof.created_at
+            created_at: prof.created_at,
+            extension: (prof as any).extension ?? null,
           });
         } catch (err) {
           console.error("Error processing user:", prof.email, err);
@@ -93,7 +96,8 @@ export const TeamManagement = () => {
             first_name: prof.first_name,
             last_name: prof.last_name,
             role: "agent",
-            created_at: prof.created_at
+            created_at: prof.created_at,
+            extension: (prof as any).extension ?? null,
           });
         }
       }
@@ -315,6 +319,7 @@ export const TeamManagement = () => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Ext.</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -323,7 +328,7 @@ export const TeamManagement = () => {
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
                   No team members found
                 </TableCell>
               </TableRow>
@@ -336,6 +341,13 @@ export const TeamManagement = () => {
                       : 'Not set'}
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    {user.extension ? (
+                      <Badge variant="outline" className="font-mono">{user.extension}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={user.role}
