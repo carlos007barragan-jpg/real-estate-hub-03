@@ -24,7 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const Settings = () => {
   const { toast } = useToast();
-  const { isAdmin, role, loading } = useUserRole();
+  const { isAdmin, role, loading: roleLoading } = useUserRole();
   const isSupremeAdmin = role === "supreme_admin";
   // Supreme admins also pass isAdmin check since has_role treats them as admin
   const [darkMode, setDarkMode] = useState(() => {
