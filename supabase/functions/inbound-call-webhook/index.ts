@@ -238,7 +238,7 @@ Deno.serve(async (req) => {
         console.log('Round-robin OFF and no assigned agent — going straight to fallback');
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna">${BILINGUAL_GREETING}</Say>
+  ${GREETING_TWIML}
   <Redirect method="POST">${fallbackStageUrl}</Redirect>
 </Response>`;
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
