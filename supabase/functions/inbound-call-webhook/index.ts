@@ -223,34 +223,50 @@ Deno.serve(async (req) => {
     let leadOwnerUserId: string | null = leadOwnerUserIdFromUrl ?? null;
 
     // Fetch org-wide CRM settings — scope to the org that owns this CRM
-    // First get all crm_settings, then pick the one whose user belongs to an org
-    const { data: allCrmSettings } = await supabase
-      .from('crm_settings')
-      .select('auto_roundrobin_unanswered, smart_routing_enabled, fallback_phone_1, fallback_phone_2, user_id');
-
-    // Resolve the correct org by checking each settings user's org
+    // Wrapped in try/catch so a DB error never prevents TwiML from being returned
     let crmSettings: any = null;
     let orgId: string | null = null;
     let orgUserIds: string[] = [];
 
-    if (allCrmSettings?.length) {
-      for (const s of allCrmSettings) {
-        const { data: profile } = await supabase
-          .from('profiles').select('organization_id').eq('user_id', s.user_id).maybeSingle();
-        if (profile?.organization_id) {
-          crmSettings = s;
-          orgId = profile.organization_id;
-          break;
+    try {
+      const { data: allCrmSettings } = await supabase
+        .from('crm_settings')
+        .select('auto_roundrobin_unanswered, smart_routing_enabled, fallback_phone_1, fallback_phone_2, user_id');
+
+      if (allCrmSettings?.length) {
+        for (const s of allCrmSettings) {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles').select('organization_id').eq('user_id', s.user_id).maybeSingle();
+            if (profile?.organization_id) {
+              crmSettings = s;
+              orgId = profile.organization_id;
+              break;
+            }
+          } catch (e) { console.error('[INBOUND] Error resolving org for settings user:', s.user_id, e); }
         }
+        if (!crmSettings) crmSettings = allCrmSettings[0];
       }
-      if (!crmSettings) crmSettings = allCrmSettings[0];
+    } catch (e) {
+      console.error('[INBOUND] Error fetching crm_settings:', e);
+    }
+
+    // Fallback: if no org resolved, grab the first organization
+    if (!orgId) {
+      try {
+        const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).maybeSingle();
+        orgId = firstOrg?.id ?? null;
+        console.log('[INBOUND] Fallback org resolution:', orgId);
+      } catch (e) { console.error('[INBOUND] Error fetching fallback org:', e); }
     }
 
     // Get all user_ids in this org for scoped queries
     if (orgId) {
-      const { data: orgProfiles } = await supabase
-        .from('profiles').select('user_id').eq('organization_id', orgId);
-      orgUserIds = (orgProfiles ?? []).map((p: any) => p.user_id).filter(Boolean);
+      try {
+        const { data: orgProfiles } = await supabase
+          .from('profiles').select('user_id').eq('organization_id', orgId);
+        orgUserIds = (orgProfiles ?? []).map((p: any) => p.user_id).filter(Boolean);
+      } catch (e) { console.error('[INBOUND] Error fetching org profiles:', e); }
     }
 
     console.log('[INBOUND] Resolved org:', orgId, 'orgUserIds:', orgUserIds.length);
@@ -349,75 +365,85 @@ Deno.serve(async (req) => {
 
       // Create new lead if none found — scoped to resolved org
       if (!leadId) {
-        console.log('[INBOUND] No existing lead found. Creating new lead for:', from, 'in org:', orgId);
+        try {
+          console.log('[INBOUND] No existing lead found. Creating new lead for:', from, 'in org:', orgId);
 
-        // Use the first admin/user from the resolved org
-        if (orgUserIds.length > 0) {
-          // Prefer an admin user as the lead owner
-          const { data: adminRoles } = await supabase
-            .from('user_roles').select('user_id')
-            .in('role', ['admin', 'supreme_admin'])
-            .in('user_id', orgUserIds).limit(1);
-          leadOwnerUserId = adminRoles?.[0]?.user_id ?? orgUserIds[0];
-        } else {
-          const { data: firstUser } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
-          leadOwnerUserId = firstUser?.users?.[0]?.id ?? null;
-        }
-
-        if (!leadOwnerUserId) throw new Error('No users in system');
-
-        const { data: newLead, error: leadError } = await supabase
-          .from('leads').insert({
-            name: `Inbound Call - ${from}`,
-            email: `inbound+${from.replace(/\D/g, '')}@placeholder.com`,
-            phone: from, status: 'new', source: 'Inbound Call',
-            assigned_to: 'unassigned', pipeline_stage: 'New Lead',
-            user_id: leadOwnerUserId, is_inbound_call: true,
-            source_call_sid: callSid, last_inbound_at: new Date().toISOString(),
-          }).select('id').single();
-
-        if (leadError) { console.error('[INBOUND] LEAD INSERT ERROR:', JSON.stringify(leadError)); throw leadError; }
-        leadId = newLead.id;
-        console.log('[INBOUND] ✅ New lead created:', leadId);
-
-        await supabase.from('notes').insert({
-          lead_id: leadId, user_id: leadOwnerUserId,
-          content: `📞 New inbound call from ${from}. Unknown caller — new lead created automatically.`,
-          author: 'System', note_type: 'system',
-        });
-
-        // Notify org members
-        const { data: ownerProfile } = await supabase
-          .from('profiles').select('organization_id').eq('user_id', leadOwnerUserId).maybeSingle();
-        const orgId = ownerProfile?.organization_id;
-        if (orgId) {
-          const { data: orgMembers } = await supabase
-            .from('profiles').select('user_id').eq('organization_id', orgId);
-          if (orgMembers?.length) {
-            const notifications = orgMembers.map(m => ({
-              user_id: m.user_id, organization_id: orgId, type: 'lead_created',
-              title: '📞 New Inbound Call',
-              description: `Incoming call from ${from} — new lead created. Check Live Calls tab.`,
-              link: `/leads/${leadId}`, event_type: 'inbound_call',
-              entity_type: 'lead', entity_id: leadId,
-            }));
-            await supabase.from('notifications').insert(notifications);
+          // Use the first admin/user from the resolved org
+          if (orgUserIds.length > 0) {
+            const { data: adminRoles } = await supabase
+              .from('user_roles').select('user_id')
+              .in('role', ['admin', 'supreme_admin'])
+              .in('user_id', orgUserIds).limit(1);
+            leadOwnerUserId = adminRoles?.[0]?.user_id ?? orgUserIds[0];
+          } else {
+            const { data: firstUser } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
+            leadOwnerUserId = firstUser?.users?.[0]?.id ?? null;
           }
+
+          if (leadOwnerUserId) {
+            const { data: newLead, error: leadError } = await supabase
+              .from('leads').insert({
+                name: `Inbound Call - ${from}`,
+                email: `inbound+${from.replace(/\D/g, '')}@placeholder.com`,
+                phone: from, status: 'new', source: 'Inbound Call',
+                assigned_to: 'unassigned', pipeline_stage: 'New Lead',
+                user_id: leadOwnerUserId, is_inbound_call: true,
+                source_call_sid: callSid, last_inbound_at: new Date().toISOString(),
+              }).select('id').single();
+
+            if (leadError) {
+              console.error('[INBOUND] LEAD INSERT ERROR:', JSON.stringify(leadError));
+            } else {
+              leadId = newLead.id;
+              console.log('[INBOUND] ✅ New lead created:', leadId);
+
+              await supabase.from('notes').insert({
+                lead_id: leadId, user_id: leadOwnerUserId,
+                content: `📞 New inbound call from ${from}. Unknown caller — new lead created automatically.`,
+                author: 'System', note_type: 'system',
+              }).catch(() => {});
+
+              // Notify org members
+              try {
+                const notifOrgId = orgId;
+                if (notifOrgId) {
+                  const { data: orgMembers } = await supabase
+                    .from('profiles').select('user_id').eq('organization_id', notifOrgId);
+                  if (orgMembers?.length) {
+                    const notifications = orgMembers.map(m => ({
+                      user_id: m.user_id, organization_id: notifOrgId, type: 'lead_created',
+                      title: '📞 New Inbound Call',
+                      description: `Incoming call from ${from} — new lead created. Check Live Calls tab.`,
+                      link: `/leads/${leadId}`, event_type: 'inbound_call',
+                      entity_type: 'lead', entity_id: leadId,
+                    }));
+                    await supabase.from('notifications').insert(notifications);
+                  }
+                }
+              } catch (e) { console.error('[INBOUND] Notification error:', e); }
+            }
+          } else {
+            console.error('[INBOUND] No users found in system — skipping lead creation');
+          }
+        } catch (e) {
+          console.error('[INBOUND] Lead creation failed (non-fatal):', e);
         }
       }
 
       // Deduplicate call log
-      const { data: existingLog } = await supabase
-        .from('call_logs').select('id').eq('call_sid', callSid).maybeSingle();
-      if (!existingLog && leadId && leadOwnerUserId) {
-        await supabase.from('call_logs').insert({
-          call_sid: callSid, lead_id: leadId, user_id: leadOwnerUserId,
-          from_number: from, to_number: to, status: 'in-progress',
-          direction: 'inbound', answered_by: answeredBy,
-        });
-      }
+      try {
+        const { data: existingLog } = await supabase
+          .from('call_logs').select('id').eq('call_sid', callSid).maybeSingle();
+        if (!existingLog && leadId && leadOwnerUserId) {
+          await supabase.from('call_logs').insert({
+            call_sid: callSid, lead_id: leadId, user_id: leadOwnerUserId,
+            from_number: from, to_number: to, status: 'in-progress',
+            direction: 'inbound', answered_by: answeredBy,
+          });
+        }
+      } catch (e) { console.error('[INBOUND] Call log insert error (non-fatal):', e); }
 
-      const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserId || leadOwnerUserId!);
+      const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserId || leadOwnerUserId || '');
 
       // ---- If assigned lead with smart routing, skip IVR and ring assigned agent directly ----
       if (isAssignedLead && assignedAgentUserId) {
@@ -705,11 +731,13 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('[INBOUND] ERROR:', error);
+    console.error('[INBOUND] FATAL ERROR:', error);
+    // MUST return 200 with valid TwiML — Twilio shows "application error" on non-200
     return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna" language="en-US">We're sorry, an error occurred. Please try again later.</Say>
-  <Say voice="Polly.Lupe" language="es-US">Lo sentimos, ha ocurrido un error.</Say>
-</Response>`, { headers: { 'Content-Type': 'text/xml' }, status: 500 });
+  ${GREETING_TWIML}
+  <Say voice="Polly.Joanna" language="en-US">We are experiencing a temporary issue. Please call back shortly.</Say>
+  <Say voice="Polly.Lupe" language="es-US">Estamos experimentando un problema temporal. Por favor llame de nuevo.</Say>
+</Response>`, { headers: { 'Content-Type': 'text/xml' }, status: 200 });
   }
 });
