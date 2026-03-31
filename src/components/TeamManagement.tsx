@@ -328,7 +328,7 @@ export const TeamManagement = () => {
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
                   No team members found
                 </TableCell>
               </TableRow>
