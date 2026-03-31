@@ -222,12 +222,38 @@ Deno.serve(async (req) => {
     let leadId: string | null = leadIdFromUrl ?? null;
     let leadOwnerUserId: string | null = leadOwnerUserIdFromUrl ?? null;
 
-    // Fetch org-wide CRM settings
-    const { data: crmSettings } = await supabase
+    // Fetch org-wide CRM settings — scope to the org that owns this CRM
+    // First get all crm_settings, then pick the one whose user belongs to an org
+    const { data: allCrmSettings } = await supabase
       .from('crm_settings')
-      .select('auto_roundrobin_unanswered, smart_routing_enabled, fallback_phone_1, fallback_phone_2, user_id')
-      .limit(1)
-      .maybeSingle();
+      .select('auto_roundrobin_unanswered, smart_routing_enabled, fallback_phone_1, fallback_phone_2, user_id');
+
+    // Resolve the correct org by checking each settings user's org
+    let crmSettings: any = null;
+    let orgId: string | null = null;
+    let orgUserIds: string[] = [];
+
+    if (allCrmSettings?.length) {
+      for (const s of allCrmSettings) {
+        const { data: profile } = await supabase
+          .from('profiles').select('organization_id').eq('user_id', s.user_id).maybeSingle();
+        if (profile?.organization_id) {
+          crmSettings = s;
+          orgId = profile.organization_id;
+          break;
+        }
+      }
+      if (!crmSettings) crmSettings = allCrmSettings[0];
+    }
+
+    // Get all user_ids in this org for scoped queries
+    if (orgId) {
+      const { data: orgProfiles } = await supabase
+        .from('profiles').select('user_id').eq('organization_id', orgId);
+      orgUserIds = (orgProfiles ?? []).map((p: any) => p.user_id).filter(Boolean);
+    }
+
+    console.log('[INBOUND] Resolved org:', orgId, 'orgUserIds:', orgUserIds.length);
 
     const autoRoundRobin = crmSettings?.auto_roundrobin_unanswered ?? true;
     const smartRoutingEnabled = crmSettings?.smart_routing_enabled ?? true;
@@ -239,17 +265,34 @@ Deno.serve(async (req) => {
       const normalizedFrom = normalizePhone(from);
       console.log('[INBOUND] Looking up caller:', from, 'normalized:', normalizedFrom);
 
-      // Look up caller in leads
-      const { data: exactLead } = await supabase
-        .from('leads').select('id, user_id, name, assigned_to, phone')
-        .eq('phone', from).maybeSingle();
+      // Look up caller in leads — scoped to this org's users
+      let matchedLead: any = null;
+      if (orgUserIds.length > 0) {
+        const { data: exactLead } = await supabase
+          .from('leads').select('id, user_id, name, assigned_to, phone')
+          .eq('phone', from).in('user_id', orgUserIds).maybeSingle();
 
-      let matchedLead = exactLead;
-      if (!matchedLead) {
-        const { data: allLeads } = await supabase
-          .from('leads').select('id, user_id, name, phone, assigned_to').limit(500);
-        if (allLeads) {
-          matchedLead = allLeads.find(l => normalizePhone(l.phone) === normalizedFrom) || null;
+        matchedLead = exactLead;
+        if (!matchedLead) {
+          const { data: orgLeads } = await supabase
+            .from('leads').select('id, user_id, name, phone, assigned_to')
+            .in('user_id', orgUserIds).limit(500);
+          if (orgLeads) {
+            matchedLead = orgLeads.find(l => normalizePhone(l.phone) === normalizedFrom) || null;
+          }
+        }
+      } else {
+        // Fallback: global lookup if no org resolved
+        const { data: exactLead } = await supabase
+          .from('leads').select('id, user_id, name, assigned_to, phone')
+          .eq('phone', from).maybeSingle();
+        matchedLead = exactLead;
+        if (!matchedLead) {
+          const { data: allLeads } = await supabase
+            .from('leads').select('id, user_id, name, phone, assigned_to').limit(500);
+          if (allLeads) {
+            matchedLead = allLeads.find(l => normalizePhone(l.phone) === normalizedFrom) || null;
+          }
         }
       }
 
