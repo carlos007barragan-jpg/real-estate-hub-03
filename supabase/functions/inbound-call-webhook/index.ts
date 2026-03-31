@@ -199,6 +199,7 @@ Deno.serve(async (req) => {
   const leadIdFromUrl = requestUrl.searchParams.get('leadId');
   const leadOwnerUserIdFromUrl = requestUrl.searchParams.get('leadOwnerUserId');
   const settingsUserIdFromUrl = requestUrl.searchParams.get('settingsUserId');
+  const orgIdFromUrl = requestUrl.searchParams.get('orgId');
 
   try {
     const formData = await req.formData();
