@@ -58,78 +58,90 @@ function formatE164(phone: string): string {
   return `+${digits}`;
 }
 
-async function buildAllAgentDialTargets(supabase: any, orgId: string | null): Promise<string[]> {
-  const dialTargets: string[] = [];
+// Tier 1: Bond, Paul, Leilani
+const TIER1_EMAILS = ['bond.ceotech.realliving@gmail.com'];
+const TIER1_FIRST_NAMES = ['Paul', 'Leilani'];
+
+function isTier1(profile: any): boolean {
+  const emailLower = (profile.email || '').toLowerCase();
+  if (TIER1_EMAILS.some(e => emailLower === e.toLowerCase())) return true;
+  if (TIER1_FIRST_NAMES.some(n => (profile.first_name || '').toLowerCase() === n.toLowerCase())) return true;
+  return false;
+}
+
+function isExcluded(profile: any, roleMap: Map<string, string>): boolean {
+  const role = roleMap.get(profile.user_id);
+  if (role === 'marketing' || role === 'marketing_manager') return true;
+  const emailLower = (profile.email || '').toLowerCase();
+  if (profile.first_name === 'HEHE' || emailLower.includes('test')) return true;
+  return false;
+}
+
+function buildDialTargetsFromProfiles(profiles: any[]): string[] {
+  const targets: string[] = [];
   const seenPhones = new Set<string>();
   const seenEmails = new Set<string>();
 
-  if (!orgId) {
-    console.log('[INBOUND] buildAllAgentDialTargets: no orgId — returning empty');
-    return [];
+  for (const profile of profiles) {
+    if (profile.phone_number) {
+      const e164 = formatE164(profile.phone_number);
+      if (!seenPhones.has(e164)) {
+        targets.push(`<Number>${e164}</Number>`);
+        seenPhones.add(e164);
+      }
+    }
+    if (profile.email && !seenEmails.has(profile.email)) {
+      targets.push(`<Client><Identity>${sanitizeIdentity(profile.email)}</Identity></Client>`);
+      seenEmails.add(profile.email);
+    }
   }
+  return targets;
+}
 
-  // Query all profiles with a non-null extension in this org
-  const { data: profiles, error: profilesError } = await supabase
+async function getOrgProfilesWithRoles(supabase: any, orgId: string | null) {
+  if (!orgId) return { profiles: [], roleMap: new Map<string, string>() };
+
+  const { data: profiles, error } = await supabase
     .from('profiles')
     .select('user_id, phone_number, email, first_name, last_name, extension')
     .eq('organization_id', orgId)
     .not('extension', 'is', null);
 
-  if (profilesError) {
-    console.error('[INBOUND] Error fetching org profiles for dial:', profilesError);
-    return [];
-  }
+  if (error || !profiles?.length) return { profiles: [], roleMap: new Map<string, string>() };
 
-  if (!profiles?.length) {
-    console.log('[INBOUND] No profiles with extensions found in org:', orgId);
-    return [];
-  }
-
-  // Fetch roles to exclude marketing
   const userIds = profiles.map((p: any) => p.user_id);
   const { data: roles } = await supabase
     .from('user_roles').select('user_id, role').in('user_id', userIds);
-  const roleMap = new Map((roles ?? []).map((r: any) => [r.user_id, r.role]));
+  const roleMap = new Map<string, string>((roles ?? []).map((r: any) => [r.user_id, r.role]));
 
-  for (const profile of profiles) {
-    const role = roleMap.get(profile.user_id);
-    // Exclude marketing roles
-    if (role === 'marketing' || role === 'marketing_manager') {
-      console.log('[INBOUND] Excluding marketing user:', profile.email);
-      continue;
-    }
-    // Exclude test accounts and admin/CEO (Bond)
-    const emailLower = (profile.email || '').toLowerCase();
-    if (profile.first_name === 'HEHE' || emailLower.includes('test') || emailLower.includes('bond') || emailLower.includes('ceotech')) {
-      console.log('[INBOUND] Excluding non-sales account:', profile.email);
-      continue;
-    }
+  return { profiles, roleMap };
+}
 
-    // Add phone number
-    if (profile.phone_number) {
-      const e164 = formatE164(profile.phone_number);
-      if (!seenPhones.has(e164)) {
-        dialTargets.push(`<Number>${e164}</Number>`);
-        seenPhones.add(e164);
-      }
-    }
+async function buildTier1Targets(supabase: any, orgId: string | null): Promise<string[]> {
+  const { profiles, roleMap } = await getOrgProfilesWithRoles(supabase, orgId);
+  const tier1Profiles = profiles.filter((p: any) => isTier1(p) && !isExcluded(p, roleMap));
+  console.log('[INBOUND] Tier 1 agents:', tier1Profiles.map((p: any) => `${p.first_name} ${p.last_name} (${p.email})`));
+  return buildDialTargetsFromProfiles(tier1Profiles);
+}
 
-    // Add WebRTC client
-    if (profile.email && !seenEmails.has(profile.email)) {
-      dialTargets.push(`<Client><Identity>${sanitizeIdentity(profile.email)}</Identity></Client>`);
-      seenEmails.add(profile.email);
-    }
-  }
+async function buildTier2Targets(supabase: any, orgId: string | null): Promise<string[]> {
+  const { profiles, roleMap } = await getOrgProfilesWithRoles(supabase, orgId);
+  const tier2Profiles = profiles.filter((p: any) => !isTier1(p) && !isExcluded(p, roleMap));
+  console.log('[INBOUND] Tier 2 agents:', tier2Profiles.map((p: any) => `${p.first_name} ${p.last_name} (${p.email})`));
+  return buildDialTargetsFromProfiles(tier2Profiles);
+}
 
-  console.log('[INBOUND] buildAllAgentDialTargets:', dialTargets.length, 'targets, phones:', seenPhones.size, 'clients:', seenEmails.size,
-    'agents:', profiles.filter((p: any) => !roleMap.get(p.user_id)?.includes('marketing') && p.first_name !== 'HEHE').map((p: any) => `${p.first_name} ${p.last_name} ext${p.extension}`));
-  return dialTargets;
+// Legacy: ring ALL agents (used by directory fallback etc)
+async function buildAllAgentDialTargets(supabase: any, orgId: string | null): Promise<string[]> {
+  const { profiles, roleMap } = await getOrgProfilesWithRoles(supabase, orgId);
+  const eligible = profiles.filter((p: any) => !isExcluded(p, roleMap));
+  console.log('[INBOUND] All agent targets:', eligible.map((p: any) => `${p.first_name} ${p.last_name}`));
+  return buildDialTargetsFromProfiles(eligible);
 }
 
 async function buildSingleAgentDialTargets(supabase: any, agentUserId: string): Promise<string[]> {
   const targets: string[] = [];
 
-  // Phone from agents table
   const { data: agentRec } = await supabase
     .from('agents').select('phone_number')
     .eq('user_id', agentUserId).eq('is_active', true).maybeSingle();
@@ -137,7 +149,6 @@ async function buildSingleAgentDialTargets(supabase: any, agentUserId: string): 
   if (agentRec?.phone_number) {
     targets.push(`<Number>${agentRec.phone_number}</Number>`);
   } else {
-    // Fallback to profiles
     const { data: profileRec } = await supabase
       .from('profiles').select('phone_number')
       .eq('user_id', agentUserId).maybeSingle();
@@ -146,7 +157,6 @@ async function buildSingleAgentDialTargets(supabase: any, agentUserId: string): 
     }
   }
 
-  // WebRTC client
   const { data: userRes } = await supabase.auth.admin.getUserById(agentUserId);
   if (userRes?.user?.email) {
     targets.push(`<Client><Identity>${sanitizeIdentity(userRes.user.email)}</Identity></Client>`);
@@ -170,7 +180,6 @@ async function fetchAgentDirectory(supabase: any, leadOwnerUserId: string): Prom
   }
   if (!orgId) return [];
 
-  // Fetch agents that have an extension assigned, ordered by extension
   const { data: profiles } = await supabase
     .from('profiles')
     .select('user_id, first_name, last_name, extension')
@@ -244,8 +253,7 @@ Deno.serve(async (req) => {
     let leadId: string | null = leadIdFromUrl ?? null;
     let leadOwnerUserId: string | null = leadOwnerUserIdFromUrl ?? null;
 
-    // Fetch org-wide CRM settings — scope to the org that owns this CRM
-    // Wrapped in try/catch so a DB error never prevents TwiML from being returned
+    // Fetch org-wide CRM settings
     let crmSettings: any = null;
     let orgId: string | null = null;
     let orgUserIds: string[] = [];
@@ -273,7 +281,6 @@ Deno.serve(async (req) => {
       console.error('[INBOUND] Error fetching crm_settings:', e);
     }
 
-    // Fallback: if no org resolved, grab the first organization
     if (!orgId) {
       try {
         const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).maybeSingle();
@@ -282,7 +289,6 @@ Deno.serve(async (req) => {
       } catch (e) { console.error('[INBOUND] Error fetching fallback org:', e); }
     }
 
-    // Get all user_ids in this org for scoped queries
     if (orgId) {
       try {
         const { data: orgProfiles } = await supabase
@@ -303,7 +309,7 @@ Deno.serve(async (req) => {
       const normalizedFrom = normalizePhone(from);
       console.log('[INBOUND] Looking up caller:', from, 'normalized:', normalizedFrom);
 
-      // Look up caller in leads — scoped to this org's users
+      // Look up caller in leads
       let matchedLead: any = null;
       if (orgUserIds.length > 0) {
         const { data: exactLead } = await supabase
@@ -320,7 +326,6 @@ Deno.serve(async (req) => {
           }
         }
       } else {
-        // Fallback: global lookup if no org resolved
         const { data: exactLead } = await supabase
           .from('leads').select('id, user_id, name, assigned_to, phone')
           .eq('phone', from).maybeSingle();
@@ -385,12 +390,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create new lead if none found — scoped to resolved org
+      // Create new lead if none found
       if (!leadId) {
         try {
           console.log('[INBOUND] No existing lead found. Creating new lead for:', from, 'in org:', orgId);
 
-          // Use the first admin/user from the resolved org
           if (orgUserIds.length > 0) {
             const { data: adminRoles } = await supabase
               .from('user_roles').select('user_id')
@@ -425,15 +429,13 @@ Deno.serve(async (req) => {
                 author: 'System', note_type: 'system',
               }).catch(() => {});
 
-              // Notify org members
               try {
-                const notifOrgId = orgId;
-                if (notifOrgId) {
+                if (orgId) {
                   const { data: orgMembers } = await supabase
-                    .from('profiles').select('user_id').eq('organization_id', notifOrgId);
+                    .from('profiles').select('user_id').eq('organization_id', orgId);
                   if (orgMembers?.length) {
                     const notifications = orgMembers.map(m => ({
-                      user_id: m.user_id, organization_id: notifOrgId, type: 'lead_created',
+                      user_id: m.user_id, organization_id: orgId, type: 'lead_created',
                       title: '📞 New Inbound Call',
                       description: `Incoming call from ${from} — new lead created. Check Live Calls tab.`,
                       link: `/leads/${leadId}`, event_type: 'inbound_call',
@@ -452,12 +454,11 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Deduplicate call log — use an admin from the resolved org
+      // Create call_log record (NEVER delete these — they power the Live Calls tab)
       try {
         const { data: existingLog } = await supabase
           .from('call_logs').select('id').eq('call_sid', callSid).maybeSingle();
         if (!existingLog && leadId) {
-          // Find an admin in the org to own the call_log
           let callLogUserId = leadOwnerUserId;
           if (orgUserIds.length > 0) {
             const { data: adminRoles } = await supabase
@@ -480,13 +481,12 @@ Deno.serve(async (req) => {
 
       const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserId || leadOwnerUserId || '');
 
-      // Helper to build stage URLs with orgId
       const stageUrl = (s: string, extra = '') => `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=${s}&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${resolvedSettingsUserId}&orgId=${orgId}${extra}`;
 
       // ---- If assigned lead with smart routing, skip IVR and ring assigned agent directly ----
       if (isAssignedLead && assignedAgentUserId) {
         const targets = await buildSingleAgentDialTargets(supabase, assignedAgentUserId);
-        const fallbackStageUrl = escapeXmlAttr(stageUrl('roundrobin'));
+        const fallbackStageUrl = escapeXmlAttr(stageUrl('tier1'));
         const statusCallbackUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${resolvedSettingsUserId}`);
 
         if (targets.length === 0) {
@@ -521,7 +521,7 @@ Deno.serve(async (req) => {
 
       // ---- Play IVR menu with <Gather> ----
       const ivrMenuUrl = escapeXmlAttr(stageUrl('ivr-menu'));
-      const roundRobinUrl = escapeXmlAttr(stageUrl('roundrobin'));
+      const tier1Url = escapeXmlAttr(stageUrl('tier1'));
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -532,7 +532,7 @@ Deno.serve(async (req) => {
     <Pause length="1"/>
     <Say voice="Polly.Lupe" language="es-US">Para hablar con el próximo agente disponible, oprima 0. Para comunicarse con un agente específico por extensión, oprima 1.</Say>
   </Gather>
-  <Redirect method="POST">${roundRobinUrl}</Redirect>
+  <Redirect method="POST">${tier1Url}</Redirect>
 </Response>`;
 
       console.log('[INBOUND] Playing IVR menu for caller:', from);
@@ -554,10 +554,11 @@ Deno.serve(async (req) => {
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
       }
 
-      const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
+      // Press 0 or any other digit → go to Tier 1
+      const tier1Url = escapeXmlAttr(mkUrl('tier1'));
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Redirect method="POST">${roundRobinUrl}</Redirect>
+  <Redirect method="POST">${tier1Url}</Redirect>
 </Response>`;
       return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
     }
@@ -570,12 +571,12 @@ Deno.serve(async (req) => {
       const mkUrl = (s: string, extra = '') => `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=${s}&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}&orgId=${orgIdFromUrl}${extra}`;
 
       if (directory.length === 0) {
-        console.log('[INBOUND] No agents found for directory — going to round-robin');
-        const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
+        console.log('[INBOUND] No agents found for directory — going to tier1');
+        const tier1Url = escapeXmlAttr(mkUrl('tier1'));
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna" language="en-US">No agents are currently available in the directory. Please hold while we connect you.</Say>
-  <Redirect method="POST">${roundRobinUrl}</Redirect>
+  <Redirect method="POST">${tier1Url}</Redirect>
 </Response>`;
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
       }
@@ -586,14 +587,14 @@ Deno.serve(async (req) => {
 
       const dirMap = directory.map(a => `${a.extension}:${a.user_id}`).join(',');
       const dialExtUrl = escapeXmlAttr(mkUrl('dial-extension', `&dirMap=${encodeURIComponent(dirMap)}`));
-      const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
+      const tier1Url = escapeXmlAttr(mkUrl('tier1'));
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Gather numDigits="1" timeout="15" action="${dialExtUrl}" method="POST">
     <Say voice="Polly.Joanna" language="en-US">${directoryLines} To repeat this menu, press star.</Say>
   </Gather>
-  <Redirect method="POST">${roundRobinUrl}</Redirect>
+  <Redirect method="POST">${tier1Url}</Redirect>
 </Response>`;
 
       console.log('[INBOUND] Directory with', directory.length, 'agents');
@@ -624,31 +625,31 @@ Deno.serve(async (req) => {
       const selectedUserId = digits ? extMap.get(digits) : null;
 
       if (!selectedUserId) {
-        console.log('[INBOUND] Invalid extension — going to round-robin');
-        const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
+        console.log('[INBOUND] Invalid extension — going to tier1');
+        const tier1Url = escapeXmlAttr(mkUrl('tier1'));
         return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna" language="en-US">Invalid selection. Connecting you to the next available agent.</Say>
-  <Redirect method="POST">${roundRobinUrl}</Redirect>
+  <Redirect method="POST">${tier1Url}</Redirect>
 </Response>`, { headers: { 'Content-Type': 'text/xml' } });
       }
 
       const targets = await buildSingleAgentDialTargets(supabase, selectedUserId);
-      const roundRobinUrl = escapeXmlAttr(mkUrl('roundrobin'));
+      const tier1Url = escapeXmlAttr(mkUrl('tier1'));
       const statusCallbackUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadIdFromUrl}&userId=${resolvedSettingsUserId}`);
 
       if (targets.length === 0) {
         return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna" language="en-US">That agent is not available. Connecting you to the next available agent.</Say>
-  <Redirect method="POST">${roundRobinUrl}</Redirect>
+  <Redirect method="POST">${tier1Url}</Redirect>
 </Response>`, { headers: { 'Content-Type': 'text/xml' } });
       }
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="Polly.Joanna" language="en-US">Connecting you now. Please hold.</Say>
-  <Dial callerId="${twilioPhone}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="30" action="${roundRobinUrl}" method="POST" statusCallback="${statusCallbackUrl}" statusCallbackEvent="completed" statusCallbackMethod="POST">
+  <Dial callerId="${twilioPhone}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="30" action="${tier1Url}" method="POST" statusCallback="${statusCallbackUrl}" statusCallbackEvent="completed" statusCallbackMethod="POST">
     ${targets.join('\n    ')}
   </Dial>
 </Response>`;
@@ -657,9 +658,47 @@ Deno.serve(async (req) => {
       return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
     }
 
-    // ==================== STAGE: ROUNDROBIN (ring all active agents) ====================
-    if (stage === 'roundrobin') {
-      console.log('[INBOUND] Round-robin stage, dialCallStatus:', dialCallStatus);
+    // ==================== STAGE: TIER1 (ring Bond, Paul, Leilani simultaneously — 20s) ====================
+    if (stage === 'tier1') {
+      console.log('[INBOUND] TIER 1 stage, dialCallStatus:', dialCallStatus);
+
+      if (dialCallStatus === 'completed' || dialCallStatus === 'answered') {
+        return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup /></Response>', {
+          headers: { 'Content-Type': 'text/xml' },
+        });
+      }
+
+      const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserIdFromUrl ?? '');
+      const resolvedOrgId = orgIdFromUrl ?? orgId;
+      const mkUrl = (s: string) => `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=${s}&leadId=${leadIdFromUrl}&leadOwnerUserId=${leadOwnerUserIdFromUrl}&settingsUserId=${resolvedSettingsUserId}&orgId=${resolvedOrgId}`;
+      const tier2Url = escapeXmlAttr(mkUrl('tier2'));
+      const statusCallbackUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadIdFromUrl}&userId=${resolvedSettingsUserId}`);
+
+      const tier1Targets = await buildTier1Targets(supabase, resolvedOrgId);
+
+      if (tier1Targets.length === 0) {
+        console.log('[INBOUND] No Tier 1 targets — skipping to Tier 2');
+        return new Response(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Redirect method="POST">${tier2Url}</Redirect>
+</Response>`, { headers: { 'Content-Type': 'text/xml' } });
+      }
+
+      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna" language="en-US">Please hold while we connect you to the next available agent.</Say>
+  <Dial callerId="${twilioPhone}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="20" action="${tier2Url}" method="POST" statusCallback="${statusCallbackUrl}" statusCallbackEvent="completed" statusCallbackMethod="POST">
+    ${tier1Targets.join('\n    ')}
+  </Dial>
+</Response>`;
+
+      console.log('[INBOUND] TIER 1 dialing', tier1Targets.length, 'targets (Bond, Paul, Leilani)');
+      return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
+    }
+
+    // ==================== STAGE: TIER2 (ring ALL remaining agents — 30s) ====================
+    if (stage === 'tier2') {
+      console.log('[INBOUND] TIER 2 stage, dialCallStatus:', dialCallStatus);
 
       if (dialCallStatus === 'completed' || dialCallStatus === 'answered') {
         return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup /></Response>', {
@@ -673,10 +712,10 @@ Deno.serve(async (req) => {
       const fallbackStageUrl = escapeXmlAttr(mkUrl('fallback'));
       const statusCallbackUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadIdFromUrl}&userId=${resolvedSettingsUserId}`);
 
-      const dialTargets = await buildAllAgentDialTargets(supabase, resolvedOrgId);
+      const tier2Targets = await buildTier2Targets(supabase, resolvedOrgId);
 
-      if (dialTargets.length === 0) {
-        console.log('[INBOUND] No dial targets — going to fallback');
+      if (tier2Targets.length === 0) {
+        console.log('[INBOUND] No Tier 2 targets — going to fallback');
         return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Redirect method="POST">${fallbackStageUrl}</Redirect>
@@ -685,13 +724,13 @@ Deno.serve(async (req) => {
 
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="Polly.Joanna" language="en-US">Please hold while we connect you to the next available agent.</Say>
+  <Say voice="Polly.Joanna" language="en-US">Please hold while we connect you to additional agents.</Say>
   <Dial callerId="${twilioPhone}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="30" action="${fallbackStageUrl}" method="POST" statusCallback="${statusCallbackUrl}" statusCallbackEvent="completed" statusCallbackMethod="POST">
-    ${dialTargets.join('\n    ')}
+    ${tier2Targets.join('\n    ')}
   </Dial>
 </Response>`;
 
-      console.log('[INBOUND] Round-robin dialing', dialTargets.length, 'targets');
+      console.log('[INBOUND] TIER 2 dialing', tier2Targets.length, 'remaining agents');
       return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
     }
 
@@ -712,6 +751,14 @@ Deno.serve(async (req) => {
       }
 
       console.log('[INBOUND] Fallback stage, dialCallStatus:', dialCallStatus);
+
+      // Update call_log status to reflect missed call (but NEVER delete it)
+      try {
+        if (callSid) {
+          await supabase.from('call_logs').update({ status: 'no-answer' }).eq('call_sid', callSid);
+          console.log('[INBOUND] Updated call_log status to no-answer for:', callSid);
+        }
+      } catch (e) { console.error('[INBOUND] Error updating call_log status:', e); }
 
       const resolvedSettingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserId ?? '');
       const statusCallbackUrl = escapeXmlAttr(`${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${resolvedSettingsUserId}`);
@@ -766,7 +813,6 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('[INBOUND] FATAL ERROR:', error);
-    // MUST return 200 with valid TwiML — Twilio shows "application error" on non-200
     return new Response(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   ${GREETING_TWIML}
