@@ -315,6 +315,7 @@ export type Database = {
           fallback_phone_2: string | null
           id: string
           last_assigned_agent_index: number
+          smart_routing_enabled: boolean
           updated_at: string
           user_id: string
         }
@@ -326,6 +327,7 @@ export type Database = {
           fallback_phone_2?: string | null
           id?: string
           last_assigned_agent_index?: number
+          smart_routing_enabled?: boolean
           updated_at?: string
           user_id: string
         }
@@ -337,6 +339,7 @@ export type Database = {
           fallback_phone_2?: string | null
           id?: string
           last_assigned_agent_index?: number
+          smart_routing_enabled?: boolean
           updated_at?: string
           user_id?: string
         }
