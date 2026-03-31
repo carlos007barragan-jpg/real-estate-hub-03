@@ -347,15 +347,18 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create new lead if none found
+      // Create new lead if none found — scoped to resolved org
       if (!leadId) {
-        console.log('[INBOUND] No existing lead found. Creating new lead for:', from);
-        const { data: orgProfiles } = await supabase
-          .from('profiles').select('user_id, organization_id')
-          .not('organization_id', 'is', null).limit(10);
+        console.log('[INBOUND] No existing lead found. Creating new lead for:', from, 'in org:', orgId);
 
-        if (orgProfiles?.length) {
-          leadOwnerUserId = orgProfiles[0].user_id;
+        // Use the first admin/user from the resolved org
+        if (orgUserIds.length > 0) {
+          // Prefer an admin user as the lead owner
+          const { data: adminRoles } = await supabase
+            .from('user_roles').select('user_id')
+            .in('role', ['admin', 'supreme_admin'])
+            .in('user_id', orgUserIds).limit(1);
+          leadOwnerUserId = adminRoles?.[0]?.user_id ?? orgUserIds[0];
         } else {
           const { data: firstUser } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1 });
           leadOwnerUserId = firstUser?.users?.[0]?.id ?? null;
