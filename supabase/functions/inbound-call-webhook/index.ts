@@ -9,10 +9,23 @@ const corsHeaders = {
 // Normalize phone number to digits-only for matching
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
-  // If 11 digits starting with 1, strip the leading 1
   if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
   return digits;
 }
+
+// Sanitize identity for WebRTC (must match get-twilio-token)
+const sanitizeIdentity = (email: string) =>
+  email.replace(/@/g, '_at_').replace(/\./g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+
+// Escape XML-sensitive characters for TwiML attributes
+const escapeXmlAttr = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const BILINGUAL_GREETING =
+  'Thank you for calling Real Living. One of our agents will be with you shortly. Gracias por llamar a Real Living. Uno de nuestros agentes le atenderá en breve.';
+
+const BILINGUAL_VOICEMAIL =
+  "We're sorry we missed your call. Please leave a message and a Real Living agent will call you back. Lo sentimos, deje un mensaje y un agente le devolverá la llamada.";
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -20,10 +33,11 @@ Deno.serve(async (req) => {
   }
 
   const requestUrl = new URL(req.url);
-  const stage = requestUrl.searchParams.get('stage') ?? 'agents'; // agents | fallback
+  const stage = requestUrl.searchParams.get('stage') ?? 'agents';
   const leadIdFromUrl = requestUrl.searchParams.get('leadId');
   const leadOwnerUserIdFromUrl = requestUrl.searchParams.get('leadOwnerUserId');
   const settingsUserIdFromUrl = requestUrl.searchParams.get('settingsUserId');
+  const dialCallStatus = null as string | null; // will be read from form
 
   try {
     const formData = await req.formData();
@@ -34,49 +48,34 @@ Deno.serve(async (req) => {
 
     console.log('Inbound call webhook params:', JSON.stringify({ stage, query: Object.fromEntries(requestUrl.searchParams), params }));
 
-    // Validate input parameters
     const from = params['From'];
     const to = params['To'];
     const callSid = params['CallSid'];
     const answeredBy = params['AnsweredBy'] || 'CRM System';
-    const dialCallStatus = params['DialCallStatus'];
+    const dialCallStatusParam = params['DialCallStatus'];
 
-    if (!from || typeof from !== 'string' || from.length === 0 || from.length > 20) {
-      console.error('Invalid From parameter');
+    // Validate inputs
+    if (!from || from.length === 0 || from.length > 20) {
       return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
-        headers: { 'Content-Type': 'text/xml' },
-        status: 400,
+        headers: { 'Content-Type': 'text/xml' }, status: 400,
       });
     }
-    if (!to || typeof to !== 'string' || to.length === 0 || to.length > 20) {
-      console.error('Invalid To parameter');
+    if (!to || to.length === 0 || to.length > 20) {
       return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
-        headers: { 'Content-Type': 'text/xml' },
-        status: 400,
+        headers: { 'Content-Type': 'text/xml' }, status: 400,
       });
     }
-    if (!callSid || typeof callSid !== 'string' || callSid.length > 50) {
-      console.error('Invalid CallSid parameter');
+    if (!callSid || callSid.length > 50) {
       return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
-        headers: { 'Content-Type': 'text/xml' },
-        status: 400,
+        headers: { 'Content-Type': 'text/xml' }, status: 400,
       });
     }
 
-    console.log('Inbound call received:', { stage, from, to, callSid, answeredBy, dialCallStatus });
+    console.log('Inbound call received:', { stage, from, to, callSid, answeredBy, dialCallStatusParam });
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get recording callback URL and escape XML-sensitive characters for attributes
-    const escapeXmlAttr = (s: string) =>
-      s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    // Helper function to sanitize identity (must match get-twilio-token)
-    const sanitizeIdentity = (email: string) => {
-      return email.replace(/@/g, '_at_').replace(/\./g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-    };
 
     const recordingCallbackUrl = `${supabaseUrl}/functions/v1/recording-callback`;
     const recordingCallbackUrlEsc = escapeXmlAttr(recordingCallbackUrl);
@@ -84,19 +83,21 @@ Deno.serve(async (req) => {
     let leadId: string | null = leadIdFromUrl ?? null;
     let leadOwnerUserId: string | null = leadOwnerUserIdFromUrl ?? null;
 
-    // Stage: agents (first attempt) → find/create lead + log call
+    // ========== STAGE: AGENTS (first attempt) ==========
     if (stage === 'agents') {
-      // Check if lead exists with this phone number (exact match first)
-      const { data: existingLead } = await supabase
+      // --- STEP 2: Smart Caller Identification ---
+      const normalizedFrom = normalizePhone(from);
+
+      // Try exact match first
+      const { data: exactLead } = await supabase
         .from('leads')
-        .select('id, user_id, name, assigned_to')
+        .select('id, user_id, name, assigned_to, phone')
         .eq('phone', from)
         .maybeSingle();
 
-      // If no exact match, try normalized phone search across all leads
-      let matchedLead = existingLead;
+      // If no exact match, try normalized search
+      let matchedLead = exactLead;
       if (!matchedLead) {
-        const normalizedFrom = normalizePhone(from);
         const { data: allLeads } = await supabase
           .from('leads')
           .select('id, user_id, name, phone, assigned_to')
@@ -110,44 +111,87 @@ Deno.serve(async (req) => {
       leadId = matchedLead?.id ?? null;
       leadOwnerUserId = matchedLead?.user_id ?? null;
 
-      if (matchedLead) {
-        // Returning lead — update last_inbound_at and ensure it shows in queue
-        console.log('Returning lead detected:', matchedLead.id, matchedLead.name);
-        
-        const updateData: Record<string, any> = {
+      // Determine if this is CASE A (assigned agent) or CASE B (new/unassigned)
+      let assignedAgentUserId: string | null = null;
+      let isAssignedLead = false;
+
+      if (matchedLead && matchedLead.assigned_to && matchedLead.assigned_to !== 'unassigned' && matchedLead.assigned_to !== 'discarded') {
+        // CASE A: Existing lead with an assigned agent — find agent's user_id by name
+        const agentName = matchedLead.assigned_to;
+        const { data: agentProfile } = await supabase
+          .from('profiles')
+          .select('user_id, phone_number, email')
+          .or(`first_name.ilike.%${agentName.split(' ')[0]}%`)
+          .limit(10);
+
+        if (agentProfile) {
+          // Match by full name (first + last)
+          const match = agentProfile.find(p => {
+            const { data: prof } = { data: p }; // already have it
+            return true; // we'll do a better match below
+          });
+        }
+
+        // Better approach: query profiles where first_name || ' ' || last_name = assigned_to
+        const { data: matchedProfiles } = await supabase
+          .from('profiles')
+          .select('user_id, phone_number, email')
+          .limit(100);
+
+        if (matchedProfiles) {
+          // We need to also get first/last names - profiles has them
+          const { data: allProfiles } = await supabase
+            .from('profiles')
+            .select('user_id, first_name, last_name, phone_number, email')
+            .limit(100);
+
+          if (allProfiles) {
+            const agentMatch = allProfiles.find(p =>
+              `${p.first_name || ''} ${p.last_name || ''}`.trim().toLowerCase() === agentName.toLowerCase()
+            );
+            if (agentMatch) {
+              assignedAgentUserId = agentMatch.user_id;
+              isAssignedLead = true;
+              console.log('CASE A: Returning lead with assigned agent:', agentName, assignedAgentUserId);
+            }
+          }
+        }
+
+        // Update lead
+        await supabase.from('leads').update({
           last_inbound_at: new Date().toISOString(),
           source_call_sid: callSid,
           is_inbound_call: true,
-        };
+        }).eq('id', matchedLead.id);
 
-        // Always mark as unassigned so it appears in the new leads queue
-        // Store previous assignment in note for context
-        const previousAssignee = matchedLead.assigned_to;
-        updateData.assigned_to = 'unassigned';
+        await supabase.from('notes').insert({
+          lead_id: matchedLead.id,
+          user_id: matchedLead.user_id,
+          content: `📞 Inbound call received from ${from} at ${new Date().toLocaleString()}. Returning client — routing to assigned agent: ${agentName}.`,
+          author: 'System',
+          note_type: 'system',
+        });
+      } else if (matchedLead) {
+        // Existing lead but unassigned — treat as CASE B
+        console.log('Existing lead, unassigned. Treating as CASE B.');
+        await supabase.from('leads').update({
+          last_inbound_at: new Date().toISOString(),
+          source_call_sid: callSid,
+          is_inbound_call: true,
+          assigned_to: 'unassigned',
+        }).eq('id', matchedLead.id);
 
-        await supabase
-          .from('leads')
-          .update(updateData)
-          .eq('id', matchedLead.id);
-
-        // Add a note about the inbound call
-        const previousNote = previousAssignee && previousAssignee !== 'unassigned' && previousAssignee !== 'discarded'
-          ? ` Previously assigned to: ${previousAssignee}.`
-          : '';
-        await supabase
-          .from('notes')
-          .insert({
-            lead_id: matchedLead.id,
-            user_id: matchedLead.user_id,
-            content: `📞 Inbound call received from ${from} at ${new Date().toLocaleString()}. This is a returning contact.${previousNote}`,
-            author: 'System',
-            note_type: 'system',
-          });
+        await supabase.from('notes').insert({
+          lead_id: matchedLead.id,
+          user_id: matchedLead.user_id,
+          content: `📞 Inbound call received from ${from} at ${new Date().toLocaleString()}. Returning contact — no assigned agent, routing to all agents.`,
+          author: 'System',
+          note_type: 'system',
+        });
       }
 
-      // If no lead exists, create a new one
+      // If no lead exists, create a new one (CASE B)
       if (!leadId) {
-        // Choose an owner for the new lead: first active agent, else first user
         const { data: activeAgents } = await supabase
           .from('agents')
           .select('user_id')
@@ -190,19 +234,18 @@ Deno.serve(async (req) => {
         }
 
         leadId = newLead.id;
-        console.log('Created new lead:', leadId);
+        console.log('CASE B: Created new lead:', leadId);
       }
 
-      // Check if call log already exists (Twilio may call webhook multiple times)
+      // Create call log (deduplicate by call_sid)
       const { data: existingCallLog } = await supabase
         .from('call_logs')
         .select('id')
         .eq('call_sid', callSid)
         .maybeSingle();
 
-      // Only create call log if it doesn't exist
       if (!existingCallLog && leadId && leadOwnerUserId) {
-        const { error: callLogError } = await supabase.from('call_logs').insert({
+        await supabase.from('call_logs').insert({
           call_sid: callSid,
           lead_id: leadId,
           user_id: leadOwnerUserId,
@@ -212,52 +255,124 @@ Deno.serve(async (req) => {
           direction: 'inbound',
           answered_by: answeredBy,
         });
-
-        if (callLogError) {
-          console.error('Error creating call log:', callLogError);
-          // Don't throw error - we still want to return valid TwiML
-        }
-      } else {
-        console.log('Call log already exists for call_sid:', callSid);
       }
-    }
 
-    // Stage: fallback can be hit without leadId/userId (e.g. if Twilio calls the action but query params got stripped)
-    if (!leadId || !leadOwnerUserId) {
-      const { data: existingLead } = await supabase
-        .from('leads')
-        .select('id, user_id')
-        .eq('phone', from)
-        .maybeSingle();
+      // --- Build dial targets ---
+      const settingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserId);
+      const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${settingsUserId}`;
+      const statusCallbackUrlEsc = escapeXmlAttr(statusCallbackUrl);
+      const fallbackStageUrl = `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=fallback&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${settingsUserId}`;
+      const fallbackStageUrlEsc = escapeXmlAttr(fallbackStageUrl);
+      const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER') || to;
 
-      leadId = leadId ?? existingLead?.id ?? null;
-      leadOwnerUserId = leadOwnerUserId ?? existingLead?.user_id ?? null;
-    }
+      const dialTargets: string[] = [];
 
-    if (!leadId || !leadOwnerUserId) {
-      console.error('Unable to resolve lead for inbound call', { leadId, leadOwnerUserId, from });
-      throw new Error('Unable to resolve lead');
-    }
+      if (isAssignedLead && assignedAgentUserId) {
+        // CASE A: Only ring the assigned agent
+        const { data: agentRec } = await supabase
+          .from('agents')
+          .select('phone_number')
+          .eq('user_id', assignedAgentUserId)
+          .eq('is_active', true)
+          .maybeSingle();
 
-    // Resolve which user owns call routing settings (usually the org admin)
-    const settingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserId);
+        if (agentRec?.phone_number) {
+          dialTargets.push(`<Number>${agentRec.phone_number}</Number>`);
+        }
 
-    const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${settingsUserId}`;
-    const statusCallbackUrlEsc = escapeXmlAttr(statusCallbackUrl);
+        // Also ring their browser client
+        const { data: userRes } = await supabase.auth.admin.getUserById(assignedAgentUserId);
+        if (userRes?.user?.email) {
+          dialTargets.push(`<Client><Identity>${sanitizeIdentity(userRes.user.email)}</Identity></Client>`);
+        }
 
-    const fallbackStageUrl = `${supabaseUrl}/functions/v1/inbound-call-webhook?stage=fallback&leadId=${leadId}&leadOwnerUserId=${leadOwnerUserId}&settingsUserId=${settingsUserId}`;
-    const fallbackStageUrlEsc = escapeXmlAttr(fallbackStageUrl);
+        console.log('CASE A: Routing to assigned agent only. Targets:', dialTargets.length);
+      } else {
+        // CASE B: Ring ALL active agents
+        const { data: agents } = await supabase
+          .from('agents')
+          .select('user_id, phone_number')
+          .eq('is_active', true);
 
-    // ---- Stage: fallback (only dial the fallback phone numbers) ----
-    if (stage === 'fallback') {
-      // If an agent DID answer (DialCallStatus=completed), do not proceed to fallback numbers.
-      if (dialCallStatus === 'completed') {
+        if (agents && agents.length > 0) {
+          for (const agent of agents) {
+            if (agent.phone_number && agent.phone_number.length > 0) {
+              dialTargets.push(`<Number>${agent.phone_number}</Number>`);
+            }
+            const { data: userRes, error: userError } = await supabase.auth.admin.getUserById(agent.user_id);
+            if (!userError && userRes?.user?.email) {
+              dialTargets.push(`<Client><Identity>${sanitizeIdentity(userRes.user.email)}</Identity></Client>`);
+            }
+          }
+        }
+
+        // Fallback: try lead owner
+        if (dialTargets.length === 0 && leadOwnerUserId) {
+          const { data: ownerAgent } = await supabase
+            .from('agents')
+            .select('phone_number')
+            .eq('user_id', leadOwnerUserId)
+            .maybeSingle();
+
+          if (ownerAgent?.phone_number) {
+            dialTargets.push(`<Number>${ownerAgent.phone_number}</Number>`);
+          }
+          const { data: ownerRes } = await supabase.auth.admin.getUserById(leadOwnerUserId);
+          if (ownerRes?.user?.email) {
+            dialTargets.push(`<Client><Identity>${sanitizeIdentity(ownerRes.user.email)}</Identity></Client>`);
+          }
+        }
+
+        console.log('CASE B: Routing to all active agents. Targets:', dialTargets.length);
+      }
+
+      // If no targets, jump to fallback
+      if (dialTargets.length === 0) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Hangup />
+  <Say voice="Polly.Joanna">${BILINGUAL_GREETING}</Say>
+  <Redirect method="POST">${fallbackStageUrlEsc}</Redirect>
 </Response>`;
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
       }
+
+      const allTargets = dialTargets.join('\n    ');
+
+      // STEP 1: Bilingual greeting then dial agents with 30s timeout
+      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">${BILINGUAL_GREETING}</Say>
+  <Dial callerId="${twilioPhone}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="30" action="${fallbackStageUrlEsc}" method="POST" statusCallback="${statusCallbackUrlEsc}" statusCallbackEvent="completed" statusCallbackMethod="POST">
+    ${allTargets}
+  </Dial>
+  <Redirect method="POST">${fallbackStageUrlEsc}</Redirect>
+</Response>`;
+
+      return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
+    }
+
+    // ========== STAGE: FALLBACK ==========
+    if (stage === 'fallback') {
+      if (!leadId || !leadOwnerUserId) {
+        const { data: existingLead } = await supabase
+          .from('leads')
+          .select('id, user_id')
+          .eq('phone', from)
+          .maybeSingle();
+        leadId = leadId ?? existingLead?.id ?? null;
+        leadOwnerUserId = leadOwnerUserId ?? existingLead?.user_id ?? null;
+      }
+
+      // If agent answered, don't proceed to fallback
+      if (dialCallStatusParam === 'completed') {
+        return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup /></Response>', {
+          headers: { 'Content-Type': 'text/xml' },
+        });
+      }
+
+      const settingsUserId = await resolveSettingsUserId(supabase, settingsUserIdFromUrl ?? leadOwnerUserId ?? '');
+      const statusCallbackUrl = `${supabaseUrl}/functions/v1/call-status-callback?leadId=${leadId}&userId=${settingsUserId}`;
+      const statusCallbackUrlEsc = escapeXmlAttr(statusCallbackUrl);
 
       const { data: crmSettings } = await supabase
         .from('crm_settings')
@@ -269,127 +384,47 @@ Deno.serve(async (req) => {
         (n): n is string => typeof n === 'string' && n.length > 0
       );
 
-      const numberTargets = fallbackNumbers.map((num) => `<Number>${num}</Number>`).join('\n    ');
-
-      // If no fallback numbers are configured, go straight to voicemail
+      // No fallback numbers → voicemail
       if (fallbackNumbers.length === 0) {
         const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">We're sorry, no one is available to take your call. Please leave a message after the tone.</Say>
+  <Say voice="Polly.Joanna">${BILINGUAL_VOICEMAIL}</Say>
   <Record maxLength="120" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" />
 </Response>`;
-
         return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
       }
 
+      const numberTargets = fallbackNumbers.map(num => `<Number>${num}</Number>`).join('\n    ');
+
       const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">Please hold while we connect you.</Say>
+  <Say voice="Polly.Joanna">Please hold while we connect you. Por favor espere mientras lo conectamos.</Say>
   <Dial record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="35" statusCallback="${statusCallbackUrlEsc}" statusCallbackEvent="completed" statusCallbackMethod="POST">
     ${numberTargets}
   </Dial>
-  <Say voice="alice">We're sorry, no one is available to take your call. Please leave a message after the tone.</Say>
+  <Say voice="Polly.Joanna">${BILINGUAL_VOICEMAIL}</Say>
   <Record maxLength="120" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" />
 </Response>`;
 
       return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
     }
 
-    // ---- Stage: agents (dial agent phones AND CRM web clients simultaneously) ----
-
-    // Get all active agents with their phone numbers
-    const { data: agents } = await supabase
-      .from('agents')
-      .select('user_id, phone_number')
-      .eq('is_active', true);
-
-    // Build dial targets: both phone numbers and WebRTC client identities
-    const dialTargets: string[] = [];
-
-    if (agents && agents.length > 0) {
-      for (const agent of agents) {
-        // Add agent's registered phone number
-        if (agent.phone_number && agent.phone_number.length > 0) {
-          dialTargets.push(`<Number>${agent.phone_number}</Number>`);
-        }
-
-        // Also add WebRTC client identity so browser-connected agents get notified
-        const { data: userRes, error: userError } = await supabase.auth.admin.getUserById(agent.user_id);
-        if (!userError && userRes?.user?.email) {
-          dialTargets.push(`<Client><Identity>${sanitizeIdentity(userRes.user.email)}</Identity></Client>`);
-        }
-      }
-    }
-
-    // If no active agents, try the lead owner
-    if (dialTargets.length === 0 && leadOwnerUserId) {
-      // Check if lead owner has a phone in agents table
-      const { data: ownerAgent } = await supabase
-        .from('agents')
-        .select('phone_number')
-        .eq('user_id', leadOwnerUserId)
-        .maybeSingle();
-
-      if (ownerAgent?.phone_number) {
-        dialTargets.push(`<Number>${ownerAgent.phone_number}</Number>`);
-      }
-
-      const { data: ownerRes, error: ownerError } = await supabase.auth.admin.getUserById(leadOwnerUserId);
-      if (!ownerError && ownerRes?.user?.email) {
-        dialTargets.push(`<Client><Identity>${sanitizeIdentity(ownerRes.user.email)}</Identity></Client>`);
-      }
-    }
-
-    const allTargets = dialTargets.join('\n    ');
-
-    console.log('Dial targets resolved:', dialTargets.length, 'targets');
-
-    // If we have no targets at all, jump straight to fallback stage
-    if (dialTargets.length === 0) {
-      const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Redirect method="POST">${fallbackStageUrlEsc}</Redirect>
-</Response>`;
-      return new Response(twiml, { headers: { 'Content-Type': 'text/xml' } });
-    }
-
-    // Caller ID for dialing agent phones
-    const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER') || to;
-
-    // Return TwiML: ring agent phones + web clients simultaneously → fallback on no-answer
-    const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="alice">Thank you for calling. Please hold while we connect you to an agent.</Say>
-  <Dial callerId="${twilioPhone}" record="record-from-answer" recordingStatusCallback="${recordingCallbackUrlEsc}" recordingStatusCallbackMethod="POST" timeout="30" action="${fallbackStageUrlEsc}" method="POST" statusCallback="${statusCallbackUrlEsc}" statusCallbackEvent="completed" statusCallbackMethod="POST">
-    ${allTargets}
-  </Dial>
-  <Redirect method="POST">${fallbackStageUrlEsc}</Redirect>
-</Response>`;
-
-    return new Response(twiml, {
-      headers: {
-        'Content-Type': 'text/xml',
-      },
+    // Should not reach here
+    return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup /></Response>', {
+      headers: { 'Content-Type': 'text/xml' },
     });
+
   } catch (error) {
     console.error('Error in inbound call webhook:', error);
-    // Generic error response - details logged server-side only
     const errorTwiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say voice="alice">We're sorry, an error occurred. Please try again later.</Say>
+  <Say voice="Polly.Joanna">We're sorry, an error occurred. Please try again later. Lo sentimos, ha ocurrido un error. Intente de nuevo más tarde.</Say>
 </Response>`;
-
-    return new Response(errorTwiml, {
-      headers: {
-        'Content-Type': 'text/xml',
-      },
-      status: 500,
-    });
+    return new Response(errorTwiml, { headers: { 'Content-Type': 'text/xml' }, status: 500 });
   }
 });
 
 async function resolveSettingsUserId(supabase: any, candidateUserId: string): Promise<string> {
-  // If this user has settings, use them.
   const { data: directSettings } = await supabase
     .from('crm_settings')
     .select('user_id')
@@ -398,7 +433,6 @@ async function resolveSettingsUserId(supabase: any, candidateUserId: string): Pr
 
   if (directSettings) return candidateUserId;
 
-  // Otherwise, try to find an admin in the same organization and use THEIR settings.
   const { data: profile } = await supabase
     .from('profiles')
     .select('organization_id')
@@ -423,6 +457,5 @@ async function resolveSettingsUserId(supabase: any, candidateUserId: string): Pr
     .in('user_id', orgUserIds)
     .limit(1);
 
-  const adminId = admins?.[0]?.user_id;
-  return adminId ?? candidateUserId;
+  return admins?.[0]?.user_id ?? candidateUserId;
 }
