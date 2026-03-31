@@ -109,6 +109,7 @@ export default function NewLeads() {
           is_returning: !!isReturning || leadCallCount > 1,
           call_count: leadCallCount,
           note_count: 0,
+          call_status: callLog?.status || null,
         };
       });
 
