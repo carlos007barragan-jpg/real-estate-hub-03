@@ -223,34 +223,50 @@ Deno.serve(async (req) => {
     let leadOwnerUserId: string | null = leadOwnerUserIdFromUrl ?? null;
 
     // Fetch org-wide CRM settings — scope to the org that owns this CRM
-    // First get all crm_settings, then pick the one whose user belongs to an org
-    const { data: allCrmSettings } = await supabase
-      .from('crm_settings')
-      .select('auto_roundrobin_unanswered, smart_routing_enabled, fallback_phone_1, fallback_phone_2, user_id');
-
-    // Resolve the correct org by checking each settings user's org
+    // Wrapped in try/catch so a DB error never prevents TwiML from being returned
     let crmSettings: any = null;
     let orgId: string | null = null;
     let orgUserIds: string[] = [];
 
-    if (allCrmSettings?.length) {
-      for (const s of allCrmSettings) {
-        const { data: profile } = await supabase
-          .from('profiles').select('organization_id').eq('user_id', s.user_id).maybeSingle();
-        if (profile?.organization_id) {
-          crmSettings = s;
-          orgId = profile.organization_id;
-          break;
+    try {
+      const { data: allCrmSettings } = await supabase
+        .from('crm_settings')
+        .select('auto_roundrobin_unanswered, smart_routing_enabled, fallback_phone_1, fallback_phone_2, user_id');
+
+      if (allCrmSettings?.length) {
+        for (const s of allCrmSettings) {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles').select('organization_id').eq('user_id', s.user_id).maybeSingle();
+            if (profile?.organization_id) {
+              crmSettings = s;
+              orgId = profile.organization_id;
+              break;
+            }
+          } catch (e) { console.error('[INBOUND] Error resolving org for settings user:', s.user_id, e); }
         }
+        if (!crmSettings) crmSettings = allCrmSettings[0];
       }
-      if (!crmSettings) crmSettings = allCrmSettings[0];
+    } catch (e) {
+      console.error('[INBOUND] Error fetching crm_settings:', e);
+    }
+
+    // Fallback: if no org resolved, grab the first organization
+    if (!orgId) {
+      try {
+        const { data: firstOrg } = await supabase.from('organizations').select('id').limit(1).maybeSingle();
+        orgId = firstOrg?.id ?? null;
+        console.log('[INBOUND] Fallback org resolution:', orgId);
+      } catch (e) { console.error('[INBOUND] Error fetching fallback org:', e); }
     }
 
     // Get all user_ids in this org for scoped queries
     if (orgId) {
-      const { data: orgProfiles } = await supabase
-        .from('profiles').select('user_id').eq('organization_id', orgId);
-      orgUserIds = (orgProfiles ?? []).map((p: any) => p.user_id).filter(Boolean);
+      try {
+        const { data: orgProfiles } = await supabase
+          .from('profiles').select('user_id').eq('organization_id', orgId);
+        orgUserIds = (orgProfiles ?? []).map((p: any) => p.user_id).filter(Boolean);
+      } catch (e) { console.error('[INBOUND] Error fetching org profiles:', e); }
     }
 
     console.log('[INBOUND] Resolved org:', orgId, 'orgUserIds:', orgUserIds.length);
