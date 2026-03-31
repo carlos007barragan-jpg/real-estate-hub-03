@@ -14,6 +14,7 @@ import { ForwardLeadDialog } from "@/components/ForwardLeadDialog";
 
 interface NewLead {
   id: string;
+  lead_record_id: string | null;
   name: string;
   email: string;
   phone: string;
@@ -31,6 +32,7 @@ interface NewLead {
   call_count: number;
   note_count: number;
   call_status: string | null;
+  assigned_to: string | null;
 }
 
 export default function NewLeads() {
@@ -50,6 +52,8 @@ export default function NewLeads() {
 
   const fetchNewLeads = async () => {
     try {
+      setLoading(true);
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -71,59 +75,116 @@ export default function NewLeads() {
         }
       }
 
-      // Fetch all unassigned leads from the 3 sources
-      const { data: leadsData, error: leadsError } = await supabase
+      const { data: websiteLeadsData, error: websiteLeadsError } = await supabase
         .from('leads')
         .select('id, name, email, phone, status, source, created_at, source_call_sid, assigned_to, property_of_interest, last_inbound_at, is_inbound_call')
         .in('user_id', orgUserIds)
         .eq('assigned_to', 'unassigned')
-        .in('source', [SOURCE_CALLS, SOURCE_RL, SOURCE_OF, 'Online Lead - Website'])
+        .in('source', [SOURCE_RL, SOURCE_OF, 'Online Lead - Website'])
         .order('created_at', { ascending: false });
 
-      if (leadsError) throw leadsError;
+      if (websiteLeadsError) throw websiteLeadsError;
 
-      // Fetch call logs for inbound leads (all statuses)
-      const inboundIds = leadsData?.filter(l => l.source === SOURCE_CALLS || l.source === 'Inbound Call' || l.is_inbound_call).map(l => l.id) || [];
-      const { data: callLogs } = inboundIds.length > 0
-        ? await supabase.from('call_logs').select('*').in('lead_id', inboundIds).order('created_at', { ascending: false })
-        : { data: [] };
-      const { data: callCounts } = inboundIds.length > 0
-        ? await supabase.from('call_logs').select('lead_id').in('lead_id', inboundIds)
-        : { data: [] };
+      const { data: liveCallLogs, error: liveCallLogsError } = await supabase
+        .from('call_logs')
+        .select('id, lead_id, call_sid, from_number, to_number, status, duration, recording_url, transcription, created_at, direction')
+        .in('user_id', orgUserIds)
+        .eq('direction', 'inbound')
+        .order('created_at', { ascending: false });
 
-      const merged: NewLead[] = (leadsData || []).map(lead => {
-        const callLog = callLogs?.find(log => log.lead_id === lead.id);
-        const leadCallCount = callCounts?.filter(c => c.lead_id === lead.id).length || 0;
-        const isReturning = lead.last_inbound_at && new Date(lead.last_inbound_at).getTime() > new Date(lead.created_at).getTime() + 60000;
-        // Normalize legacy source
-        const normalizedSource = lead.source === 'Online Lead - Website' ? SOURCE_RL : lead.source;
+      if (liveCallLogsError) throw liveCallLogsError;
+
+      const liveCallLeadIds = Array.from(new Set((liveCallLogs || []).map(log => log.lead_id).filter(Boolean)));
+      const { data: liveCallLeadRows, error: liveCallLeadRowsError } = liveCallLeadIds.length > 0
+        ? await supabase
+            .from('leads')
+            .select('id, name, email, phone, status, source, assigned_to, property_of_interest, last_inbound_at, created_at')
+            .in('id', liveCallLeadIds)
+        : { data: [], error: null };
+
+      if (liveCallLeadRowsError) throw liveCallLeadRowsError;
+
+      const callLeadMap = new Map((liveCallLeadRows || []).map(lead => [lead.id, lead]));
+      const callCountsByLeadId = new Map<string, number>();
+
+      for (const log of liveCallLogs || []) {
+        if (!log.lead_id) continue;
+        callCountsByLeadId.set(log.lead_id, (callCountsByLeadId.get(log.lead_id) || 0) + 1);
+      }
+
+      const liveCalls: NewLead[] = (liveCallLogs || []).map((log) => {
+        const linkedLead = callLeadMap.get(log.lead_id);
+        const callCount = log.lead_id ? (callCountsByLeadId.get(log.lead_id) || 1) : 1;
+
         return {
-          ...lead,
-          source: normalizedSource,
-          recording_url: callLog?.recording_url || null,
-          transcription: callLog?.transcription || null,
-          duration: callLog?.duration || null,
-          direction: callLog?.direction || (lead.is_inbound_call ? 'inbound' : 'website'),
-          property_of_interest: lead.property_of_interest,
-          last_inbound_at: lead.last_inbound_at,
-          is_returning: !!isReturning || leadCallCount > 1,
-          call_count: leadCallCount,
+          id: log.id,
+          lead_record_id: log.lead_id,
+          name: linkedLead?.name || `Inbound Call - ${log.from_number}`,
+          email: linkedLead?.email || `inbound+${log.from_number.replace(/\D/g, '')}@placeholder.com`,
+          phone: log.from_number || linkedLead?.phone || 'Unknown',
+          status: linkedLead?.status || 'new',
+          source: SOURCE_CALLS,
+          created_at: log.created_at,
+          source_call_sid: log.call_sid,
+          recording_url: log.recording_url || null,
+          transcription: log.transcription || null,
+          duration: log.duration || null,
+          direction: log.direction || 'inbound',
+          property_of_interest: linkedLead?.property_of_interest || null,
+          last_inbound_at: linkedLead?.last_inbound_at || log.created_at,
+          is_returning: callCount > 1,
+          call_count: callCount,
           note_count: 0,
-          call_status: callLog?.status || null,
+          call_status: log.status || null,
+          assigned_to: linkedLead?.assigned_to || 'unassigned',
         };
       });
 
+      const websiteLeads: NewLead[] = (websiteLeadsData || []).map((lead) => {
+        const normalizedSource = lead.source === 'Online Lead - Website' ? SOURCE_RL : lead.source;
+        return {
+          ...lead,
+          lead_record_id: lead.id,
+          source: normalizedSource,
+          recording_url: null,
+          transcription: null,
+          duration: null,
+          direction: 'website',
+          property_of_interest: lead.property_of_interest,
+          last_inbound_at: lead.last_inbound_at,
+          is_returning: false,
+          call_count: 0,
+          note_count: 0,
+          call_status: null,
+          assigned_to: lead.assigned_to,
+        };
+      });
+
+      const merged = [...liveCalls, ...websiteLeads].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
       setAllLeads(merged);
 
-      // History stats (all leads, not just unassigned)
-      const { data: allHistory } = await supabase
+      const { data: websiteHistory } = await supabase
         .from('leads')
         .select('id, name, phone, email, assigned_to, created_at, source')
         .in('user_id', orgUserIds)
-        .in('source', [SOURCE_CALLS, SOURCE_RL, SOURCE_OF, 'Online Lead - Website'])
+        .in('source', [SOURCE_RL, SOURCE_OF, 'Online Lead - Website'])
         .order('created_at', { ascending: false });
 
-      setAllHistoryLeads(allHistory || []);
+      setAllHistoryLeads([
+        ...liveCalls.map((call) => ({
+          id: call.lead_record_id || call.id,
+          name: call.name,
+          phone: call.phone,
+          email: call.email,
+          assigned_to: call.assigned_to,
+          created_at: call.created_at,
+          source: call.source,
+        })),
+        ...(websiteHistory || []),
+      ]);
     } catch (error: any) {
       console.error('Error fetching new leads:', error);
       toast({ title: "Error", description: "Failed to load new leads", variant: "destructive" });
@@ -138,17 +199,18 @@ export default function NewLeads() {
       .channel('new-leads-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, () => fetchNewLeads())
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, () => fetchNewLeads())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_logs' }, () => fetchNewLeads())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'call_logs' }, () => fetchNewLeads())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Derived data
   const callLeads = allLeads.filter(l => l.source === SOURCE_CALLS);
   const rlLeads = allLeads.filter(l => l.source === SOURCE_RL);
   const ofLeads = allLeads.filter(l => l.source === SOURCE_OF);
 
   const normalizeSource = (s: string) => s === 'Online Lead - Website' ? SOURCE_RL : s;
-  const unassignedCalls = allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_CALLS && l.assigned_to === 'unassigned').length;
+  const unassignedCalls = callLeads.filter(l => l.assigned_to === 'unassigned').length;
   const unassignedRL = allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_RL && l.assigned_to === 'unassigned').length;
   const unassignedOF = allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_OF && l.assigned_to === 'unassigned').length;
   const totalUnassigned = unassignedCalls + unassignedRL + unassignedOF;
@@ -220,90 +282,104 @@ export default function NewLeads() {
     return <Globe className="w-5 h-5 text-primary" />;
   };
 
-  const renderLeadCard = (lead: NewLead) => (
-    <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-3">
-            <div className={`p-2 rounded-lg ${lead.source === SOURCE_CALLS ? 'bg-info/10' : lead.source === SOURCE_OF ? 'bg-amber-500/10' : 'bg-primary/10'}`}>
-              {getSourceIcon(lead.source)}
+  const renderLeadCard = (lead: NewLead) => {
+    const targetLeadId = lead.lead_record_id || lead.id;
+    const isUnassigned = !lead.assigned_to || lead.assigned_to === 'unassigned';
+
+    return (
+      <Card key={lead.id} className="p-6 hover:shadow-lg transition-shadow">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`p-2 rounded-lg ${lead.source === SOURCE_CALLS ? 'bg-info/10' : lead.source === SOURCE_OF ? 'bg-amber-500/10' : 'bg-primary/10'}`}>
+                {getSourceIcon(lead.source)}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-lg">{lead.name}</h3>
+                  {lead.is_returning && (
+                    <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600 bg-amber-50">
+                      <GitMerge className="w-3 h-3" /> Returning Lead
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {lead.is_returning ? (
+                    <>Originally added {format(new Date(lead.created_at), 'MMM dd, yyyy')} · Last contact {format(new Date(lead.last_inbound_at!), 'MMM dd, h:mm a')}</>
+                  ) : (
+                    format(new Date(lead.created_at), 'MMM dd, yyyy h:mm a')
+                  )}
+                </p>
+              </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-lg">{lead.name}</h3>
-                {lead.is_returning && (
-                  <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600 bg-amber-50">
-                    <GitMerge className="w-3 h-3" /> Returning Lead
+
+            {lead.is_returning && (
+              <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <div className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
+                  <GitMerge className="w-3 h-3" /> Existing Lead — Merged Automatically
+                </div>
+                <p className="text-sm text-amber-600 dark:text-amber-300">
+                  This contact already exists in the CRM{lead.call_count > 1 ? ` with ${lead.call_count} previous calls` : ''}. Click "View Details" to see full history.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center gap-2 text-sm">
+                <Phone className="w-4 h-4 text-muted-foreground" /><span>{lead.phone}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Mail className="w-4 h-4 text-muted-foreground" /><span>{lead.email}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm flex-wrap">
+                <Badge variant="default">{lead.source}</Badge>
+                {lead.source === SOURCE_CALLS && lead.call_status && (
+                  <Badge variant={lead.call_status === 'completed' ? 'default' : lead.call_status === 'no-answer' ? 'destructive' : 'secondary'}>
+                    {lead.call_status === 'completed' ? 'Completed' : lead.call_status === 'no-answer' ? 'No Answer' : lead.call_status === 'busy' ? 'Missed' : lead.call_status === 'in-progress' ? 'In Progress' : lead.call_status}
                   </Badge>
                 )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {lead.is_returning ? (
-                  <>Originally added {format(new Date(lead.created_at), 'MMM dd, yyyy')} · Last contact {format(new Date(lead.last_inbound_at!), 'MMM dd, h:mm a')}</>
-                ) : (
-                  format(new Date(lead.created_at), 'MMM dd, yyyy h:mm a')
+                {lead.source === SOURCE_CALLS && !isUnassigned && lead.assigned_to && (
+                  <Badge variant="outline">Assigned: {lead.assigned_to}</Badge>
                 )}
-              </p>
-            </div>
-          </div>
-
-          {lead.is_returning && (
-            <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <div className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
-                <GitMerge className="w-3 h-3" /> Existing Lead — Merged Automatically
+                {lead.source === SOURCE_CALLS && <Badge variant="secondary">Duration: {formatDuration(lead.duration)}</Badge>}
+                {lead.property_of_interest && (
+                  <Badge variant="secondary" className="gap-1"><Calendar className="w-3 h-3" />{lead.property_of_interest}</Badge>
+                )}
               </div>
-              <p className="text-sm text-amber-600 dark:text-amber-300">
-                This contact already exists in the CRM{lead.call_count > 1 ? ` with ${lead.call_count} previous calls` : ''}. Click "View Details" to see full history.
-              </p>
             </div>
-          )}
 
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center gap-2 text-sm">
-              <Phone className="w-4 h-4 text-muted-foreground" /><span>{lead.phone}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Mail className="w-4 h-4 text-muted-foreground" /><span>{lead.email}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm flex-wrap">
-              <Badge variant="default">{lead.source}</Badge>
-              {lead.source === SOURCE_CALLS && lead.call_status && (
-                <Badge variant={lead.call_status === 'completed' ? 'default' : lead.call_status === 'no-answer' ? 'destructive' : 'secondary'}>
-                  {lead.call_status === 'completed' ? 'Completed' : lead.call_status === 'no-answer' ? 'Missed' : lead.call_status === 'in-progress' ? 'In Progress' : lead.call_status}
-                </Badge>
+            {lead.transcription && (
+              <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                <div className="text-xs font-medium text-muted-foreground mb-1">Voicemail Transcription:</div>
+                <p className="text-sm">{lead.transcription}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-4 flex-wrap">
+              {isUnassigned && targetLeadId && (
+                <Button onClick={() => handleAssignToMe(targetLeadId)} variant="default">
+                  {lead.source === SOURCE_CALLS ? 'Assign Lead' : 'Assign to Me'}
+                </Button>
               )}
-              {lead.source === SOURCE_CALLS && <Badge variant="secondary">Duration: {formatDuration(lead.duration)}</Badge>}
-              {lead.property_of_interest && (
-                <Badge variant="secondary" className="gap-1"><Calendar className="w-3 h-3" />{lead.property_of_interest}</Badge>
+              {isUnassigned && targetLeadId && <ForwardLeadDialog leadId={targetLeadId} onSuccess={fetchNewLeads} />}
+              {targetLeadId && <Button onClick={() => navigate(`/leads/${targetLeadId}`)} variant="outline">View Details</Button>}
+              {isUnassigned && targetLeadId && (
+                <Button onClick={() => handleDiscard(targetLeadId)} variant="destructive" size="sm" className="gap-1">
+                  <Trash2 className="w-4 h-4" /> Discard
+                </Button>
               )}
             </div>
           </div>
 
-          {lead.transcription && (
-            <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-              <div className="text-xs font-medium text-muted-foreground mb-1">Voicemail Transcription:</div>
-              <p className="text-sm">{lead.transcription}</p>
-            </div>
-          )}
-
-          <div className="flex gap-2 mt-4 flex-wrap">
-            <Button onClick={() => handleAssignToMe(lead.id)} variant="default">Assign to Me</Button>
-            <ForwardLeadDialog leadId={lead.id} onSuccess={fetchNewLeads} />
-            <Button onClick={() => navigate(`/leads/${lead.id}`)} variant="outline">View Details</Button>
-            <Button onClick={() => handleDiscard(lead.id)} variant="destructive" size="sm" className="gap-1">
-              <Trash2 className="w-4 h-4" /> Discard
+          {lead.recording_url && (
+            <Button size="sm" variant="outline" onClick={() => playRecording(lead.id, lead.recording_url!)} disabled={loadingAudio === lead.id} className="gap-2 ml-4">
+              {playingLeadId === lead.id ? <><Pause className="w-4 h-4" /> Pause</> : <><Play className="w-4 h-4" /> {loadingAudio === lead.id ? 'Loading...' : 'Play Voicemail'}</>}
             </Button>
-          </div>
+          )}
         </div>
-
-        {lead.recording_url && (
-          <Button size="sm" variant="outline" onClick={() => playRecording(lead.id, lead.recording_url!)} disabled={loadingAudio === lead.id} className="gap-2 ml-4">
-            {playingLeadId === lead.id ? <><Pause className="w-4 h-4" /> Pause</> : <><Play className="w-4 h-4" /> {loadingAudio === lead.id ? 'Loading...' : 'Play Voicemail'}</>}
-          </Button>
-        )}
-      </div>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   const renderLeadList = (leads: NewLead[], emptyIcon: React.ReactNode, emptyText: string) => (
     leads.length === 0 ? (
@@ -322,7 +398,7 @@ export default function NewLeads() {
     <div className="grid gap-4 md:grid-cols-4">
       <Card
         className={`p-6 cursor-pointer hover:shadow-md transition-shadow ${unassignedCalls > 0 ? 'border-destructive/50 bg-destructive/5' : ''}`}
-        onClick={() => openHistory('Unassigned Calls', allHistoryLeads.filter(l => normalizeSource(l.source) === SOURCE_CALLS && l.assigned_to === 'unassigned'))}
+        onClick={() => openHistory('Unassigned Calls', callLeads.filter(l => l.assigned_to === 'unassigned'))}
       >
         <div className="flex items-center justify-between">
           <div>
@@ -392,7 +468,7 @@ export default function NewLeads() {
         </TabsContent>
 
         <TabsContent value="calls" className="space-y-6 mt-4">
-          {renderLeadList(callLeads, <Voicemail className="w-12 h-12 mx-auto text-muted-foreground mb-4" />, "No new inbound call leads")}
+          {renderLeadList(callLeads, <Voicemail className="w-12 h-12 mx-auto text-muted-foreground mb-4" />, "No inbound call records")}
         </TabsContent>
 
         <TabsContent value="rl" className="space-y-6 mt-4">
@@ -404,7 +480,6 @@ export default function NewLeads() {
         </TabsContent>
       </Tabs>
 
-      {/* History Dialog */}
       <Dialog open={historyDialog.open} onOpenChange={(open) => setHistoryDialog(prev => ({ ...prev, open }))}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
