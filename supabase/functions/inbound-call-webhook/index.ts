@@ -31,6 +31,26 @@ const VOICEMAIL_TWIML = `
   <Pause length="1"/>
   <Say voice="Polly.Lupe" language="es-US">Lo sentimos, deje un mensaje y un agente le devolverá la llamada.</Say>`;
 
+const FALLBACK_TWIML = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say>Thank you for calling Real Living. Please hold while we connect you.</Say>
+</Response>`;
+
+function xmlResponse(twiml: string, status = 200): Response {
+  return new Response(twiml, {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'text/xml',
+    },
+  });
+}
+
+function fallbackResponse(error: unknown, context = 'FATAL ERROR'): Response {
+  console.error(`[INBOUND] ${context}:`, error);
+  return xmlResponse(FALLBACK_TWIML, 200);
+}
+
 // ==================== HELPER FUNCTIONS ====================
 
 function isExcluded(profile: any, roleMap: Map<string, string>): boolean {
@@ -102,17 +122,17 @@ async function fetchDirectoryAgents(supabase: any, orgId: string): Promise<Agent
 // ==================== MAIN HANDLER ====================
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  const requestUrl = new URL(req.url);
-  const stage = requestUrl.searchParams.get('stage') ?? 'greeting';
-  const leadIdFromUrl = requestUrl.searchParams.get('leadId');
-  const leadOwnerUserIdFromUrl = requestUrl.searchParams.get('leadOwnerUserId');
-  const orgIdFromUrl = requestUrl.searchParams.get('orgId');
-
   try {
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    const requestUrl = new URL(req.url);
+    const stage = requestUrl.searchParams.get('stage') ?? 'greeting';
+    const leadIdFromUrl = requestUrl.searchParams.get('leadId');
+    const leadOwnerUserIdFromUrl = requestUrl.searchParams.get('leadOwnerUserId');
+    const orgIdFromUrl = requestUrl.searchParams.get('orgId');
+
     const formData = await req.formData();
     const params: Record<string, string> = {};
     for (const [key, value] of formData.entries()) {
@@ -128,23 +148,20 @@ Deno.serve(async (req) => {
     const digits = params['Digits'];
 
     if (!from || from.length === 0 || from.length > 20) {
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
-        headers: { 'Content-Type': 'text/xml' }, status: 400,
-      });
+      return fallbackResponse(new Error('Invalid or missing From parameter'), 'REQUEST VALIDATION');
     }
     if (!to || to.length === 0 || to.length > 20) {
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
-        headers: { 'Content-Type': 'text/xml' }, status: 400,
-      });
+      return fallbackResponse(new Error('Invalid or missing To parameter'), 'REQUEST VALIDATION');
     }
     if (!callSid || callSid.length > 50) {
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response><Say>Invalid request.</Say></Response>', {
-        headers: { 'Content-Type': 'text/xml' }, status: 400,
-      });
+      return fallbackResponse(new Error('Invalid or missing CallSid parameter'), 'REQUEST VALIDATION');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+    }
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const recordingCallbackUrl = `${supabaseUrl}/functions/v1/recording-callback`;
@@ -240,11 +257,15 @@ Deno.serve(async (req) => {
           is_inbound_call: true,
         }).eq('id', matchedLead.id);
 
-        await supabase.from('notes').insert({
+        const { error: existingLeadNoteError } = await supabase.from('notes').insert({
           lead_id: matchedLead.id, user_id: matchedLead.user_id,
           content: `📞 Inbound call from ${from}. ${matchedLead.assigned_to && matchedLead.assigned_to !== 'unassigned' ? `Returning client — assigned to ${matchedLead.assigned_to}.` : 'No assigned agent.'}`,
           author: 'System', note_type: 'system',
-        }).catch(() => {});
+        });
+
+        if (existingLeadNoteError) {
+          console.error('[INBOUND] Existing lead note insert error:', JSON.stringify(existingLeadNoteError));
+        }
       }
 
       // Create new lead if none found
@@ -280,11 +301,15 @@ Deno.serve(async (req) => {
               leadId = newLead.id;
               console.log('[INBOUND] ✅ New lead created:', leadId);
 
-              await supabase.from('notes').insert({
+              const { error: newLeadNoteError } = await supabase.from('notes').insert({
                 lead_id: leadId, user_id: leadOwnerUserId,
                 content: `📞 New inbound call from ${from}. Unknown caller — new lead created automatically.`,
                 author: 'System', note_type: 'system',
-              }).catch(() => {});
+              });
+
+              if (newLeadNoteError) {
+                console.error('[INBOUND] New lead note insert error:', JSON.stringify(newLeadNoteError));
+              }
 
               // Notify org members
               try {
@@ -663,11 +688,6 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('[INBOUND] FATAL ERROR:', error);
-    return new Response(`<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Say voice="Polly.Joanna" language="en-US">We are experiencing a temporary issue. Please call back shortly.</Say>
-  <Say voice="Polly.Lupe" language="es-US">Estamos experimentando un problema temporal. Por favor llame de nuevo.</Say>
-</Response>`, { headers: { 'Content-Type': 'text/xml' }, status: 200 });
+    return fallbackResponse(error, 'FATAL ERROR');
   }
 });
