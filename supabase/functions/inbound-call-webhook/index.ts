@@ -1,5 +1,7 @@
 // Handles inbound calls to the CRM - IVR directory, direct extension, and queue
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+
+const SUPABASE_JS_URL = 'https://esm.sh/@supabase/supabase-js@2.39.3';
+let supabaseModulePromise: Promise<any> | null = null;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +51,19 @@ function xmlResponse(twiml: string, status = 200): Response {
 function fallbackResponse(error: unknown, context = 'FATAL ERROR'): Response {
   console.error(`[INBOUND] ${context}:`, error);
   return xmlResponse(FALLBACK_TWIML, 200);
+}
+
+async function getCreateClient() {
+  if (!supabaseModulePromise) {
+    supabaseModulePromise = import(SUPABASE_JS_URL);
+  }
+
+  const mod = await supabaseModulePromise;
+  if (!mod?.createClient) {
+    throw new Error('Failed to load Supabase client module');
+  }
+
+  return mod.createClient as (url: string, key: string) => any;
 }
 
 // ==================== HELPER FUNCTIONS ====================
@@ -156,6 +171,8 @@ Deno.serve(async (req) => {
     if (!callSid || callSid.length > 50) {
       return fallbackResponse(new Error('Invalid or missing CallSid parameter'), 'REQUEST VALIDATION');
     }
+
+    const createClient = await getCreateClient();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
