@@ -53,6 +53,27 @@ function fallbackResponse(error: unknown, context = 'FATAL ERROR'): Response {
   return xmlResponse(FALLBACK_TWIML, 200);
 }
 
+async function parseRequestParams(req: Request): Promise<Record<string, string>> {
+  const contentType = req.headers.get('content-type') ?? '';
+
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await req.formData();
+    const params: Record<string, string> = {};
+    for (const [key, value] of formData.entries()) {
+      params[key] = value.toString();
+    }
+    return params;
+  }
+
+  const rawBody = await req.text();
+  const searchParams = new URLSearchParams(rawBody);
+  const params: Record<string, string> = {};
+  for (const [key, value] of searchParams.entries()) {
+    params[key] = value;
+  }
+  return params;
+}
+
 async function getCreateClient() {
   if (!supabaseModulePromise) {
     supabaseModulePromise = import(SUPABASE_JS_URL);
@@ -148,11 +169,7 @@ Deno.serve(async (req) => {
     const leadOwnerUserIdFromUrl = requestUrl.searchParams.get('leadOwnerUserId');
     const orgIdFromUrl = requestUrl.searchParams.get('orgId');
 
-    const formData = await req.formData();
-    const params: Record<string, string> = {};
-    for (const [key, value] of formData.entries()) {
-      params[key] = value.toString();
-    }
+    const params = await parseRequestParams(req);
 
     console.log('[INBOUND] Stage:', stage, 'Params:', JSON.stringify(params));
 
