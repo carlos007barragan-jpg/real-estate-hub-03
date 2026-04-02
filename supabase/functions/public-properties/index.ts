@@ -13,6 +13,7 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const organizationId = url.searchParams.get('organization_id');
+    const showAll = url.searchParams.get('show_all') === 'true';
 
     if (!organizationId) {
       return new Response(
@@ -21,7 +22,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Fetching public properties for organization: ${organizationId}`);
+    console.log(`Fetching public properties for organization: ${organizationId}, show_all: ${showAll}`);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -29,6 +30,7 @@ Deno.serve(async (req) => {
 
     // Validate API key if provided
     const apiKey = req.headers.get('x-api-key');
+    let apiKeyValid = false;
     if (apiKey) {
       const { data: keyRecord, error: keyError } = await supabase
         .from('organization_api_keys')
@@ -50,6 +52,8 @@ Deno.serve(async (req) => {
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      apiKeyValid = true;
 
       await supabase
         .from('organization_api_keys')
@@ -87,8 +91,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch ALL inventory properties for this organization (no public-only filter)
-    const { data: properties, error: propertiesError } = await supabase
+    // Build query — if show_all is true AND a valid API key was provided, return everything
+    // Otherwise only return properties marked as public
+    let query = supabase
       .from('inventory')
       .select(`
         id, name, description, price, category, property_type,
@@ -101,6 +106,13 @@ Deno.serve(async (req) => {
       `)
       .in('user_id', userIds)
       .order('created_at', { ascending: false });
+
+    // Only filter by show_on_public_page if NOT requesting all with a valid key
+    if (!(showAll && apiKeyValid)) {
+      query = query.eq('show_on_public_page', true);
+    }
+
+    const { data: properties, error: propertiesError } = await query;
 
     if (propertiesError) {
       console.error('Error fetching properties:', propertiesError);
@@ -128,7 +140,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Remap properties to the format the external app expects
+    // Determine listing_type from transaction_type for easy website filtering
+    const getListingType = (transactionType: string | null): string => {
+      if (!transactionType) return 'traditional';
+      const t = transactionType.toLowerCase();
+      if (t.includes('owner') && t.includes('finance')) return 'owner-finance';
+      if (t === 'owner_finance') return 'owner-finance';
+      if (t.includes('wholesale')) return 'wholesale';
+      if (t.includes('off') && t.includes('market')) return 'off-market';
+      return 'traditional';
+    };
+
     const mappedProperties = (properties || []).map(p => ({
       property_id: p.id,
       address: p.name,
@@ -144,8 +166,10 @@ Deno.serve(async (req) => {
       photos: p.photo_urls || [],
       is_public: p.show_on_public_page || false,
       property_type: p.property_type,
+      listing_type: getListingType(p.transaction_type),
       financing_options: p.finance_type ? [p.finance_type] : [],
       finance_type: p.finance_type,
+      transaction_type: p.transaction_type,
       down_payment: p.down_payment ?? null,
       monthly_payment: p.payment ?? null,
       interest_rate: p.interest_rate ?? null,
