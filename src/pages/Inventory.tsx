@@ -1551,6 +1551,7 @@ export default function Inventory() {
                   <TableHead>Type</TableHead>
                   <TableHead>Deal Strategy</TableHead>
                   <TableHead className="text-center">Details</TableHead>
+                  <TableHead>Age</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
