@@ -1,0 +1,1 @@
+UPDATE public.inventory SET public_approval_status = 'approved' WHERE show_on_public_page = true AND public_approval_status <> 'approved';
