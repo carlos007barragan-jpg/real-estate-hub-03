@@ -195,7 +195,10 @@ export function InternalChat() {
     <>
       {/* Chat Window */}
       {view !== "closed" && (
-        <div className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-[60] w-[340px] h-[440px] bg-card border rounded-xl shadow-2xl overflow-hidden flex flex-col">
+        <div
+          className="fixed z-[60] w-[340px] h-[440px] bg-card border rounded-xl shadow-2xl overflow-hidden flex flex-col"
+          style={{ right: pos.x, bottom: pos.y }}
+        >
           <button
             onClick={toggleChat}
             className="absolute top-2 right-2 z-10 h-6 w-6 flex items-center justify-center rounded-full bg-muted hover:bg-muted-foreground/20 transition-colors"
