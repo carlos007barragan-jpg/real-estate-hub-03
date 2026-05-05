@@ -1551,6 +1551,7 @@ export default function Inventory() {
                   <TableHead>Type</TableHead>
                   <TableHead>Deal Strategy</TableHead>
                   <TableHead className="text-center">Details</TableHead>
+                  <TableHead>Age</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1653,6 +1654,23 @@ export default function Inventory() {
                             </span>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {item.created_at ? (() => {
+                          const uploaded = new Date(item.created_at);
+                          const days = Math.max(0, Math.floor((Date.now() - uploaded.getTime()) / 86400000));
+                          const ageColor = days <= 7 ? 'text-emerald-600' : days <= 30 ? 'text-amber-600' : 'text-rose-600';
+                          return (
+                            <div className="flex flex-col leading-tight">
+                              <span className="text-xs text-muted-foreground">
+                                {uploaded.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                              <span className={`text-xs font-medium ${ageColor}`}>
+                                {days === 0 ? 'Today' : days === 1 ? '1 day old' : `${days} days old`}
+                              </span>
+                            </div>
+                          );
+                        })() : <span className="text-xs text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
