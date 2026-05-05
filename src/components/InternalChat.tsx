@@ -24,6 +24,44 @@ export function InternalChat() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [totalUnread, setTotalUnread] = useState(0);
 
+  // Draggable position (offset from bottom-right corner). Persisted in localStorage.
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => {
+    try {
+      const saved = localStorage.getItem("internalChatPos");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { x: 16, y: 80 }; // matches default right-4 bottom-20
+  });
+  const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragState.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, moved: false };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragState.current) return;
+    const dx = e.clientX - dragState.current.startX;
+    const dy = e.clientY - dragState.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragState.current.moved = true;
+    const nx = Math.max(8, Math.min(window.innerWidth - 56, dragState.current.origX - dx));
+    const ny = Math.max(8, Math.min(window.innerHeight - 56, dragState.current.origY - dy));
+    setPos({ x: nx, y: ny });
+  };
+  const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const moved = dragState.current?.moved;
+    dragState.current = null;
+    try { localStorage.setItem("internalChatPos", JSON.stringify(pos)); } catch {}
+    if (moved) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+  const handleBubbleClick = (e: React.MouseEvent) => {
+    // Suppress click if a drag just happened
+    if ((e as any)._dragged) return;
+    toggleChat();
+  };
+
   const isAllowed = role === "supreme_admin" || role === "admin";
 
   // Check URL for ?chat= param to auto-open
