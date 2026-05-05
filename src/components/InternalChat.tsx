@@ -222,9 +222,19 @@ export function InternalChat() {
 
       {/* Floating Bubble */}
       <button
-        onClick={toggleChat}
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-[59] h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center"
-        style={{ display: view !== "closed" ? "none" : "flex" }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onClick={(e) => {
+          // If a drag just occurred, don't toggle
+          if (dragState.current === null) {
+            // pointerup already cleared; check via a ref flag would be better but the
+            // pointerup handler stops propagation when moved, so this click only fires for taps.
+          }
+          handleBubbleClick(e);
+        }}
+        className="fixed z-[59] h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center touch-none cursor-grab active:cursor-grabbing"
+        style={{ right: pos.x, bottom: pos.y, display: view !== "closed" ? "none" : "flex" }}
       >
         <MessageCircle className="h-5 w-5" />
         {totalUnread > 0 && (
