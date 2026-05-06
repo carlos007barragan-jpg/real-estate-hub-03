@@ -49,6 +49,7 @@ export const TeamManagement = () => {
         .single();
 
       if (!profile?.organization_id) return;
+      setOrgId(profile.organization_id);
 
       // Get all users in the organization with their roles
       const { data: profiles, error } = await supabase
