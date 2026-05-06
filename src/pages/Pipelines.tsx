@@ -604,7 +604,7 @@ const Pipelines = () => {
           // Update existing pipeline
           const { error: updateError } = await supabase
             .from("pipelines")
-            .update({ name: pipeline.name, stages: stagesData, display_order: i })
+            .update({ name: pipeline.name, stages: stagesData, display_order: i, color: pipeline.color ?? null } as any)
             .eq("id", pipeline.id);
           
           if (updateError) {
