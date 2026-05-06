@@ -44,7 +44,23 @@ interface Pipeline {
   id: string;
   name: string;
   stages: Stage[];
+  color?: string | null;
 }
+
+const PIPELINE_COLOR_PRESETS = [
+  { name: "Slate", value: "#64748b" },
+  { name: "Blue", value: "#3b82f6" },
+  { name: "Indigo", value: "#6366f1" },
+  { name: "Violet", value: "#8b5cf6" },
+  { name: "Pink", value: "#ec4899" },
+  { name: "Red", value: "#ef4444" },
+  { name: "Orange", value: "#f97316" },
+  { name: "Amber", value: "#f59e0b" },
+  { name: "Emerald", value: "#10b981" },
+  { name: "Teal", value: "#14b8a6" },
+  { name: "Cyan", value: "#06b6d4" },
+  { name: "Stone", value: "#78716c" },
+];
 
 interface PipelineManagerProps {
   pipelines: Pipeline[];
@@ -102,6 +118,14 @@ export function PipelineManager({
       )
     );
     toast.success("Pipeline updated");
+  };
+
+  const handleUpdatePipelineColor = (pipelineId: string, color: string | null) => {
+    onUpdate(
+      pipelines.map((p) =>
+        p.id === pipelineId ? { ...p, color } : p
+      )
+    );
   };
 
   const handleDeletePipeline = (pipelineId: string) => {
@@ -258,6 +282,33 @@ export function PipelineManager({
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
+                  </div>
+
+                  {/* Color picker */}
+                  <div className="ml-6 flex items-center gap-2 flex-wrap">
+                    <Label className="text-sm text-muted-foreground mr-1">Color</Label>
+                    {PIPELINE_COLOR_PRESETS.map((c) => {
+                      const selected = (pipeline.color || "").toLowerCase() === c.value.toLowerCase();
+                      return (
+                        <button
+                          key={c.value}
+                          type="button"
+                          title={c.name}
+                          onClick={() => handleUpdatePipelineColor(pipeline.id, c.value)}
+                          className={`h-6 w-6 rounded-full border-2 transition-transform ${selected ? "border-foreground scale-110" : "border-transparent hover:scale-110"}`}
+                          style={{ backgroundColor: c.value }}
+                        />
+                      );
+                    })}
+                    {pipeline.color && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePipelineColor(pipeline.id, null)}
+                        className="text-xs text-muted-foreground underline ml-1"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
 
                   {/* Stages */}

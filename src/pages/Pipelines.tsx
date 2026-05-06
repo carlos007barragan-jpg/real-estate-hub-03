@@ -68,6 +68,7 @@ interface Pipeline {
   id: string;
   name: string;
   stages: Stage[];
+  color?: string | null;
 }
 
 const defaultPipelineTemplate: Pipeline[] = [
@@ -499,6 +500,7 @@ const Pipelines = () => {
         rawPipelines = pipelinesResult.data.map((p: any) => ({
           id: p.id,
           name: p.name,
+          color: p.color ?? null,
           stages: (p.stages as any[]).map(s => ({ ...s, deals: [] })),
         }));
       }
@@ -602,7 +604,7 @@ const Pipelines = () => {
           // Update existing pipeline
           const { error: updateError } = await supabase
             .from("pipelines")
-            .update({ name: pipeline.name, stages: stagesData, display_order: i })
+            .update({ name: pipeline.name, stages: stagesData, display_order: i, color: pipeline.color ?? null } as any)
             .eq("id", pipeline.id);
           
           if (updateError) {
@@ -620,7 +622,8 @@ const Pipelines = () => {
               name: pipeline.name,
               stages: stagesData,
               display_order: i,
-            })
+              color: pipeline.color ?? null,
+            } as any)
             .select()
             .single();
 
@@ -1104,6 +1107,10 @@ const Pipelines = () => {
           {displayPipeline.stages.map((stage) => {
             const stageValue = stage.deals.reduce((sum, deal) => sum + deal.commission, 0);
             const isCollapsed = collapsedStages.has(stage.id);
+            const pipelineColor = (displayPipeline as any).color as string | null | undefined;
+            const headerStyle: React.CSSProperties = pipelineColor
+              ? { backgroundColor: `${pipelineColor}1A`, borderTop: `3px solid ${pipelineColor}` }
+              : {};
             
             if (isCollapsed) {
               return (
@@ -1111,6 +1118,7 @@ const Pipelines = () => {
                   <DroppableStage stage={stage}>
                     <div 
                       className="bg-muted/40 rounded-lg p-3 cursor-pointer hover:bg-muted/60 transition-colors h-full"
+                      style={headerStyle}
                       onClick={() => toggleStageCollapse(stage.id)}
                     >
                       <div className="flex flex-col items-center gap-2">
@@ -1134,7 +1142,7 @@ const Pipelines = () => {
             return (
               <div key={stage.id} className="flex-shrink-0 w-[320px]">
                 <DroppableStage stage={stage}>
-                  <div className="bg-muted/40 rounded-lg p-3 space-y-3">
+                  <div className="bg-muted/40 rounded-lg p-3 space-y-3" style={headerStyle}>
                     {/* Stage Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">

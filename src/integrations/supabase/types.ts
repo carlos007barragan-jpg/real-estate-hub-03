@@ -1546,6 +1546,7 @@ export type Database = {
       }
       pipelines: {
         Row: {
+          color: string | null
           created_at: string
           display_order: number
           id: string
@@ -1556,6 +1557,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           display_order?: number
           id?: string
@@ -1566,6 +1568,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           display_order?: number
           id?: string
