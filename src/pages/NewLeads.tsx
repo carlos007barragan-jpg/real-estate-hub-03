@@ -258,7 +258,13 @@ export default function NewLeads() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const agentName = user.email?.split('@')[0] || 'Agent';
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email')
+        .eq('user_id', user.id)
+        .single();
+      const fullName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
+      const agentName = fullName || profile?.email || user.email?.split('@')[0] || 'Agent';
       const { error } = await supabase.from('leads').update({ assigned_to: agentName }).eq('id', leadId);
       if (error) throw error;
       toast({ title: "Success", description: "Lead assigned to you" });
