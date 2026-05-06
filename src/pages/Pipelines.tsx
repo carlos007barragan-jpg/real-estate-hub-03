@@ -6,6 +6,7 @@ import { OfferMadeValidationDialog } from "@/components/OfferMadeValidationDialo
 import { DealClosedDialog } from "@/components/DealClosedDialog";
 import { fireDealWonConfetti } from "@/lib/confetti";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccessiblePipelines } from "@/hooks/useAccessiblePipelines";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -245,6 +246,7 @@ const Pipelines = () => {
     return localStorage.getItem("selectedPipelineId") || "";
   });
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const { pipelineNames: accessibleNames, isAdmin: isAdminUser, loading: accessLoading } = useAccessiblePipelines();
   
   const handleSelectPipeline = (pipelineId: string) => {
     setSelectedPipeline(pipelineId);
@@ -502,7 +504,14 @@ const Pipelines = () => {
       }
 
       const populatedPipelines = populatePipelinesWithLeads(rawPipelines, leadsResult.data || [], leadDealsResult.data || []);
-      setPipelines(populatedPipelines);
+
+      // Filter pipelines based on user's access (admins see all)
+      const accessibleSet = new Set(accessibleNames);
+      const visiblePipelines = isAdminUser
+        ? populatedPipelines
+        : populatedPipelines.filter((p) => accessibleSet.has(p.name));
+
+      setPipelines(visiblePipelines);
 
       // Auto-collapse won stages on first load
       if (!wonStageIdsInitialized) {
@@ -518,9 +527,9 @@ const Pipelines = () => {
         setWonStageIdsInitialized(true);
       }
 
-      const pipelineIds = populatedPipelines.map(p => p.id);
+      const pipelineIds = visiblePipelines.map(p => p.id);
       if (!selectedPipeline || !pipelineIds.includes(selectedPipeline)) {
-        handleSelectPipeline(populatedPipelines[0]?.id || "");
+        handleSelectPipeline(visiblePipelines[0]?.id || "");
       }
 
       setPipelinesLoaded(true);
@@ -666,6 +675,7 @@ const Pipelines = () => {
   };
 
   useEffect(() => {
+    if (accessLoading) return;
     fetchPipelinesAndLeads();
 
     // Subscribe to real-time lead updates — just re-fetch everything atomically
@@ -690,7 +700,7 @@ const Pipelines = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [accessLoading, isAdminUser, accessibleNames.join(",")]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),

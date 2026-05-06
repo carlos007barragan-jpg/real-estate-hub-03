@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, UserPlus, Trash2 } from "lucide-react";
+import { Loader2, UserPlus, Trash2, Filter } from "lucide-react";
+import { PipelineAccessDialog } from "@/components/PipelineAccessDialog";
 
 interface User {
   id: string;
@@ -28,6 +29,8 @@ export const TeamManagement = () => {
   const [inviteRole, setInviteRole] = useState<"admin" | "agent" | "marketing_manager" | "marketing">("agent");
   const [inviting, setInviting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [accessDialogUser, setAccessDialogUser] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -46,6 +49,7 @@ export const TeamManagement = () => {
         .single();
 
       if (!profile?.organization_id) return;
+      setOrgId(profile.organization_id);
 
       // Get all users in the organization with their roles
       const { data: profiles, error } = await supabase
@@ -370,14 +374,26 @@ export const TeamManagement = () => {
                     {new Date(user.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteUser(user.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      {(user.role === "agent" || user.role === "marketing" || user.role === "marketing_manager") && orgId && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setAccessDialogUser(user)}
+                          title="Pipeline access"
+                        >
+                          <Filter className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -385,6 +401,19 @@ export const TeamManagement = () => {
           </TableBody>
         </Table>
       </CardContent>
+      {accessDialogUser && orgId && (
+        <PipelineAccessDialog
+          open={!!accessDialogUser}
+          onOpenChange={(open) => !open && setAccessDialogUser(null)}
+          userId={accessDialogUser.id}
+          userName={
+            accessDialogUser.first_name && accessDialogUser.last_name
+              ? `${accessDialogUser.first_name} ${accessDialogUser.last_name}`
+              : accessDialogUser.email
+          }
+          organizationId={orgId}
+        />
+      )}
     </Card>
   );
 };
