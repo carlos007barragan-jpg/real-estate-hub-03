@@ -675,6 +675,7 @@ const Pipelines = () => {
   };
 
   useEffect(() => {
+    if (accessLoading) return;
     fetchPipelinesAndLeads();
 
     // Subscribe to real-time lead updates — just re-fetch everything atomically
