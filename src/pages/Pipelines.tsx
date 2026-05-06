@@ -700,7 +700,7 @@ const Pipelines = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [accessLoading, isAdminUser, accessibleNames.join(",")]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
