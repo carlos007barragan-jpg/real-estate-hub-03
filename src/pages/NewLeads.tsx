@@ -112,7 +112,14 @@ export default function NewLeads() {
         callCountsByLeadId.set(log.lead_id, (callCountsByLeadId.get(log.lead_id) || 0) + 1);
       }
 
-      const liveCalls: NewLead[] = (liveCallLogs || []).map((log) => {
+      const liveCalls: NewLead[] = (liveCallLogs || [])
+        .filter((log) => {
+          const linkedLead = callLeadMap.get(log.lead_id);
+          // Hide if the linked lead has been assigned (to anyone other than unassigned) or discarded
+          if (linkedLead && linkedLead.assigned_to && linkedLead.assigned_to !== 'unassigned') return false;
+          return true;
+        })
+        .map((log) => {
         const linkedLead = callLeadMap.get(log.lead_id);
         const callCount = log.lead_id ? (callCountsByLeadId.get(log.lead_id) || 1) : 1;
 
