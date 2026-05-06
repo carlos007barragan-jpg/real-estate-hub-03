@@ -68,6 +68,7 @@ interface Pipeline {
   id: string;
   name: string;
   stages: Stage[];
+  color?: string | null;
 }
 
 const defaultPipelineTemplate: Pipeline[] = [
