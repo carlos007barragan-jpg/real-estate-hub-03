@@ -112,7 +112,14 @@ export default function NewLeads() {
         callCountsByLeadId.set(log.lead_id, (callCountsByLeadId.get(log.lead_id) || 0) + 1);
       }
 
-      const liveCalls: NewLead[] = (liveCallLogs || []).map((log) => {
+      const liveCalls: NewLead[] = (liveCallLogs || [])
+        .filter((log) => {
+          const linkedLead = callLeadMap.get(log.lead_id);
+          // Hide if the linked lead has been assigned (to anyone other than unassigned) or discarded
+          if (linkedLead && linkedLead.assigned_to && linkedLead.assigned_to !== 'unassigned') return false;
+          return true;
+        })
+        .map((log) => {
         const linkedLead = callLeadMap.get(log.lead_id);
         const callCount = log.lead_id ? (callCountsByLeadId.get(log.lead_id) || 1) : 1;
 
@@ -251,7 +258,13 @@ export default function NewLeads() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const agentName = user.email?.split('@')[0] || 'Agent';
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email')
+        .eq('user_id', user.id)
+        .single();
+      const fullName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
+      const agentName = fullName || profile?.email || user.email?.split('@')[0] || 'Agent';
       const { error } = await supabase.from('leads').update({ assigned_to: agentName }).eq('id', leadId);
       if (error) throw error;
       toast({ title: "Success", description: "Lead assigned to you" });
