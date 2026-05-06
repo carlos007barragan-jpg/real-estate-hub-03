@@ -504,7 +504,14 @@ const Pipelines = () => {
       }
 
       const populatedPipelines = populatePipelinesWithLeads(rawPipelines, leadsResult.data || [], leadDealsResult.data || []);
-      setPipelines(populatedPipelines);
+
+      // Filter pipelines based on user's access (admins see all)
+      const accessibleSet = new Set(accessibleNames);
+      const visiblePipelines = isAdminUser
+        ? populatedPipelines
+        : populatedPipelines.filter((p) => accessibleSet.has(p.name));
+
+      setPipelines(visiblePipelines);
 
       // Auto-collapse won stages on first load
       if (!wonStageIdsInitialized) {
