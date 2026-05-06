@@ -622,7 +622,8 @@ const Pipelines = () => {
               name: pipeline.name,
               stages: stagesData,
               display_order: i,
-            })
+              color: pipeline.color ?? null,
+            } as any)
             .select()
             .single();
 
