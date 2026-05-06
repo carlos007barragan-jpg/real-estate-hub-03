@@ -1107,6 +1107,10 @@ const Pipelines = () => {
           {displayPipeline.stages.map((stage) => {
             const stageValue = stage.deals.reduce((sum, deal) => sum + deal.commission, 0);
             const isCollapsed = collapsedStages.has(stage.id);
+            const pipelineColor = (displayPipeline as any).color as string | null | undefined;
+            const headerStyle: React.CSSProperties = pipelineColor
+              ? { backgroundColor: `${pipelineColor}1A`, borderTop: `3px solid ${pipelineColor}` }
+              : {};
             
             if (isCollapsed) {
               return (
