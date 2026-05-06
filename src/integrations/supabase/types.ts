@@ -1509,6 +1509,41 @@ export type Database = {
           },
         ]
       }
+      pipeline_access: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          organization_id: string
+          pipeline_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          organization_id: string
+          pipeline_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          organization_id?: string
+          pipeline_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_access_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipelines: {
         Row: {
           created_at: string
@@ -2137,6 +2172,10 @@ export type Database = {
       start_workflow_for_lead: {
         Args: { p_lead_id: string; p_user_id: string; p_workflow_id: string }
         Returns: string
+      }
+      user_can_access_pipeline: {
+        Args: { _org_id: string; _pipeline_name: string; _user_id: string }
+        Returns: boolean
       }
     }
     Enums: {

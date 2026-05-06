@@ -1,41 +1,75 @@
+## Goal
 
+Let admins/Supreme Admins grant individual agents access to specific pipelines (e.g. "Owner Finance Sales" only). Agents see only leads/data inside their granted pipelines. Admins & Supreme Admins always see everything.
 
-## Problem
+**Default:** Agents have access to NOTHING until explicitly granted.
 
-Two issues with how transactions display on the Lead Profile:
+---
 
-1. **Phantom transactions**: The system shows the primary pipeline progress bar (from the `leads` table) AND any `lead_deals` records simultaneously, making it look like there are two transactions when there's really only one. For example, Luis Rojo shows a primary pipeline bar at the top plus a deal in the accordion below — but the user only created one transaction.
+## 1. Database
 
-2. **Post-close lifecycle**: Once a deal is sold/closed, the transaction should be cleared from the active pipeline view entirely. The lead should transition into a "client" state (book of business). To start a new deal, the user should explicitly click "Begin New Transaction."
+New table `pipeline_access`:
+- `user_id` (agent)
+- `pipeline_id` (FK → pipelines.id)
+- `organization_id`
+- unique (user_id, pipeline_id)
 
-## Plan
+RLS:
+- Admins/Supreme Admins in the same org can view, insert, delete.
+- Agents can view their own rows (so the client can read their grants).
 
-### 1. Hide the primary pipeline bar when a `lead_deals` record exists for that same pipeline
+Helper SQL function `user_has_pipeline_access(_user_id, _pipeline_name, _org_id)`:
+- Returns `true` if user is admin/supreme_admin in that org.
+- Otherwise `true` if a row exists in `pipeline_access` joining `pipelines.name = _pipeline_name`.
 
-In `src/pages/LeadProfile.tsx`, modify the pipeline progress bar rendering (around line 740) to also hide when there is a matching `lead_deals` entry for the same pipeline. This prevents the duplicate display — the `LeadDealsAccordion` already handles showing that deal.
+(We match by pipeline **name** because `leads.pipeline` is stored as text, not as an FK.)
 
-### 2. Won/closed deals: hide from accordion, show summary instead
+Update RLS on `leads`:
+- Keep current org-membership policy, but AND it with: caller is admin/supreme_admin OR `user_has_pipeline_access(auth.uid(), leads.pipeline, org)`.
+- Leads with `pipeline IS NULL` (uncategorized) → only admins see them. (Open question — could also be visible to all; default to admin-only since the user wants strict segregation.)
 
-In `src/components/LeadDealsAccordion.tsx`, the compact "won" card (lines 184-227) currently still shows the deal with a stage selector. Change this so closed deals are either fully hidden from the accordion or shown as a minimal one-line historical entry (no stage selector, no pipeline controls). The deal data remains in the database for reporting.
+Same gating added to:
+- `lead_deals` SELECT policy (joined to `leads.pipeline`, or use `lead_deals.pipeline_id` directly which is cleaner).
+- `notes`, `appointments`, `follow_ups`, `call_logs`, `documents`, `tasks` — filter by `lead_id` whose pipeline the user can access.
 
-### 3. Post-close state: show "Begin New Transaction" button
+To avoid touching every table's RLS, simpler approach: gate at the `leads` table only. Notes/appointments/etc. already require lead visibility through joins in the UI. Where they don't (RLS allows direct row access via org membership), add a check that the related `lead_id` is in a pipeline the user can access.
 
-In `src/pages/LeadProfile.tsx`, when the lead status is "won" and there are no active deals:
-- Hide the pipeline bar entirely (already done).
-- Show a clean "closed" state with a prominent "Begin New Transaction" button that opens the existing `AddDealDialog`.
-- Optionally display a note like "This client's previous deal has been closed."
+---
 
-### 4. Primary pipeline bar: only show when no `lead_deals` exist
+## 2. Admin UI
 
-The primary pipeline bar uses `leads.pipeline` and `leads.pipeline_stage`. When the user creates a deal via `AddDealDialog`, that deal goes into the `lead_deals` table. The primary bar should only render if there are zero `lead_deals` records — since the accordion handles all deals from that table. This eliminates the double-display issue.
+**Settings → Team Management:** for each agent row, add a "Pipeline Access" button → opens a dialog with checkboxes for every pipeline in the org. Save writes/deletes rows in `pipeline_access`.
 
-### Technical Details
+Visible only to admins/Supreme Admins.
 
-**`src/pages/LeadProfile.tsx`**:
-- Line ~740: Add condition `&& leadDeals.length === 0` to the primary pipeline bar render check, so when deals exist in `lead_deals`, only the accordion shows.
-- When `leadData.status === "won"` and all deals are closed: render a "Client — Deal Closed" summary card with a "Begin New Transaction" button.
+---
 
-**`src/components/LeadDealsAccordion.tsx`**:
-- Lines 184-227 (won card): Remove the stage `<Select>` dropdown. Make the closed card a simple historical summary — pipeline name, property, close date, sale price. No reopening from here.
-- Add a small "Reopen" button (distinct from the stage selector) if users truly need to undo a close, which would reset the deal status back to active and move it to the previous stage.
+## 3. Frontend filtering (defense-in-depth, RLS is the source of truth)
 
+- **Pipelines page:** only show pipelines the user can access in the tab/selector. Admins see all.
+- **Leads page:** filter dropdown reflects accessible pipelines only.
+- **Lead Profile:** if an agent opens a lead outside their access, RLS hides it → show 404 / "no access" state.
+- **New Lead / Assign Lead:** pipeline picker shows only accessible pipelines.
+- **Dashboard:** existing queries automatically scoped via RLS — no extra work.
+
+A new hook `useAccessiblePipelines()` returns the pipeline list a user can see (admins → all; agents → joined via `pipeline_access`).
+
+---
+
+## 4. Memory
+
+Add a memory file documenting the new access model so future changes respect it.
+
+---
+
+## Open question
+
+When an agent has zero pipeline grants, the Pipelines page and Leads page will be empty. Confirm this is the desired UX (vs. showing a "Request access from your admin" message). I'll implement the empty-state message by default.
+
+---
+
+## Out of scope
+
+- No retroactive bulk assignment — admins grant access per-agent in the new dialog.
+- No per-stage access (whole pipeline only).
+- Marketing/owner roles unchanged.
