@@ -120,6 +120,14 @@ export function PipelineManager({
     toast.success("Pipeline updated");
   };
 
+  const handleUpdatePipelineColor = (pipelineId: string, color: string | null) => {
+    onUpdate(
+      pipelines.map((p) =>
+        p.id === pipelineId ? { ...p, color } : p
+      )
+    );
+  };
+
   const handleDeletePipeline = (pipelineId: string) => {
     if (pipelines.length === 1) {
       toast.error("Cannot delete the last pipeline");
