@@ -1142,7 +1142,7 @@ const Pipelines = () => {
             return (
               <div key={stage.id} className="flex-shrink-0 w-[320px]">
                 <DroppableStage stage={stage}>
-                  <div className="bg-muted/40 rounded-lg p-3 space-y-3">
+                  <div className="bg-muted/40 rounded-lg p-3 space-y-3" style={headerStyle}>
                     {/* Stage Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
