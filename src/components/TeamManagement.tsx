@@ -29,6 +29,8 @@ export const TeamManagement = () => {
   const [inviteRole, setInviteRole] = useState<"admin" | "agent" | "marketing_manager" | "marketing">("agent");
   const [inviting, setInviting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [accessDialogUser, setAccessDialogUser] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUsers();
