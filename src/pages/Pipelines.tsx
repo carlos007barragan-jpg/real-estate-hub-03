@@ -527,9 +527,9 @@ const Pipelines = () => {
         setWonStageIdsInitialized(true);
       }
 
-      const pipelineIds = populatedPipelines.map(p => p.id);
+      const pipelineIds = visiblePipelines.map(p => p.id);
       if (!selectedPipeline || !pipelineIds.includes(selectedPipeline)) {
-        handleSelectPipeline(populatedPipelines[0]?.id || "");
+        handleSelectPipeline(visiblePipelines[0]?.id || "");
       }
 
       setPipelinesLoaded(true);
