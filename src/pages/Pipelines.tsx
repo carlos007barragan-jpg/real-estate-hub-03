@@ -6,6 +6,7 @@ import { OfferMadeValidationDialog } from "@/components/OfferMadeValidationDialo
 import { DealClosedDialog } from "@/components/DealClosedDialog";
 import { fireDealWonConfetti } from "@/lib/confetti";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAccessiblePipelines } from "@/hooks/useAccessiblePipelines";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
