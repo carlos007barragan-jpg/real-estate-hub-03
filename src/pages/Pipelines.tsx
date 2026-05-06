@@ -246,6 +246,7 @@ const Pipelines = () => {
     return localStorage.getItem("selectedPipelineId") || "";
   });
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+  const { pipelineNames: accessibleNames, isAdmin: isAdminUser, loading: accessLoading } = useAccessiblePipelines();
   
   const handleSelectPipeline = (pipelineId: string) => {
     setSelectedPipeline(pipelineId);
