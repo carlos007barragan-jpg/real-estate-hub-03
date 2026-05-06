@@ -284,6 +284,33 @@ export function PipelineManager({
                     </Button>
                   </div>
 
+                  {/* Color picker */}
+                  <div className="ml-6 flex items-center gap-2 flex-wrap">
+                    <Label className="text-sm text-muted-foreground mr-1">Color</Label>
+                    {PIPELINE_COLOR_PRESETS.map((c) => {
+                      const selected = (pipeline.color || "").toLowerCase() === c.value.toLowerCase();
+                      return (
+                        <button
+                          key={c.value}
+                          type="button"
+                          title={c.name}
+                          onClick={() => handleUpdatePipelineColor(pipeline.id, c.value)}
+                          className={`h-6 w-6 rounded-full border-2 transition-transform ${selected ? "border-foreground scale-110" : "border-transparent hover:scale-110"}`}
+                          style={{ backgroundColor: c.value }}
+                        />
+                      );
+                    })}
+                    {pipeline.color && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePipelineColor(pipeline.id, null)}
+                        className="text-xs text-muted-foreground underline ml-1"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
                   {/* Stages */}
                   <div className="ml-6 space-y-2">
                     <Label className="text-sm text-muted-foreground">
