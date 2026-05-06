@@ -1118,6 +1118,7 @@ const Pipelines = () => {
                   <DroppableStage stage={stage}>
                     <div 
                       className="bg-muted/40 rounded-lg p-3 cursor-pointer hover:bg-muted/60 transition-colors h-full"
+                      style={headerStyle}
                       onClick={() => toggleStageCollapse(stage.id)}
                     >
                       <div className="flex flex-col items-center gap-2">
