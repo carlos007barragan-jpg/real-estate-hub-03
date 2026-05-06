@@ -500,6 +500,7 @@ const Pipelines = () => {
         rawPipelines = pipelinesResult.data.map((p: any) => ({
           id: p.id,
           name: p.name,
+          color: p.color ?? null,
           stages: (p.stages as any[]).map(s => ({ ...s, deals: [] })),
         }));
       }
