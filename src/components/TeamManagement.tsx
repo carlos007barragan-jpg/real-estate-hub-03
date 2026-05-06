@@ -401,6 +401,19 @@ export const TeamManagement = () => {
           </TableBody>
         </Table>
       </CardContent>
+      {accessDialogUser && orgId && (
+        <PipelineAccessDialog
+          open={!!accessDialogUser}
+          onOpenChange={(open) => !open && setAccessDialogUser(null)}
+          userId={accessDialogUser.id}
+          userName={
+            accessDialogUser.first_name && accessDialogUser.last_name
+              ? `${accessDialogUser.first_name} ${accessDialogUser.last_name}`
+              : accessDialogUser.email
+          }
+          organizationId={orgId}
+        />
+      )}
     </Card>
   );
 };
