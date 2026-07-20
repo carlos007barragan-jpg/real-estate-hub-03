@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.full-export]
 verify_jwt = false
+
+[functions.doc-urls]
+verify_jwt = false
